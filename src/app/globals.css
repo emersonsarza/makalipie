@@ -84,6 +84,8 @@
   --sidebar-accent-foreground: #2c2a28;
   --sidebar-border: rgb(44 42 40 / 12%);
   --sidebar-ring: #f4c430;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 @layer base {
@@ -112,4 +114,112 @@
 
 @utility font-heading {
   font-family: var(--font-heading), ui-serif, Georgia, serif;
+}
+
+@keyframes enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes enter-scale {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@layer components {
+  .hero-enter {
+    animation: enter-up 450ms var(--ease-out) both;
+  }
+
+  .hero-enter-scale {
+    animation: enter-scale 450ms var(--ease-out) both;
+  }
+
+  .hero-delay-1 {
+    animation-delay: 60ms;
+  }
+
+  .hero-delay-2 {
+    animation-delay: 120ms;
+  }
+
+  .hero-delay-3 {
+    animation-delay: 180ms;
+  }
+
+  .hero-delay-4 {
+    animation-delay: 240ms;
+  }
+
+  .hero-delay-5 {
+    animation-delay: 300ms;
+  }
+
+  .hero-delay-6 {
+    animation-delay: 360ms;
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(16px);
+    transition:
+      opacity 280ms var(--ease-out),
+      transform 280ms var(--ease-out);
+  }
+
+  .reveal[data-visible] {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .hero-enter,
+  .hero-enter-scale {
+    animation-name: fade-in;
+    animation-duration: 200ms;
+  }
+
+  .reveal {
+    transform: none;
+    transition: opacity 200ms var(--ease-out);
+  }
+
+  .reveal[data-visible] {
+    transform: none;
+  }
+
+  #mobile-nav {
+    transition: none;
+  }
+
+  #mobile-nav nav {
+    transform: none !important;
+    transition: opacity 200ms var(--ease-out);
+  }
 }

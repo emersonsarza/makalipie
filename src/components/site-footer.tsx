@@ -1,4 +1,5 @@
 import { MapPin } from "lucide-react";
+import Link from "next/link";
 
 import { InstagramIcon } from "@/components/icons";
 import { LogoMark } from "@/components/logo";
@@ -57,9 +58,12 @@ export function SiteFooter() {
             Classic flavors also on GrabFood. Custom, corporate, and dessert
             tables — message us on Instagram.
           </p>
-          <p className="mt-6 inline-flex rounded-full bg-cream/10 px-3 py-1.5 text-xs font-semibold tracking-wide text-cream/80 uppercase">
-            Pre-order coming soon
-          </p>
+          <Link
+            href="/order"
+            className="mt-5 inline-flex text-sm font-semibold text-crust hover:underline"
+          >
+            Order via form →
+          </Link>
         </div>
       </div>
       <div className="border-t border-cream/10">

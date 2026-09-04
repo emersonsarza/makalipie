@@ -1,6 +1,7 @@
 export const site = {
   name: "Makalipie",
   tagline: "Where every bite tastes like home",
+  slogan: "Makalipie gyud ni!",
   description:
     "Proudly Cebuana-made tarts and pies with a one-of-a-kind handcrafted crust. Visit us at Streetscape, Banilad, Cebu.",
   established: 2020,
@@ -33,10 +34,10 @@ export const site = {
 } as const;
 
 export const nav = [
-  { href: "#menu", label: "Menu" },
-  { href: "#story", label: "Our story" },
-  { href: "#visit", label: "Visit" },
-  { href: "#order", label: "How to order" },
+  { href: "/menu", label: "Menu" },
+  { href: "/#story", label: "Our story" },
+  { href: "/#visit", label: "Visit" },
+  { href: "/order", label: "Order" },
 ] as const;
 
 export type MenuItem = {
@@ -44,6 +45,8 @@ export type MenuItem = {
   name: string;
   kind: "sweet" | "savory";
   blurb: string;
+  description: string;
+  price?: number;
   note?: string;
   bestseller?: boolean;
   image: {
@@ -57,7 +60,10 @@ export const menuItems: MenuItem[] = [
     slug: "keylime",
     name: "Keylime",
     kind: "sweet",
+    price: 240,
     blurb: "Tart, sunny, and a little tropical — a squeeze of sunshine in a flaky shell.",
+    description:
+      "A zesty, tangy delight with a smooth lime filling on a graham crust, finished with a dollop of whipped cream—refreshingly irresistible.",
     image: {
       src: "https://images.unsplash.com/photo-1519915028121-7d3463d20b13?auto=format&fit=crop&w=1200&q=80",
       alt: "A citrus tart with a golden crust and creamy yellow filling, garnished with lime zest",
@@ -67,7 +73,10 @@ export const menuItems: MenuItem[] = [
     slug: "pecan",
     name: "Pecan",
     kind: "sweet",
+    price: 240,
     blurb: "Toasty pecans, caramel-deep sweetness, and that crackly top we all fight over.",
+    description:
+      "A decadent mix of buttery caramel and toasted pecans on our signature all butter shortcrust.",
     image: {
       src: "https://images.unsplash.com/photo-1535920527002-b35e96722eb9?auto=format&fit=crop&w=1200&q=80",
       alt: "A rustic lattice-crust pie with one slice pulled away, showing a glossy amber filling",
@@ -77,7 +86,10 @@ export const menuItems: MenuItem[] = [
     slug: "smores",
     name: "S’mores",
     kind: "sweet",
+    price: 190,
     blurb: "Campfire nostalgia: toasted marshmallow, chocolate, and a graham-kissed crust.",
+    description:
+      "A rich chocolate ganache topped with graham and gooey marshmallows for the ultimate treat.",
     image: {
       src: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=1200&q=80",
       alt: "A rich chocolate dessert with a crackled top, close-up in warm light",
@@ -87,7 +99,10 @@ export const menuItems: MenuItem[] = [
     slug: "banoffee",
     name: "Banoffee",
     kind: "sweet",
+    price: 240,
     blurb: "Banana, toffee, cream — the kind of slice that makes people close their eyes.",
+    description:
+      "A heavenly blend of bananas and creamy caramel, topped with whipped cream for a classic indulgence.",
     image: {
       src: "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=1200&q=80",
       alt: "Creamy layered dessert cups with caramel tones and a dusting of cocoa",
@@ -97,7 +112,10 @@ export const menuItems: MenuItem[] = [
     slug: "oreo",
     name: "Oreo",
     kind: "sweet",
+    price: 190,
     blurb: "Cookies-and-cream comfort, piled into our handcrafted crust.",
+    description:
+      "A rich and creamy Oreo-infused white chocolate ganache with layers of crushed cookies, a true crowd-pleaser.",
     image: {
       src: "https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&w=1200&q=80",
       alt: "A cookies-and-cream style dessert with dark cookie crumbs and whipped topping",
@@ -108,6 +126,8 @@ export const menuItems: MenuItem[] = [
     name: "Buko",
     kind: "sweet",
     blurb: "Young coconut, creamy filling, and the crust that started all the DMs.",
+    description:
+      "Our bestseller: young coconut cream in a handcrafted crust. Available Friday to Sunday — message us to secure a pie.",
     note: "Bestseller · Fri–Sun · message us to order",
     bestseller: true,
     image: {
@@ -120,6 +140,8 @@ export const menuItems: MenuItem[] = [
     name: "Butter Chicken Curry pie",
     kind: "savory",
     blurb: "Slow, saucy, and wrapped in that one-of-a-kind flaky crust. Sunday’s savory hero.",
+    description:
+      "Slow, saucy butter chicken curry wrapped in our one-of-a-kind flaky crust. Find it at the Sunday market.",
     note: "Sunday Market · ~7AM–3PM",
     image: {
       src: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&w=1400&q=80",
@@ -130,6 +152,98 @@ export const menuItems: MenuItem[] = [
 
 export const sweetItems = menuItems.filter((item) => item.kind === "sweet");
 export const savoryItems = menuItems.filter((item) => item.kind === "savory");
+
+export const featuredMenuSlugs = [
+  "buko",
+  "keylime",
+  "pecan",
+] as const;
+
+export const addons = [
+  {
+    id: "birthday-topper",
+    label: "Birthday Topper",
+    price: 8,
+  },
+  {
+    id: "note-card",
+    label: "Note Card With Ribbon",
+    price: 15,
+    hasMessage: true,
+  },
+] as const;
+
+export const deliveryOptions = [
+  {
+    id: "pickup",
+    label: "Pickup",
+    detail: "2nd Floor, Streetscape, Banilad",
+    needsAddress: false,
+  },
+  {
+    id: "lalamove",
+    label: "Delivery (Lalamove)",
+    detail: "We’ll coordinate booking after confirmation",
+    needsAddress: true,
+  },
+] as const;
+
+export const paymentMethods = [
+  { id: "bank", label: "Bank Transfer" },
+  { id: "gcash", label: "GCash" },
+  { id: "cash", label: "Cash upon Pickup/Delivery" },
+] as const;
+
+export const bankDetails = {
+  bank: "UnionBank",
+  accountName: "Makalipie Homemade Food Retailing",
+  accountNumber: "0006 6002 9224",
+  gcashName: "DO*****A A** M.",
+} as const;
+
+export const orderSteps = [
+  {
+    step: 1,
+    title: "Order",
+    body: "Browse our menu and send your filled-out order form through our Instagram inbox.",
+  },
+  {
+    step: 2,
+    title: "Confirmation",
+    body: "Wait for our order confirmation and invoice.",
+  },
+  {
+    step: 3,
+    title: "Payment",
+    body: "Pay, then submit your proof of payment to secure your slot.",
+  },
+  {
+    step: 4,
+    title: "Delivery",
+    body: "Wait for your goodies to arrive! We’ll update you on the day of delivery.",
+  },
+] as const;
+
+export const reviews = [
+  {
+    quote:
+      "The crust alone is worth the trip to Streetscape. Buko on Friday is non-negotiable now.",
+    name: "Aya M.",
+    context: "Regular · Banilad",
+  },
+  {
+    quote:
+      "Ordered pecan and keylime for a office treat — they disappeared before I got a second slice.",
+    name: "Jon R.",
+    context: "Corporate box",
+  },
+  {
+    quote:
+      "Makalipie gyud ni! Warm, handmade, and the DMs are always kind. Tag us next time you visit.",
+    name: "Kai L.",
+    context: "Sunday market",
+  },
+] as const;
 
 export const storyImages = {
   kitchen: {
@@ -145,6 +259,10 @@ export const storyImages = {
     alt: "Rows of freshly baked golden pastries cooling in a bakery",
   },
 } as const;
+
+export function formatPrice(price: number) {
+  return `₱${price.toLocaleString("en-PH")}`;
+}
 
 export function getSiteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL ?? "https://makalipie.vercel.app";

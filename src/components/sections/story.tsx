@@ -1,12 +1,13 @@
 import Image from "next/image";
 
+import { Reveal } from "@/components/reveal";
 import { storyImages } from "@/lib/site";
 
 export function StorySection() {
   return (
     <section id="story" className="scroll-mt-24 py-16 sm:py-20">
       <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 sm:px-6 lg:grid-cols-2">
-        <div className="grid grid-cols-2 gap-3">
+        <Reveal className="grid grid-cols-2 gap-3">
           <div className="relative col-span-2 aspect-[16/10] overflow-hidden rounded-[1.6rem]">
             <Image
               src={storyImages.kitchen.src}
@@ -33,9 +34,9 @@ export function StorySection() {
               Handmade in Cebu
             </p>
           </div>
-        </div>
+        </Reveal>
 
-        <div>
+        <Reveal delay={60}>
           <p className="text-xs font-bold tracking-[0.2em] text-charcoal/60 uppercase">
             Our story
           </p>
@@ -49,18 +50,18 @@ export function StorySection() {
               factory-flat.
             </p>
             <p>
-              The thing people DM us about? The crust. We roll it by hand,
-              bake it till it shatters just so, and fill it with the flavors
-              Cebu keeps coming back for: Keylime, Pecan, S&apos;mores,
-              Banoffee, Oreo, and our bestseller Buko.
+              The thing people DM us about? The crust. We roll it by hand, bake
+              it till it shatters just so, and fill it with the flavors Cebu
+              keeps coming back for: Keylime, Pecan, S&apos;mores, Banoffee,
+              Oreo, and our bestseller Buko.
             </p>
             <p>
               Some days it&apos;s a quiet kiosk slice at Streetscape. Sundays,
-              it&apos;s Butter Chicken Curry pie at the market. Always, it&apos;s
-              made with a little extra heart.
+              it&apos;s Butter Chicken Curry pie at the market. Always,
+              it&apos;s made with a little extra heart.
             </p>
           </div>
-        </div>
+        </Reveal>
       </div>
     </section>
   );
