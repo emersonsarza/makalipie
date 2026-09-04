@@ -1,10 +1,20 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Fraunces, Geist_Mono, Nunito } from "next/font/google";
+
+import { getSiteUrl, site } from "@/lib/site";
+
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const nunito = Nunito({
+  variable: "--font-nunito",
   subsets: ["latin"],
+  display: "swap",
+});
+
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
@@ -12,18 +22,96 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = getSiteUrl();
+
+export const viewport: Viewport = {
+  themeColor: "#FFF8F0",
+  width: "device-width",
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
-  title: "Makalipie",
-  description: "Makalipie",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "Makalipie — Where every bite tastes like home",
+    template: "%s · Makalipie",
+  },
+  description: site.description,
+  keywords: [
+    "Makalipie",
+    "Cebu pies",
+    "Cebu tarts",
+    "Buko pie Cebu",
+    "Streetscape Banilad",
+    "Cebuana bakery",
+  ],
+  authors: [{ name: "Makalipie" }],
+  openGraph: {
+    type: "website",
+    locale: "en_PH",
+    url: siteUrl,
+    siteName: site.name,
+    title: "Makalipie — Where every bite tastes like home",
+    description: site.description,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Makalipie — Where every bite tastes like home",
+    description: site.description,
+  },
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Bakery",
+  name: site.name,
+  description: site.description,
+  url: siteUrl,
+  image: `${siteUrl}/opengraph-image`,
+  sameAs: [site.instagramUrl],
+  address: {
+    "@type": "PostalAddress",
+    streetAddress: `${site.kiosk.floor}, ${site.kiosk.place}`,
+    addressLocality: site.kiosk.city,
+    addressRegion: "Cebu",
+    addressCountry: "PH",
+  },
+  openingHoursSpecification: {
+    "@type": "OpeningHoursSpecification",
+    dayOfWeek: [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday",
+    ],
+    opens: site.kiosk.opens,
+    closes: site.kiosk.closes,
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${nunito.variable} ${fraunces.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+        {children}
+      </body>
     </html>
   );
 }
