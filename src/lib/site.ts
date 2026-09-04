@@ -69,8 +69,8 @@ export const menuItems: MenuItem[] = [
     kind: "sweet",
     blurb: "Toasty pecans, caramel-deep sweetness, and that crackly top we all fight over.",
     image: {
-      src: "https://images.unsplash.com/photo-1621743478914-cc8a16d7d0e5?auto=format&fit=crop&w=1200&q=80",
-      alt: "A rustic pie with a deeply golden, flaky crust sitting on a wooden table",
+      src: "https://images.unsplash.com/photo-1535920527002-b35e96722eb9?auto=format&fit=crop&w=1200&q=80",
+      alt: "A rustic lattice-crust pie with one slice pulled away, showing a glossy amber filling",
     },
   },
   {
@@ -122,8 +122,8 @@ export const menuItems: MenuItem[] = [
     blurb: "Slow, saucy, and wrapped in that one-of-a-kind flaky crust. Sunday’s savory hero.",
     note: "Sunday Market · ~7AM–3PM",
     image: {
-      src: "https://images.unsplash.com/photo-1608039829574-aaa80e85ba42?auto=format&fit=crop&w=1400&q=80",
-      alt: "A savory pie with a deeply golden flaky crust, sliced to show a rich filling",
+      src: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&w=1400&q=80",
+      alt: "A copper bowl of creamy butter chicken curry garnished with cream and herbs",
     },
   },
 ];
