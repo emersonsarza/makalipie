@@ -265,5 +265,5 @@ export function formatPrice(price: number) {
 }
 
 export function getSiteUrl() {
-  return process.env.NEXT_PUBLIC_SITE_URL ?? "https://makalipie.vercel.app";
+  return process.env.NEXT_PUBLIC_SITE_URL ?? "https://makalipie.by1002.com";
 }

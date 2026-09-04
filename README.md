@@ -45,7 +45,7 @@ App listens on host port **3006** (`3006:3000`). Point your reverse proxy at it.
 
 | Name | Purpose |
 | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | Canonical URL for SEO / OG / sitemap (defaults to `https://makalipie.vercel.app`) |
+| `NEXT_PUBLIC_SITE_URL` | Canonical URL for SEO / OG / sitemap (defaults to `https://makalipie.by1002.com`) |
 
 ## What’s on the site
 
