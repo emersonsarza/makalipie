@@ -8,8 +8,6 @@ export const site = {
   instagramHandle: "makalipie",
   instagramUrl: "https://www.instagram.com/makalipie/",
   instagramDmUrl: "https://ig.me/m/makalipie",
-  grabFoodUrl: "https://food.grab.com/ph/en/",
-  grabFoodLabel: "Search Makalipie on GrabFood",
   mapsUrl:
     "https://www.google.com/maps/search/?api=1&query=Streetscape%20Banilad%20Cebu",
   mapsEmbedUrl:
@@ -40,6 +38,8 @@ export const nav = [
   { href: "/order", label: "Order" },
 ] as const;
 
+export const navHashIds = ["story", "visit"] as const;
+
 export type MenuItem = {
   slug: string;
   name: string;
@@ -47,6 +47,7 @@ export type MenuItem = {
   blurb: string;
   description: string;
   price?: number;
+  priceLabel?: string;
   note?: string;
   bestseller?: boolean;
   image: {
@@ -65,8 +66,8 @@ export const menuItems: MenuItem[] = [
     description:
       "A zesty, tangy delight with a smooth lime filling on a graham crust, finished with a dollop of whipped cream—refreshingly irresistible.",
     image: {
-      src: "https://images.unsplash.com/photo-1519915028121-7d3463d20b13?auto=format&fit=crop&w=1200&q=80",
-      alt: "A citrus tart with a golden crust and creamy yellow filling, garnished with lime zest",
+      src: "/images/menu/keylime.jpg",
+      alt: "A slice of Keylime tart with graham crust, creamy filling, and whipped cream",
     },
   },
   {
@@ -78,8 +79,8 @@ export const menuItems: MenuItem[] = [
     description:
       "A decadent mix of buttery caramel and toasted pecans on our signature all butter shortcrust.",
     image: {
-      src: "https://images.unsplash.com/photo-1535920527002-b35e96722eb9?auto=format&fit=crop&w=1200&q=80",
-      alt: "A rustic lattice-crust pie with one slice pulled away, showing a glossy amber filling",
+      src: "/images/menu/pecan.jpg",
+      alt: "A whole pecan tart with a golden fluted crust and glossy toasted pecans",
     },
   },
   {
@@ -91,8 +92,8 @@ export const menuItems: MenuItem[] = [
     description:
       "A rich chocolate ganache topped with graham and gooey marshmallows for the ultimate treat.",
     image: {
-      src: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=1200&q=80",
-      alt: "A rich chocolate dessert with a crackled top, close-up in warm light",
+      src: "/images/menu/smores.jpg",
+      alt: "Close-up of a chocolate tart topped with toasted marshmallow",
     },
   },
   {
@@ -104,8 +105,8 @@ export const menuItems: MenuItem[] = [
     description:
       "A heavenly blend of bananas and creamy caramel, topped with whipped cream for a classic indulgence.",
     image: {
-      src: "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=1200&q=80",
-      alt: "Creamy layered dessert cups with caramel tones and a dusting of cocoa",
+      src: "/images/menu/banoffee.jpg",
+      alt: "A slice of Banoffee tart with banana, caramel, and cream",
     },
   },
   {
@@ -117,35 +118,37 @@ export const menuItems: MenuItem[] = [
     description:
       "A rich and creamy Oreo-infused white chocolate ganache with layers of crushed cookies, a true crowd-pleaser.",
     image: {
-      src: "https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&w=1200&q=80",
-      alt: "A cookies-and-cream style dessert with dark cookie crumbs and whipped topping",
+      src: "/images/menu/oreo.jpg",
+      alt: "Stacked slices of Oreo tart with cookies-and-cream filling",
     },
   },
   {
     slug: "buko",
     name: "Buko",
     kind: "sweet",
+    priceLabel: "DM for price",
     blurb: "Young coconut, creamy filling, and the crust that started all the DMs.",
     description:
       "Our bestseller: young coconut cream in a handcrafted crust. Available Friday to Sunday — message us to secure a pie.",
-    note: "Bestseller · Fri–Sun · message us to order",
+    note: "Fri–Sun · pre-order via Instagram",
     bestseller: true,
     image: {
-      src: "https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?auto=format&fit=crop&w=1200&q=80",
-      alt: "Fresh young coconuts and creamy white coconut meat, suggesting buko pie filling",
+      src: "/images/menu/buko.jpg",
+      alt: "A creamy tart slice in a graham crust, the style of our Buko bestseller",
     },
   },
   {
     slug: "butter-chicken-curry",
     name: "Butter Chicken Curry pie",
     kind: "savory",
+    priceLabel: "DM for price",
     blurb: "Slow, saucy, and wrapped in that one-of-a-kind flaky crust. Sunday’s savory hero.",
     description:
       "Slow, saucy butter chicken curry wrapped in our one-of-a-kind flaky crust. Find it at the Sunday market.",
     note: "Sunday Market · ~7AM–3PM",
     image: {
-      src: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&w=1400&q=80",
-      alt: "A copper bowl of creamy butter chicken curry garnished with cream and herbs",
+      src: "/images/menu/butter-chicken.jpg",
+      alt: "Close-up of Makalipie’s handcrafted golden tart crust",
     },
   },
 ];
@@ -201,6 +204,19 @@ export const bankDetails = {
   gcashName: "DO*****A A** M.",
 } as const;
 
+export const pickupTimes = [
+  "10:00 AM",
+  "11:00 AM",
+  "12:00 PM",
+  "1:00 PM",
+  "2:00 PM",
+  "3:00 PM",
+  "4:00 PM",
+  "5:00 PM",
+  "6:00 PM",
+  "7:00 PM",
+] as const;
+
 export const orderSteps = [
   {
     step: 1,
@@ -224,39 +240,31 @@ export const orderSteps = [
   },
 ] as const;
 
-export const reviews = [
-  {
-    quote:
-      "The crust alone is worth the trip to Streetscape. Buko on Friday is non-negotiable now.",
-    name: "Aya M.",
-    context: "Regular · Banilad",
-  },
-  {
-    quote:
-      "Ordered pecan and keylime for a office treat — they disappeared before I got a second slice.",
-    name: "Jon R.",
-    context: "Corporate box",
-  },
-  {
-    quote:
-      "Makalipie gyud ni! Warm, handmade, and the DMs are always kind. Tag us next time you visit.",
-    name: "Kai L.",
-    context: "Sunday market",
-  },
-] as const;
+export type Review = {
+  quote: string;
+  name: string;
+  context: string;
+};
+
+export const reviews: Review[] = [];
+
+export const heroImage = {
+  src: "/images/hero.jpg",
+  alt: "A handcrafted pecan tart with a golden fluted crust, baked in Cebu",
+} as const;
 
 export const storyImages = {
   kitchen: {
-    src: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1400&q=80",
-    alt: "A baker rolling dough on a floured wooden counter in a warm kitchen",
+    src: "/images/story/kitchen.jpg",
+    alt: "A freshly baked pecan tart with a golden handcrafted crust",
   },
   crust: {
-    src: "https://images.unsplash.com/photo-1464305795204-6f5bbfc7fb81?auto=format&fit=crop&w=1400&q=80",
-    alt: "A fruit tart with a scalloped pastry crust and glossy berries on top",
+    src: "/images/story/crust.jpg",
+    alt: "Close-up of Makalipie’s flaky, golden tart crust",
   },
   bakery: {
-    src: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1200&q=80",
-    alt: "Rows of freshly baked golden pastries cooling in a bakery",
+    src: "/images/story/bakery.jpg",
+    alt: "Pecan and chocolate tarts with scalloped pastry crusts",
   },
 } as const;
 
@@ -264,6 +272,37 @@ export function formatPrice(price: number) {
   return `₱${price.toLocaleString("en-PH")}`;
 }
 
+export function itemPriceText(item: Pick<MenuItem, "price" | "priceLabel">) {
+  if (item.price != null) return formatPrice(item.price);
+  return item.priceLabel ?? "DM for price";
+}
+
 export function getSiteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL ?? "https://makalipie.by1002.com";
+}
+
+export function getOrderSummarySource() {
+  try {
+    const url = new URL(getSiteUrl());
+    return `${url.host}/order`;
+  } catch {
+    return "makalipie.by1002.com/order";
+  }
+}
+
+const grabFoodStoreUrl = process.env.NEXT_PUBLIC_GRABFOOD_URL?.trim() ?? "";
+
+export function getGrabFood() {
+  if (grabFoodStoreUrl) {
+    return {
+      href: grabFoodStoreUrl,
+      label: "Order on GrabFood",
+      linked: true as const,
+    };
+  }
+  return {
+    href: null,
+    label: "Search Makalipie on GrabFood",
+    linked: false as const,
+  };
 }

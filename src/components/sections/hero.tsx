@@ -2,8 +2,9 @@ import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 
 import { LogoMark } from "@/components/logo";
+import { OrderChannelLine } from "@/components/order-channel-line";
 import { buttonVariants } from "@/components/ui/button";
-import { site, storyImages } from "@/lib/site";
+import { heroImage, site } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 export function Hero() {
@@ -19,7 +20,7 @@ export function Hero() {
           </h1>
           <p className="hero-enter hero-delay-2 mt-5 max-w-lg text-lg leading-relaxed text-charcoal/75">
             Tarts &amp; pies with a one-of-a-kind handcrafted crust. Come hungry
-            to Streetscape, Banilad — or slide into our DMs. We&apos;ll save you
+            to Streetscape, Banilad, or slide into our DMs. We&apos;ll save you
             a slice.
           </p>
           <div className="hero-enter hero-delay-3 mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -40,36 +41,25 @@ export function Hero() {
                 "h-12 rounded-full border-charcoal/15 bg-cream px-6 text-base font-semibold"
               )}
             >
-              Order now
+              Open order form
             </a>
           </div>
-          <p className="hero-enter hero-delay-4 mt-4 text-sm text-charcoal/60">
-            Classic flavors also on{" "}
-            <a
-              href={site.grabFoodUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="font-semibold text-charcoal underline decoration-crust decoration-2 underline-offset-4"
-            >
-              GrabFood
-            </a>
-            .
-          </p>
+          <OrderChannelLine className="hero-enter hero-delay-4 mt-4" />
         </div>
 
         <div className="hero-enter hero-delay-2 relative order-1 mx-auto w-full max-w-md lg:order-2 lg:max-w-none">
           <div className="hero-enter-scale hero-delay-3 absolute -top-4 -left-3 z-10 size-20 sm:size-24 lg:-left-6">
-            <LogoMark className="size-full drop-shadow-md" />
+            <LogoMark className="size-full drop-shadow-md" markId="hero-logo" />
           </div>
           <div className="overflow-hidden rounded-[2rem] border border-charcoal/8 bg-butter shadow-[0_24px_60px_-28px_rgb(44_42_40_/_45%)]">
             <div className="relative aspect-[4/5] sm:aspect-[5/6]">
               <Image
-                src={storyImages.crust.src}
-                alt={storyImages.crust.alt}
+                src={heroImage.src}
+                alt={heroImage.alt}
                 fill
                 priority
                 sizes="(max-width: 1024px) 90vw, 42vw"
-                className="object-cover"
+                className="object-cover object-[center_20%]"
               />
             </div>
           </div>

@@ -102,6 +102,8 @@
     background-image:
       radial-gradient(circle at 12% 8%, rgb(244 196 48 / 12%), transparent 28%),
       radial-gradient(circle at 88% 0%, rgb(232 93 76 / 6%), transparent 24%);
+    letter-spacing: 0;
+    line-height: 1.5;
   }
 
   h1,
@@ -109,6 +111,22 @@
   h3,
   h4 {
     @apply font-heading text-balance;
+    font-optical-sizing: auto;
+  }
+
+  h1 {
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+  }
+
+  h2 {
+    letter-spacing: -0.015em;
+    line-height: 1.12;
+  }
+
+  h3 {
+    letter-spacing: -0.01em;
+    line-height: 1.2;
   }
 }
 
@@ -148,6 +166,33 @@
 }
 
 @layer components {
+  .site-header {
+    background: rgb(255 248 240 / 70%);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  .site-header::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -12px;
+    height: 12px;
+    pointer-events: none;
+    background: linear-gradient(
+      to bottom,
+      rgb(255 248 240 / 55%),
+      transparent
+    );
+  }
+
+  .site-header-panel {
+    background: rgb(255 248 240 / 82%);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+  }
+
   .hero-enter {
     animation: enter-up 450ms var(--ease-out) both;
   }
@@ -182,7 +227,7 @@
 
   .reveal {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(10px);
     transition:
       opacity 280ms var(--ease-out),
       transform 280ms var(--ease-out);
@@ -191,6 +236,130 @@
   .reveal[data-visible] {
     opacity: 1;
     transform: translateY(0);
+  }
+
+  .pressable {
+    transition:
+      transform 100ms var(--ease-out),
+      background-color 150ms var(--ease-out);
+  }
+
+  .pressable:active {
+    transform: scale(0.97);
+  }
+
+  [data-slot="button"] {
+    transition:
+      transform 100ms var(--ease-out),
+      opacity 150ms ease,
+      background-color 150ms ease,
+      border-color 150ms ease,
+      color 150ms ease,
+      box-shadow 150ms ease;
+  }
+
+  .hover-surface {
+    transition: background-color 150ms var(--ease-out);
+  }
+
+  .mobile-nav-item {
+    opacity: 0;
+    transform: translateY(6px);
+    transition:
+      opacity 200ms var(--ease-out),
+      transform 200ms var(--ease-out),
+      background-color 150ms var(--ease-out);
+  }
+
+  #mobile-nav {
+    transition-property: grid-template-rows;
+    transition-timing-function: var(--ease-out);
+  }
+
+  #mobile-nav[data-state="open"] {
+    transition-duration: 240ms;
+  }
+
+  #mobile-nav[data-state="closed"] {
+    transition-duration: 170ms;
+  }
+
+  #mobile-nav > div > nav {
+    transition-property: opacity, transform;
+    transition-timing-function: var(--ease-out);
+  }
+
+  #mobile-nav[data-state="open"] > div > nav {
+    transition-duration: 240ms;
+  }
+
+  #mobile-nav[data-state="closed"] > div > nav {
+    transition-duration: 170ms;
+  }
+
+  #mobile-nav[data-state="open"] .mobile-nav-item {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  #mobile-nav[data-state="open"] .mobile-nav-item:nth-child(1) {
+    transition-delay: 30ms;
+  }
+
+  #mobile-nav[data-state="open"] .mobile-nav-item:nth-child(2) {
+    transition-delay: 60ms;
+  }
+
+  #mobile-nav[data-state="open"] .mobile-nav-item:nth-child(3) {
+    transition-delay: 90ms;
+  }
+
+  #mobile-nav[data-state="open"] .mobile-nav-item:nth-child(4) {
+    transition-delay: 120ms;
+  }
+
+  #mobile-nav[data-state="open"] .mobile-nav-item:nth-child(5) {
+    transition-delay: 150ms;
+  }
+
+  #mobile-nav[data-state="closed"] .mobile-nav-item {
+    transition-delay: 0ms;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .menu-card-image {
+    transition: transform 180ms var(--ease-out);
+  }
+
+  .group\/card:hover .menu-card-image {
+    transform: scale(1.03);
+  }
+
+  .hover-surface:hover {
+    background-color: var(--color-butter);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .site-header {
+    background: rgb(255 248 240 / 96%);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .site-header::after {
+    background: linear-gradient(
+      to bottom,
+      rgb(255 248 240 / 80%),
+      transparent
+    );
+  }
+
+  .site-header-panel {
+    background: #fff8f0;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }
 
@@ -221,5 +390,15 @@
   #mobile-nav nav {
     transform: none !important;
     transition: opacity 200ms var(--ease-out);
+  }
+
+  .mobile-nav-item {
+    transform: none !important;
+    transition: opacity 160ms var(--ease-out);
+  }
+
+  .pressable:active,
+  .menu-card-image {
+    transform: none !important;
   }
 }

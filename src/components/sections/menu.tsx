@@ -10,11 +10,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { OrderChannelLine } from "@/components/order-channel-line";
 import {
   featuredMenuSlugs,
-  formatPrice,
+  itemPriceText,
   menuItems,
-  site,
 } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
@@ -52,7 +52,7 @@ export function MenuSection() {
                       alt={item.image.alt}
                       fill
                       sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                      className="object-cover transition duration-500 group-hover/card:scale-[1.03]"
+                      className="menu-card-image object-cover"
                     />
                     {item.bestseller ? (
                       <Badge
@@ -62,11 +62,9 @@ export function MenuSection() {
                         Bestseller
                       </Badge>
                     ) : null}
-                    {item.price != null ? (
-                      <span className="absolute top-3 right-3 rounded-full bg-cream px-3 py-1 text-sm font-bold text-charcoal shadow-sm ring-1 ring-charcoal/10">
-                        {formatPrice(item.price)}
-                      </span>
-                    ) : null}
+                    <span className="absolute top-3 right-3 rounded-full bg-cream px-3 py-1 text-sm font-bold text-charcoal shadow-sm ring-1 ring-charcoal/10">
+                      {itemPriceText(item)}
+                    </span>
                   </div>
                   <CardHeader className="pt-4 pb-4">
                     <CardTitle className="font-heading text-xl">
@@ -99,11 +97,9 @@ export function MenuSection() {
               "h-12 rounded-full border-charcoal/15 bg-cream px-6 text-base font-semibold"
             )}
           >
-            Order now
+            Open order form
           </Link>
-          <p className="text-sm text-charcoal/60 sm:ml-2">
-            {site.slogan}
-          </p>
+          <OrderChannelLine className="sm:ml-2" />
         </Reveal>
       </div>
     </section>

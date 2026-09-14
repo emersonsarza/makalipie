@@ -3,15 +3,17 @@ import Link from "next/link";
 
 import { InstagramIcon } from "@/components/icons";
 import { LogoMark } from "@/components/logo";
-import { site } from "@/lib/site";
+import { getGrabFood, site } from "@/lib/site";
 
 export function SiteFooter() {
+  const grab = getGrabFood();
+
   return (
     <footer className="border-t border-charcoal/10 bg-charcoal text-cream">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.2fr_0.8fr_0.8fr]">
         <div>
           <div className="flex items-center gap-3">
-            <LogoMark className="size-16" />
+            <LogoMark className="size-16" markId="footer-logo" />
             <div>
               <p className="font-heading text-2xl">Makalipie</p>
               <p className="text-sm text-cream/70">{site.tagline}</p>
@@ -55,14 +57,31 @@ export function SiteFooter() {
             @{site.instagramHandle}
           </a>
           <p className="mt-4 text-sm text-cream/70">
-            Classic flavors also on GrabFood. Custom, corporate, and dessert
-            tables — message us on Instagram.
+            {grab.linked ? (
+              <>
+                Classics:{" "}
+                <a
+                  href={grab.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-crust hover:underline"
+                >
+                  GrabFood
+                </a>
+                . Custom, corporate, and dessert tables — message us on
+                Instagram.
+              </>
+            ) : (
+              <>
+                Custom, corporate, and dessert tables — message us on Instagram.
+              </>
+            )}
           </p>
           <Link
             href="/order"
             className="mt-5 inline-flex text-sm font-semibold text-crust hover:underline"
           >
-            Order via form →
+            Open order form
           </Link>
         </div>
       </div>

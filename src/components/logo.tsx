@@ -37,11 +37,18 @@ const CREAM = "#FFF8F0";
 type LogoProps = {
   className?: string;
   title?: string;
+  markId?: string;
 };
 
-export function LogoMark({ className, title = "Makalipie" }: LogoProps) {
+export function LogoMark({
+  className,
+  title = "Makalipie",
+  markId = "logo",
+}: LogoProps) {
   const outer = pieCrustPath(100, 100, 84, 18, 11);
   const inner = pieCrustPath(100, 100, 78, 18, 10);
+  const topArc = `${markId}-top-arc`;
+  const bottomArc = `${markId}-bottom-arc`;
 
   return (
     <svg
@@ -53,12 +60,12 @@ export function LogoMark({ className, title = "Makalipie" }: LogoProps) {
       <title>{title}</title>
       <defs>
         <path
-          id="logo-top-arc"
+          id={topArc}
           d="M 48 108 A 56 56 0 0 1 152 108"
           fill="none"
         />
         <path
-          id="logo-bottom-arc"
+          id={bottomArc}
           d="M 150 118 A 54 54 0 0 1 50 118"
           fill="none"
         />
@@ -72,7 +79,7 @@ export function LogoMark({ className, title = "Makalipie" }: LogoProps) {
         fontFamily="Georgia, 'Times New Roman', serif"
         letterSpacing="2.2"
       >
-        <textPath href="#logo-top-arc" startOffset="50%" textAnchor="middle">
+        <textPath href={`#${topArc}`} startOffset="50%" textAnchor="middle">
           TARTS &amp; PIES
         </textPath>
       </text>
@@ -83,7 +90,7 @@ export function LogoMark({ className, title = "Makalipie" }: LogoProps) {
         letterSpacing="1.6"
       >
         <textPath
-          href="#logo-bottom-arc"
+          href={`#${bottomArc}`}
           startOffset="50%"
           textAnchor="middle"
         >
@@ -142,7 +149,7 @@ export function LogoMark({ className, title = "Makalipie" }: LogoProps) {
 export function LogoLockup({ className }: { className?: string }) {
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
-      <LogoMark className="size-11 shrink-0 sm:size-12" />
+      <LogoMark className="size-11 shrink-0 sm:size-12" markId="nav-logo" />
       <span className="flex flex-col leading-none">
         <span className="font-heading text-[1.15rem] font-semibold tracking-tight text-charcoal sm:text-xl">
           Makalipie

@@ -4,8 +4,9 @@ import Link from "next/link";
 import { Reveal } from "@/components/reveal";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { OrderChannelLine } from "@/components/order-channel-line";
 import {
-  formatPrice,
+  itemPriceText,
   savoryItems,
   site,
   sweetItems,
@@ -36,7 +37,7 @@ export function MenuCatalog() {
               "mt-8 h-12 rounded-full bg-charcoal px-6 text-base font-semibold text-cream hover:bg-charcoal/90"
             )}
           >
-            Fill out the order form
+            Open order form
           </Link>
         </div>
       </section>
@@ -64,11 +65,6 @@ export function MenuCatalog() {
                     sizes="(max-width: 640px) 100vw, 11rem"
                     className="object-cover"
                   />
-                  {item.price != null ? (
-                    <span className="absolute top-3 right-3 rounded-full bg-cream px-3 py-1 text-sm font-bold text-charcoal shadow-sm ring-1 ring-charcoal/10">
-                      {formatPrice(item.price)}
-                    </span>
-                  ) : null}
                   {item.bestseller ? (
                     <Badge
                       variant="berry"
@@ -77,6 +73,9 @@ export function MenuCatalog() {
                       Bestseller
                     </Badge>
                   ) : null}
+                  <span className="absolute right-3 bottom-3 rounded-full bg-cream px-3 py-1 text-sm font-bold text-charcoal shadow-sm ring-1 ring-charcoal/10">
+                    {itemPriceText(item)}
+                  </span>
                 </div>
                 <div>
                   <h3 className="font-heading text-2xl font-semibold tracking-tight">
@@ -108,11 +107,10 @@ export function MenuCatalog() {
                   <p className="mt-4 max-w-md text-lg leading-relaxed text-charcoal/80">
                     {savory.description}
                   </p>
-                  {savory.note ? (
-                    <p className="mt-5 text-sm font-semibold text-charcoal">
-                      {savory.note}
-                    </p>
-                  ) : null}
+                  <p className="mt-5 text-sm font-semibold text-charcoal">
+                    {itemPriceText(savory)}
+                    {savory.note ? ` · ${savory.note}` : ""}
+                  </p>
                 </div>
                 <div className="relative min-h-64">
                   <Image
@@ -122,6 +120,9 @@ export function MenuCatalog() {
                     sizes="(max-width: 1024px) 100vw, 40vw"
                     className="object-cover"
                   />
+                  <span className="absolute top-4 right-4 rounded-full bg-cream px-3 py-1 text-sm font-bold text-charcoal shadow-sm ring-1 ring-charcoal/10">
+                    {itemPriceText(savory)}
+                  </span>
                 </div>
               </div>
             </Reveal>
@@ -129,18 +130,21 @@ export function MenuCatalog() {
 
           <Reveal className="mt-12 flex flex-col items-start gap-3 rounded-[1.6rem] bg-charcoal px-6 py-6 text-cream sm:flex-row sm:items-center sm:justify-between">
             <p className="max-w-xl text-sm leading-relaxed sm:text-base">
-              Ready to order? Fill out the form, copy your summary, and send it
+              Ready to order? Open the form, copy your summary, and send it
               through our Instagram inbox.
             </p>
-            <Link
-              href="/order"
-              className={cn(
-                buttonVariants({ variant: "default" }),
-                "h-11 shrink-0 rounded-full px-5 font-semibold"
-              )}
-            >
-              Order now
-            </Link>
+            <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+              <Link
+                href="/order"
+                className={cn(
+                  buttonVariants({ variant: "default" }),
+                  "h-11 rounded-full px-5 font-semibold"
+                )}
+              >
+                Open order form
+              </Link>
+              <OrderChannelLine tone="dark" />
+            </div>
           </Reveal>
         </div>
       </section>

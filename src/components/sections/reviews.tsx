@@ -4,14 +4,13 @@ import { Reveal } from "@/components/reveal";
 import { reviews, site } from "@/lib/site";
 
 export function ReviewsSection() {
+  if (reviews.length === 0) return null;
+
   return (
     <section id="reviews" className="scroll-mt-24 bg-butter/40 py-16 sm:py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <Reveal>
-          <p className="text-xs font-bold tracking-[0.2em] text-charcoal/60 uppercase">
-            Love notes
-          </p>
-          <h2 className="mt-2 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h2 className="max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
             Freshly baked happiness, shared.
           </h2>
           <p className="mt-4 max-w-xl text-lg text-charcoal/70">
@@ -24,7 +23,7 @@ export function ReviewsSection() {
             >
               @{site.instagramHandle}
             </Link>
-            . Placeholder quotes for now — real ones coming soon.
+            .
           </p>
         </Reveal>
 

@@ -1,8 +1,9 @@
 import Link from "next/link";
 
+import { OrderChannelLine } from "@/components/order-channel-line";
 import { Reveal } from "@/components/reveal";
 import { buttonVariants } from "@/components/ui/button";
-import { orderSteps, site } from "@/lib/site";
+import { orderSteps } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 export function HowToOrderSection() {
@@ -59,15 +60,8 @@ export function HowToOrderSection() {
           >
             Browse the menu
           </Link>
-          <a
-            href={site.grabFoodUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-sm font-semibold text-charcoal underline decoration-crust decoration-2 underline-offset-4 sm:ml-2"
-          >
-            Classics also on GrabFood
-          </a>
         </Reveal>
+        <OrderChannelLine className="mt-4" />
       </div>
     </section>
   );

@@ -1,26 +1,43 @@
 "use client";
 
+import { CalendarDays, Minus, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { OrderChannelLine } from "@/components/order-channel-line";
+import { Calendar } from "@/components/ui/calendar";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { dayjs } from "@/lib/dayjs";
 import {
   addons,
   bankDetails,
   deliveryOptions,
   formatPrice,
+  getOrderSummarySource,
+  itemPriceText,
+  menuItems,
   paymentMethods,
+  pickupTimes,
+  savoryItems,
   site,
   sweetItems,
+  type MenuItem,
 } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 type FormState = {
   name: string;
   contact: string;
-  preferredWhen: string;
-  orderDetails: string;
+  preferredDate: Date | undefined;
+  preferredTime: string;
+  quantities: Record<string, number>;
+  notes: string;
   selectedAddons: string[];
   noteMessage: string;
   delivery: string;
@@ -28,17 +45,44 @@ type FormState = {
   payment: string;
 };
 
+const initialQuantities = Object.fromEntries(
+  menuItems.map((item) => [item.slug, 0])
+) as Record<string, number>;
+
 const initialState: FormState = {
   name: "",
   contact: "",
-  preferredWhen: "",
-  orderDetails: "",
+  preferredDate: undefined,
+  preferredTime: "",
+  quantities: initialQuantities,
+  notes: "",
   selectedAddons: [],
   noteMessage: "",
   delivery: "pickup",
   address: "",
   payment: "bank",
 };
+
+function formatPreferredWhen(date: Date | undefined, time: string) {
+  if (!date || !time) return "";
+  return `${dayjs(date).format("ddd MMM D")} · ${time}`;
+}
+
+function flavorNote(item: MenuItem) {
+  if (item.slug === "buko") return "Fri–Sun";
+  if (item.slug === "butter-chicken-curry") return "Sunday Market";
+  return item.note;
+}
+
+function buildFlavorLines(quantities: Record<string, number>) {
+  return menuItems
+    .filter((item) => (quantities[item.slug] ?? 0) > 0)
+    .map((item) => {
+      const qty = quantities[item.slug];
+      const extra = flavorNote(item);
+      return `- ${qty}× ${item.name} (${itemPriceText(item)})${extra ? ` · ${extra}` : ""}`;
+    });
+}
 
 function buildOrderSummary(form: FormState) {
   const addonLines = form.selectedAddons
@@ -55,16 +99,18 @@ function buildOrderSummary(form: FormState) {
 
   const delivery = deliveryOptions.find((option) => option.id === form.delivery);
   const payment = paymentMethods.find((method) => method.id === form.payment);
+  const flavorLines = buildFlavorLines(form.quantities);
 
   const lines = [
     "Makalipie Order Form",
     "--------------------",
     `Name: ${form.name.trim()}`,
     `Contact Number: ${form.contact.trim()}`,
-    `Preferred Date & Time: ${form.preferredWhen.trim()}`,
+    `Preferred Date & Time: ${formatPreferredWhen(form.preferredDate, form.preferredTime)}`,
     "",
     "Order Details:",
-    form.orderDetails.trim(),
+    flavorLines.length > 0 ? flavorLines.join("\n") : "- None selected",
+    form.notes.trim() ? `\nNotes:\n${form.notes.trim()}` : null,
     "",
     "Add-Ons:",
     addonLines.length > 0 ? addonLines.join("\n") : "- None",
@@ -77,32 +123,126 @@ function buildOrderSummary(form: FormState) {
       : null,
     `Mode of Payment: ${payment?.label ?? form.payment}`,
     "",
-    "Sent via makalipie.vercel.app/order",
+    "Sent via " + getOrderSummarySource(),
   ];
 
   return lines.filter((line) => line !== null).join("\n");
 }
 
+function QtyStepper({
+  value,
+  onChange,
+  label,
+}: {
+  value: number;
+  onChange: (next: number) => void;
+  label: string;
+}) {
+  return (
+    <div className="inline-flex items-center rounded-full bg-cream ring-1 ring-charcoal/10">
+      <button
+        type="button"
+        className="pressable inline-flex size-9 items-center justify-center rounded-full text-charcoal disabled:opacity-30"
+        aria-label={`Decrease ${label}`}
+        disabled={value <= 0}
+        onClick={() => onChange(Math.max(0, value - 1))}
+      >
+        <Minus className="size-3.5" />
+      </button>
+      <span className="w-7 text-center text-sm font-semibold tabular-nums">
+        {value}
+      </span>
+      <button
+        type="button"
+        className="pressable inline-flex size-9 items-center justify-center rounded-full text-charcoal"
+        aria-label={`Increase ${label}`}
+        onClick={() => onChange(value + 1)}
+      >
+        <Plus className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function FlavorRow({
+  item,
+  quantity,
+  onQuantityChange,
+}: {
+  item: MenuItem;
+  quantity: number;
+  onQuantityChange: (next: number) => void;
+}) {
+  const selected = quantity > 0;
+  const extra = flavorNote(item);
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-3 rounded-2xl px-3 py-3 ring-1 transition-[background-color,box-shadow] duration-150 ease-[var(--ease-out)] sm:px-4",
+        selected
+          ? "bg-butter ring-crust/70"
+          : "bg-cream ring-charcoal/10"
+      )}
+    >
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <p className="font-heading text-base font-semibold">{item.name}</p>
+          <p className="text-sm font-semibold text-charcoal/70">
+            {itemPriceText(item)}
+          </p>
+        </div>
+        {extra ? (
+          <p className="mt-0.5 text-xs font-medium text-charcoal/55">{extra}</p>
+        ) : null}
+      </div>
+      <QtyStepper
+        value={quantity}
+        onChange={onQuantityChange}
+        label={item.name}
+      />
+    </div>
+  );
+}
+
 export function OrderForm() {
   const [form, setForm] = useState<FormState>(initialState);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [status, setStatus] = useState<"idle" | "copied" | "fallback">("idle");
   const [error, setError] = useState<string | null>(null);
   const [fallbackSummary, setFallbackSummary] = useState("");
 
-  const flavorHint = useMemo(
-    () =>
-      sweetItems
-        .filter((item) => item.price != null)
-        .map((item) => `${item.name} ${formatPrice(item.price!)}`)
-        .join(" · "),
-    []
-  );
-
   const needsAddress = form.delivery === "lalamove";
   const needsNote = form.selectedAddons.includes("note-card");
+  const selectedCount = useMemo(
+    () => Object.values(form.quantities).reduce((sum, qty) => sum + qty, 0),
+    [form.quantities]
+  );
+  const today = useMemo(
+    () => dayjs().tz(site.timezone).startOf("day").toDate(),
+    []
+  );
+  const dateLabel = form.preferredDate
+    ? dayjs(form.preferredDate).format("ddd, MMM D")
+    : "Pick a date";
+  const bukoQty = form.quantities.buko ?? 0;
+  const selectedWeekday = form.preferredDate
+    ? dayjs(form.preferredDate).day()
+    : null;
+  const bukoDayOk =
+    selectedWeekday === 0 || selectedWeekday === 5 || selectedWeekday === 6;
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
+    setStatus("idle");
+    setError(null);
+  }
+
+  function setQuantity(slug: string, next: number) {
+    setForm((current) => ({
+      ...current,
+      quantities: { ...current.quantities, [slug]: next },
+    }));
     setStatus("idle");
     setError(null);
   }
@@ -121,13 +261,18 @@ export function OrderForm() {
     event.preventDefault();
     setError(null);
 
-    if (
-      !form.name.trim() ||
-      !form.contact.trim() ||
-      !form.preferredWhen.trim() ||
-      !form.orderDetails.trim()
-    ) {
-      setError("Please fill in name, contact, preferred date & time, and order details.");
+    if (!form.name.trim() || !form.contact.trim()) {
+      setError("Please fill in your name and contact number.");
+      return;
+    }
+
+    if (!form.preferredDate || !form.preferredTime) {
+      setError("Please pick a preferred date and time.");
+      return;
+    }
+
+    if (selectedCount < 1) {
+      setError("Please add at least one flavor.");
       return;
     }
 
@@ -153,16 +298,14 @@ export function OrderForm() {
   return (
     <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:py-16">
       <div>
-        <p className="text-xs font-bold tracking-[0.2em] text-charcoal/60 uppercase">
-          Order form
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-          Fill this out and send through our inbox
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+          Order via Instagram
         </h1>
         <p className="mt-4 text-charcoal/70">
-          We&apos;ll copy your order summary, then open Instagram so you can
-          paste it into our DM.
+          Tap flavors and quantities. We&apos;ll copy a clean summary, then open
+          Instagram so you can paste it into our DM.
         </p>
+        <OrderChannelLine className="mt-3" />
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div className="grid gap-5 sm:grid-cols-2">
@@ -192,40 +335,122 @@ export function OrderForm() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="preferredWhen">Preferred Date &amp; Time</Label>
-            <Input
-              id="preferredWhen"
-              name="preferredWhen"
-              required
-              placeholder="e.g. Sat Mar 15 · 3PM pickup"
-              value={form.preferredWhen}
-              onChange={(event) => update("preferredWhen", event.target.value)}
-              className="h-11 rounded-xl bg-cream px-3"
-            />
+          <div className="space-y-3">
+            <Label>Preferred date</Label>
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger
+                type="button"
+                className={cn(
+                  buttonVariants({ variant: "outline" }),
+                  "h-11 w-full justify-start rounded-xl border-charcoal/15 bg-cream px-3 text-base font-medium md:text-sm"
+                )}
+              >
+                <CalendarDays className="size-4 text-charcoal/60" />
+                <span
+                  className={
+                    form.preferredDate ? "text-charcoal" : "text-charcoal/45"
+                  }
+                >
+                  {dateLabel}
+                </span>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                className="w-auto overflow-hidden rounded-2xl p-2"
+              >
+                <Calendar
+                  mode="single"
+                  selected={form.preferredDate}
+                  onSelect={(date) => {
+                    update("preferredDate", date);
+                    if (date) setCalendarOpen(false);
+                  }}
+                  disabled={{ before: today }}
+                  defaultMonth={form.preferredDate ?? today}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="orderDetails">Order Details</Label>
-            <textarea
-              id="orderDetails"
-              name="orderDetails"
-              required
-              rows={4}
-              placeholder="List flavors and quantity (e.g. 2 Pecan, 1 Keylime)"
-              value={form.orderDetails}
-              onChange={(event) => update("orderDetails", event.target.value)}
-              className="w-full rounded-xl border border-input bg-cream px-3 py-2.5 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
-            />
-            <p className="text-xs text-charcoal/55">{flavorHint}</p>
+          <div className="space-y-3">
+            <Label>Preferred time</Label>
+            <div className="flex flex-wrap gap-2">
+              {pickupTimes.map((time) => {
+                const active = form.preferredTime === time;
+                return (
+                  <button
+                    key={time}
+                    type="button"
+                    onClick={() => update("preferredTime", time)}
+                    className={cn(
+                      "pressable rounded-full px-3.5 py-2 text-sm font-semibold ring-1 transition-colors duration-150 ease-[var(--ease-out)]",
+                      active
+                        ? "bg-crust text-charcoal ring-crust"
+                        : "bg-cream text-charcoal/80 ring-charcoal/10 hover:bg-butter"
+                    )}
+                    aria-pressed={active}
+                  >
+                    {time}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-medium">Flavors</legend>
+            <p className="text-xs text-charcoal/55">
+              Tap + to add a pie. Buko is Friday to Sunday; Butter Chicken
+              Curry is the Sunday market savory.
+            </p>
+            <div className="space-y-2">
+              {sweetItems.map((item) => (
+                <FlavorRow
+                  key={item.slug}
+                  item={item}
+                  quantity={form.quantities[item.slug] ?? 0}
+                  onQuantityChange={(next) => setQuantity(item.slug, next)}
+                />
+              ))}
+            </div>
+            <p className="pt-2 text-xs font-semibold tracking-wide text-charcoal/50 uppercase">
+              Savory
+            </p>
+            <div className="space-y-2">
+              {savoryItems.map((item) => (
+                <FlavorRow
+                  key={item.slug}
+                  item={item}
+                  quantity={form.quantities[item.slug] ?? 0}
+                  onQuantityChange={(next) => setQuantity(item.slug, next)}
+                />
+              ))}
+            </div>
+            {bukoQty > 0 && form.preferredDate && !bukoDayOk ? (
+              <p className="text-sm text-charcoal/70">
+                Buko is baked Friday to Sunday. We&apos;ll confirm timing in DM.
+              </p>
+            ) : null}
+            <div className="space-y-2 pt-1">
+              <Label htmlFor="notes">Notes (optional)</Label>
+              <textarea
+                id="notes"
+                name="notes"
+                rows={2}
+                value={form.notes}
+                onChange={(event) => update("notes", event.target.value)}
+                className="w-full rounded-xl border border-input bg-cream px-3 py-2.5 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
+                placeholder="Allergies, packing notes, or anything else"
+              />
+            </div>
+          </fieldset>
 
           <fieldset className="space-y-3">
             <legend className="text-sm font-medium">Add-Ons</legend>
             {addons.map((addon) => (
               <label
                 key={addon.id}
-                className="flex cursor-pointer items-start gap-3 rounded-xl bg-butter/60 px-4 py-3"
+                className="pressable flex cursor-pointer items-start gap-3 rounded-xl bg-butter/60 px-4 py-3"
               >
                 <input
                   type="checkbox"
@@ -262,7 +487,7 @@ export function OrderForm() {
             {deliveryOptions.map((option) => (
               <label
                 key={option.id}
-                className="flex cursor-pointer items-start gap-3 rounded-xl bg-butter/60 px-4 py-3"
+                className="pressable flex cursor-pointer items-start gap-3 rounded-xl bg-butter/60 px-4 py-3"
               >
                 <input
                   type="radio"
@@ -298,10 +523,14 @@ export function OrderForm() {
 
           <fieldset className="space-y-3">
             <legend className="text-sm font-medium">Mode of Payment</legend>
+            <p className="text-xs text-charcoal/55">
+              Choose how you&apos;d like to pay after we confirm and send an
+              invoice. No payment yet.
+            </p>
             {paymentMethods.map((method) => (
               <label
                 key={method.id}
-                className="flex cursor-pointer items-center gap-3 rounded-xl bg-butter/60 px-4 py-3"
+                className="pressable flex cursor-pointer items-center gap-3 rounded-xl bg-butter/60 px-4 py-3"
               >
                 <input
                   type="radio"
@@ -358,7 +587,14 @@ export function OrderForm() {
 
       <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
         <div className="rounded-[1.6rem] bg-butter p-6 ring-1 ring-charcoal/8">
-          <h2 className="font-heading text-xl font-semibold">Payment details</h2>
+          <h2 className="font-heading text-xl font-semibold">
+            Payment after confirmation
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-charcoal/70">
+            Bank and GCash details are here so you&apos;re ready. Please wait
+            for our confirmation and invoice before paying, then send proof of
+            payment to secure your slot.
+          </p>
           <div className="mt-4 space-y-4 text-sm leading-relaxed text-charcoal/80">
             <div>
               <p className="font-bold tracking-wide text-charcoal uppercase">
@@ -396,11 +632,6 @@ export function OrderForm() {
             </li>
           </ul>
         </div>
-
-        <p className="text-sm text-charcoal/60">
-          After you send the form, wait for confirmation and invoice, then pay
-          and share proof of payment to secure your slot.
-        </p>
       </aside>
     </div>
   );
