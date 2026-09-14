@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -153,13 +154,10 @@ export function OrderForm() {
   return (
     <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:py-16">
       <div>
-        <p className="text-xs font-bold tracking-[0.2em] text-charcoal/60 uppercase">
-          Order form
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+        <h1 className="font-display text-4xl leading-none font-extrabold tracking-tight uppercase sm:text-5xl">
           Fill this out and send through our inbox
         </h1>
-        <p className="mt-4 text-charcoal/70">
+        <p className="mt-4 text-ink-soft">
           We&apos;ll copy your order summary, then open Instagram so you can
           paste it into our DM.
         </p>
@@ -174,7 +172,7 @@ export function OrderForm() {
                 required
                 value={form.name}
                 onChange={(event) => update("name", event.target.value)}
-                className="h-11 rounded-xl bg-cream px-3"
+                className="h-11 rounded-xl border-2 border-ink/25 bg-paper px-3"
                 autoComplete="name"
               />
             </div>
@@ -186,7 +184,7 @@ export function OrderForm() {
                 required
                 value={form.contact}
                 onChange={(event) => update("contact", event.target.value)}
-                className="h-11 rounded-xl bg-cream px-3"
+                className="h-11 rounded-xl border-2 border-ink/25 bg-paper px-3"
                 autoComplete="tel"
               />
             </div>
@@ -201,7 +199,7 @@ export function OrderForm() {
               placeholder="e.g. Sat Mar 15 · 3PM pickup"
               value={form.preferredWhen}
               onChange={(event) => update("preferredWhen", event.target.value)}
-              className="h-11 rounded-xl bg-cream px-3"
+              className="h-11 rounded-xl border-2 border-ink/25 bg-paper px-3"
             />
           </div>
 
@@ -215,9 +213,9 @@ export function OrderForm() {
               placeholder="List flavors and quantity (e.g. 2 Pecan, 1 Keylime)"
               value={form.orderDetails}
               onChange={(event) => update("orderDetails", event.target.value)}
-              className="w-full rounded-xl border border-input bg-cream px-3 py-2.5 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
+              className="w-full rounded-xl border-2 border-ink/25 bg-paper px-3 py-2.5 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
             />
-            <p className="text-xs text-charcoal/55">{flavorHint}</p>
+            <p className="text-xs text-ink-soft">{flavorHint}</p>
           </div>
 
           <fieldset className="space-y-3">
@@ -225,17 +223,17 @@ export function OrderForm() {
             {addons.map((addon) => (
               <label
                 key={addon.id}
-                className="flex cursor-pointer items-start gap-3 rounded-xl bg-butter/60 px-4 py-3"
+                className="flex cursor-pointer items-start gap-3 rounded-xl border-2 border-ink/15 bg-paper px-4 py-3"
               >
                 <input
                   type="checkbox"
                   checked={form.selectedAddons.includes(addon.id)}
                   onChange={() => toggleAddon(addon.id)}
-                  className="mt-1 size-4 accent-crust"
+                  className="mt-1 size-4 accent-ink"
                 />
                 <span className="text-sm">
                   <span className="font-semibold">{addon.label}</span>
-                  <span className="text-charcoal/60">
+                  <span className="text-ink-soft">
                     {" "}
                     (+{formatPrice(addon.price)})
                   </span>
@@ -250,7 +248,7 @@ export function OrderForm() {
                   name="noteMessage"
                   value={form.noteMessage}
                   onChange={(event) => update("noteMessage", event.target.value)}
-                  className="h-11 rounded-xl bg-cream px-3"
+                  className="h-11 rounded-xl border-2 border-ink/25 bg-paper px-3"
                   placeholder="Write your note…"
                 />
               </div>
@@ -262,7 +260,7 @@ export function OrderForm() {
             {deliveryOptions.map((option) => (
               <label
                 key={option.id}
-                className="flex cursor-pointer items-start gap-3 rounded-xl bg-butter/60 px-4 py-3"
+                className="flex cursor-pointer items-start gap-3 rounded-xl border-2 border-ink/15 bg-paper px-4 py-3"
               >
                 <input
                   type="radio"
@@ -270,11 +268,11 @@ export function OrderForm() {
                   value={option.id}
                   checked={form.delivery === option.id}
                   onChange={() => update("delivery", option.id)}
-                  className="mt-1 size-4 accent-crust"
+                  className="mt-1 size-4 accent-ink"
                 />
                 <span className="text-sm">
                   <span className="font-semibold">{option.label}</span>
-                  <span className="mt-0.5 block text-charcoal/60">
+                  <span className="mt-0.5 block text-ink-soft">
                     {option.detail}
                   </span>
                 </span>
@@ -289,7 +287,7 @@ export function OrderForm() {
                   rows={3}
                   value={form.address}
                   onChange={(event) => update("address", event.target.value)}
-                  className="w-full rounded-xl border border-input bg-cream px-3 py-2.5 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
+                  className="w-full rounded-xl border-2 border-ink/25 bg-paper px-3 py-2.5 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
                   placeholder="Full address for Lalamove"
                 />
               </div>
@@ -301,7 +299,7 @@ export function OrderForm() {
             {paymentMethods.map((method) => (
               <label
                 key={method.id}
-                className="flex cursor-pointer items-center gap-3 rounded-xl bg-butter/60 px-4 py-3"
+                className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-ink/15 bg-paper px-4 py-3"
               >
                 <input
                   type="radio"
@@ -309,7 +307,7 @@ export function OrderForm() {
                   value={method.id}
                   checked={form.payment === method.id}
                   onChange={() => update("payment", method.id)}
-                  className="size-4 accent-crust"
+                  className="size-4 accent-ink"
                 />
                 <span className="text-sm font-semibold">{method.label}</span>
               </label>
@@ -317,20 +315,20 @@ export function OrderForm() {
           </fieldset>
 
           {error ? (
-            <p className="text-sm font-medium text-berry" role="alert">
+            <p className="text-sm font-bold text-berry" role="alert">
               {error}
             </p>
           ) : null}
 
           {status === "copied" ? (
-            <p className="text-sm font-medium text-charcoal" role="status">
+              <p className="text-sm font-bold text-ink" role="status">
               Order copied. Paste it into the Instagram DM that just opened.
             </p>
           ) : null}
 
           {status === "fallback" ? (
             <div className="space-y-2" role="status">
-              <p className="text-sm font-medium text-charcoal">
+              <p className="text-sm font-bold text-ink">
                 Couldn&apos;t copy automatically — select and copy the summary
                 below, then paste into Instagram.
               </p>
@@ -338,7 +336,7 @@ export function OrderForm() {
                 readOnly
                 value={fallbackSummary}
                 rows={12}
-                className="w-full rounded-xl border border-charcoal/15 bg-cream px-3 py-2.5 font-mono text-xs"
+                className="w-full rounded-xl border-2 border-ink/25 bg-paper px-3 py-2.5 font-mono text-xs"
                 onFocus={(event) => event.currentTarget.select()}
               />
             </div>
@@ -348,7 +346,7 @@ export function OrderForm() {
             type="submit"
             className={cn(
               buttonVariants({ variant: "default" }),
-              "h-12 w-full rounded-full px-6 text-base font-semibold sm:w-auto"
+              "font-display h-12 w-full rounded-full px-6 text-base font-bold tracking-[0.06em] uppercase sm:w-auto"
             )}
           >
             Copy order &amp; open Instagram
@@ -357,47 +355,55 @@ export function OrderForm() {
       </div>
 
       <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
-        <div className="rounded-[1.6rem] bg-butter p-6 ring-1 ring-charcoal/8">
-          <h2 className="font-heading text-xl font-semibold">Payment details</h2>
-          <div className="mt-4 space-y-4 text-sm leading-relaxed text-charcoal/80">
+        <div className="border-2 border-ink bg-paper p-6 text-ink">
+          <h2 className="font-display text-xl font-extrabold tracking-tight uppercase">
+            Payment details
+          </h2>
+          <div className="mt-4 space-y-4 text-sm leading-relaxed text-ink-soft">
             <div>
-              <p className="font-bold tracking-wide text-charcoal uppercase">
+              <p className="font-display font-bold tracking-wide text-ink uppercase">
                 {bankDetails.bank}
               </p>
               <p>{bankDetails.accountName}</p>
-              <p className="font-mono text-base text-charcoal">
+              <p className="font-mono text-base text-ink">
                 {bankDetails.accountNumber}
               </p>
             </div>
             <div>
-              <p className="font-bold tracking-wide text-charcoal uppercase">
+              <p className="font-display font-bold tracking-wide text-ink uppercase">
                 GCash
               </p>
               <p>Account name: {bankDetails.gcashName}</p>
-              <p className="mt-1 text-charcoal/60">
-                Scan or send via the QR we share in DM after confirmation.
-              </p>
+              <Image
+                src="/brand/pies/gcash-qr.jpg"
+                alt="GCash QR code for Makalipie"
+                width={210}
+                height={210}
+                className="mt-3 border-2 border-ink bg-paper"
+              />
             </div>
           </div>
         </div>
 
-        <div className="rounded-[1.6rem] bg-cream p-6 ring-1 ring-charcoal/8">
-          <h2 className="font-heading text-xl font-semibold">Delivery</h2>
-          <ul className="mt-4 space-y-3 text-sm text-charcoal/80">
+        <div className="border-2 border-ink bg-ink p-6 text-paper">
+          <h2 className="font-display text-xl font-extrabold tracking-tight uppercase">
+            Delivery
+          </h2>
+          <ul className="mt-4 space-y-3 text-sm text-paper/85">
             <li>
-              <span className="font-semibold text-charcoal">Self pick-up</span>
+              <span className="font-bold text-paper">Self pick-up</span>
               <br />
               {site.kiosk.floor}, {site.kiosk.place}
             </li>
             <li>
-              <span className="font-semibold text-charcoal">Lalamove booking</span>
+              <span className="font-bold text-paper">Lalamove booking</span>
               <br />
               Share your address on the form; we&apos;ll confirm logistics in DM.
             </li>
           </ul>
         </div>
 
-        <p className="text-sm text-charcoal/60">
+        <p className="text-sm text-ink-soft">
           After you send the form, wait for confirmation and invoice, then pay
           and share proof of payment to secure your slot.
         </p>

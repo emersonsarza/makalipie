@@ -35,7 +35,6 @@ export const site = {
 
 export const nav = [
   { href: "/menu", label: "Menu" },
-  { href: "/#story", label: "Our story" },
   { href: "/#visit", label: "Visit" },
   { href: "/order", label: "Order" },
 ] as const;
@@ -49,7 +48,7 @@ export type MenuItem = {
   price?: number;
   note?: string;
   bestseller?: boolean;
-  image: {
+  image?: {
     src: string;
     alt: string;
   };
@@ -65,8 +64,8 @@ export const menuItems: MenuItem[] = [
     description:
       "A zesty, tangy delight with a smooth lime filling on a graham crust, finished with a dollop of whipped cream—refreshingly irresistible.",
     image: {
-      src: "https://images.unsplash.com/photo-1519915028121-7d3463d20b13?auto=format&fit=crop&w=1200&q=80",
-      alt: "A citrus tart with a golden crust and creamy yellow filling, garnished with lime zest",
+      src: "/brand/pies/keylime-hero.jpg",
+      alt: "Keylime tart slice with whipped cream, lime zest, and a graham crust",
     },
   },
   {
@@ -78,8 +77,8 @@ export const menuItems: MenuItem[] = [
     description:
       "A decadent mix of buttery caramel and toasted pecans on our signature all butter shortcrust.",
     image: {
-      src: "https://images.unsplash.com/photo-1535920527002-b35e96722eb9?auto=format&fit=crop&w=1200&q=80",
-      alt: "A rustic lattice-crust pie with one slice pulled away, showing a glossy amber filling",
+      src: "/brand/pies/pecan-photo.jpg",
+      alt: "Pecan tart with a glossy caramel filling and toasted pecan halves in a scalloped crust",
     },
   },
   {
@@ -91,8 +90,8 @@ export const menuItems: MenuItem[] = [
     description:
       "A rich chocolate ganache topped with graham and gooey marshmallows for the ultimate treat.",
     image: {
-      src: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=1200&q=80",
-      alt: "A rich chocolate dessert with a crackled top, close-up in warm light",
+      src: "/brand/pies/smores-photo.jpg",
+      alt: "Toasted marshmallow squares on a chocolate tart with a scalloped crust",
     },
   },
   {
@@ -104,8 +103,8 @@ export const menuItems: MenuItem[] = [
     description:
       "A heavenly blend of bananas and creamy caramel, topped with whipped cream for a classic indulgence.",
     image: {
-      src: "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=1200&q=80",
-      alt: "Creamy layered dessert cups with caramel tones and a dusting of cocoa",
+      src: "/brand/pies/banoffee.jpg",
+      alt: "Banoffee slice with banana, toffee, and cream on a graham crust",
     },
   },
   {
@@ -117,8 +116,8 @@ export const menuItems: MenuItem[] = [
     description:
       "A rich and creamy Oreo-infused white chocolate ganache with layers of crushed cookies, a true crowd-pleaser.",
     image: {
-      src: "https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&w=1200&q=80",
-      alt: "A cookies-and-cream style dessert with dark cookie crumbs and whipped topping",
+      src: "/brand/pies/oreo.jpg",
+      alt: "Oreo tart with white chocolate ganache and crushed cookie layers",
     },
   },
   {
@@ -130,10 +129,6 @@ export const menuItems: MenuItem[] = [
       "Our bestseller: young coconut cream in a handcrafted crust. Available Friday to Sunday — message us to secure a pie.",
     note: "Bestseller · Fri–Sun · message us to order",
     bestseller: true,
-    image: {
-      src: "https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?auto=format&fit=crop&w=1200&q=80",
-      alt: "Fresh young coconuts and creamy white coconut meat, suggesting buko pie filling",
-    },
   },
   {
     slug: "butter-chicken-curry",
@@ -143,10 +138,6 @@ export const menuItems: MenuItem[] = [
     description:
       "Slow, saucy butter chicken curry wrapped in our one-of-a-kind flaky crust. Find it at the Sunday market.",
     note: "Sunday Market · ~7AM–3PM",
-    image: {
-      src: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&w=1400&q=80",
-      alt: "A copper bowl of creamy butter chicken curry garnished with cream and herbs",
-    },
   },
 ];
 
@@ -154,9 +145,9 @@ export const sweetItems = menuItems.filter((item) => item.kind === "sweet");
 export const savoryItems = menuItems.filter((item) => item.kind === "savory");
 
 export const featuredMenuSlugs = [
-  "buko",
   "keylime",
   "pecan",
+  "banoffee",
 ] as const;
 
 export const addons = [
@@ -246,17 +237,17 @@ export const reviews = [
 ] as const;
 
 export const storyImages = {
-  kitchen: {
-    src: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1400&q=80",
-    alt: "A baker rolling dough on a floured wooden counter in a warm kitchen",
+  counter: {
+    src: "/brand/pies/counter.jpg",
+    alt: "Pecan and chocolate tarts on wooden boards at the Makalipie counter",
   },
-  crust: {
-    src: "https://images.unsplash.com/photo-1464305795204-6f5bbfc7fb81?auto=format&fit=crop&w=1400&q=80",
-    alt: "A fruit tart with a scalloped pastry crust and glossy berries on top",
+  pecan: {
+    src: "/brand/pies/pecan-photo.jpg",
+    alt: "Close-up of a Makalipie pecan tart in a scalloped crust",
   },
-  bakery: {
-    src: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1200&q=80",
-    alt: "Rows of freshly baked golden pastries cooling in a bakery",
+  smores: {
+    src: "/brand/pies/smores-photo.jpg",
+    alt: "Toasted marshmallow tart from Makalipie",
   },
 } as const;
 

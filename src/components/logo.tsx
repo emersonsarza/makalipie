@@ -144,10 +144,10 @@ export function LogoLockup({ className }: { className?: string }) {
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       <LogoMark className="size-11 shrink-0 sm:size-12" />
       <span className="flex flex-col leading-none">
-        <span className="font-heading text-[1.15rem] font-semibold tracking-tight text-charcoal sm:text-xl">
+        <span className="font-display text-[1.25rem] font-extrabold tracking-tight text-ink uppercase sm:text-xl">
           Makalipie
         </span>
-        <span className="mt-0.5 text-[0.65rem] font-semibold tracking-[0.18em] text-charcoal/60 uppercase">
+        <span className="font-display mt-0.5 text-[0.7rem] font-bold tracking-[0.16em] text-ink-soft uppercase">
           Tarts &amp; pies
         </span>
       </span>

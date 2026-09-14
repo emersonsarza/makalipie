@@ -1,0 +1,242 @@
+{
+  "title": "Choose the visual world",
+  "question": "The roll assigned the mustard flyer, rebuilt as a living site. Keep it, take an alternate, or re-roll.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Mustard Flyer, Alive",
+      "kicker": "THE ROLL",
+      "lineage": "Makalipie’s own printed menu flyer and smiley pie-crust badge",
+      "thesis": "The site is the flyer you can order from: mustard field, real pie cutouts, and a window you can miss.",
+      "palette": ["#F4C430", "#FFFDF6", "#2C2A28", "#5A5752"],
+      "materials": [
+        "offset mustard sheet",
+        "die-cut pie photography",
+        "scalloped smiley badge",
+        "white oval price stickers"
+      ],
+      "viewport": "A full-bleed mustard sheet: smiley badge top-right, slogan as the display line, three real pie cutouts with oval prices, a named hours threshold (open / Buko weekend / market / closed), and a stepped tab (Menu · Visit · Order) whose current tab is the yellow board. Primary action: send the Instagram DM.",
+      "risk": "If the pies stay small and the yellow is timid, it reads as the old PDF posted online.",
+      "raised": [
+        {
+          "from": "challenger-minihompy",
+          "raise": "Kiosk as a furnished place: the first viewport is a real pie counter built from Makalipie photography, not a stock kitchen."
+        },
+        {
+          "from": "challenger-acetate",
+          "raise": "Stepped tab rail: Menu, Visit, and Order are fore-edge tabs; the current tab is the mustard board, and one type size does the work."
+        },
+        {
+          "from": "challenger-accretion",
+          "raise": "Availability is a threshold: Buko Friday–Sunday and Sunday Market until 3PM can be missed, marked as a committed before/after, not a badge."
+        },
+        {
+          "from": "challenger-cyclorama",
+          "raise": "Named time phases bound to Asia/Manila: Closed, Kiosk open, Buko window, Sunday Market — labeled in words, never color alone."
+        }
+      ],
+      "wireframe": {
+        "cols": 12,
+        "rows": 10,
+        "regions": [
+          { "label": "smiley badge", "x": 9, "y": 0, "w": 3, "h": 2, "accent": true },
+          { "label": "Makalipie gyud ni!", "x": 0, "y": 1, "w": 8, "h": 2 },
+          { "label": "hours threshold", "x": 0, "y": 3, "w": 12, "h": 1, "accent": true },
+          { "label": "pie cutout + ₱", "x": 0, "y": 4, "w": 4, "h": 4 },
+          { "label": "pie cutout + ₱", "x": 4, "y": 4, "w": 4, "h": 4 },
+          { "label": "pie cutout + ₱", "x": 8, "y": 4, "w": 4, "h": 4 },
+          { "label": "Menu tab", "x": 0, "y": 8, "w": 3, "h": 2, "accent": true },
+          { "label": "Visit tab", "x": 3, "y": 8, "w": 3, "h": 2 },
+          { "label": "Order / DM", "x": 6, "y": 8, "w": 6, "h": 2, "accent": true }
+        ]
+      },
+      "comp": ".impeccable/mocks/decision/assigned.webp"
+    },
+    {
+      "id": "model-pick",
+      "label": "Laminated Photo Menu",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "Cebu food-court and Carbon Market laminated photo menus",
+      "thesis": "You point at a real pie under plastic, read the oval price, and order — the catalog is the proof.",
+      "palette": ["#F4EFE6", "#1F1C19", "#F4C430", "#C45C3E"],
+      "materials": [
+        "PVC lamination",
+        "photo paper",
+        "oval price stickers",
+        "stainless menu rail"
+      ],
+      "viewport": "A wall of Makalipie’s real tart photos under laminate, oval prices stuck on each, Buko and Sunday savory called out as today’s cards, kiosk hours on a strip, Instagram DM as the order ticket at the bottom.",
+      "risk": "This is also the direction most bakery sites land on: photos plus prices on a board.",
+      "wireframe": {
+        "cols": 12,
+        "rows": 10,
+        "regions": [
+          { "label": "hours strip", "x": 0, "y": 0, "w": 12, "h": 1 },
+          { "label": "photo + oval ₱", "x": 0, "y": 1, "w": 4, "h": 4, "accent": true },
+          { "label": "photo + oval ₱", "x": 4, "y": 1, "w": 4, "h": 4 },
+          { "label": "photo + oval ₱", "x": 8, "y": 1, "w": 4, "h": 4 },
+          { "label": "Buko today card", "x": 0, "y": 5, "w": 6, "h": 3, "accent": true },
+          { "label": "Sunday savory card", "x": 6, "y": 5, "w": 6, "h": 3 },
+          { "label": "Streetscape / map", "x": 0, "y": 8, "w": 5, "h": 2 },
+          { "label": "DM order ticket", "x": 5, "y": 8, "w": 7, "h": 2, "accent": true }
+        ]
+      },
+      "comp": ".impeccable/mocks/decision/model-pick.webp"
+    },
+    {
+      "id": "challenger-cutting-bench",
+      "label": "Pie Select Rail",
+      "verdict": "competitive",
+      "lineage": "film cutting bench select rail",
+      "thesis": "Flavors string along a perforated rail; Buko is the flagged frame, Sunday savory hangs on a pin, an order is a committed cut.",
+      "palette": ["#FF5A1F", "#0A0A0A", "#F4F2F0", "#2E2A28"],
+      "materials": [
+        "orange film grain",
+        "sprocket perforations",
+        "tape flags",
+        "punched photo windows"
+      ],
+      "viewport": "A black bench with a mustard-orange rail of real pie frames; the Buko frame wears a folded flag Fri–Sun, sold-out slices take a grease cross, Sunday curry hangs below on pins, and Send DM commits the cut.",
+      "case": "Holds product clarity: availability is a mark on a rail, not a paragraph. Loses audience identification: Cebu merienda is not a cutting room.",
+      "risk": "Reads as a film tool wearing pie photos unless every mark maps to a real window.",
+      "hero": "https://impeccable.style/worlds/cards/operate-a-cutting-bench-select-rail-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/operate-a-cutting-bench-select-rail.webp",
+      "wireframe": {
+        "cols": 12,
+        "rows": 10,
+        "regions": [
+          { "label": "perforation rail", "x": 0, "y": 0, "w": 12, "h": 1 },
+          { "label": "slogan / hours", "x": 0, "y": 1, "w": 4, "h": 3 },
+          { "label": "pie frames", "x": 4, "y": 1, "w": 8, "h": 3, "accent": true },
+          { "label": "Buko flag", "x": 7, "y": 1, "w": 2, "h": 1, "accent": true },
+          { "label": "pins: Sunday savory", "x": 0, "y": 4, "w": 12, "h": 3 },
+          { "label": "kiosk / visit", "x": 0, "y": 7, "w": 5, "h": 3 },
+          { "label": "commit DM cut", "x": 5, "y": 7, "w": 7, "h": 3, "accent": true }
+        ]
+      },
+      "comp": ".impeccable/mocks/decision/challenger-cutting-bench.webp"
+    },
+    {
+      "id": "challenger-viewfinder",
+      "label": "Kiosk Viewfinder",
+      "verdict": "competitive",
+      "lineage": "camcorder viewfinder HUD",
+      "thesis": "The pie stays full-bleed; hours, Buko window, and the DM sit as OSD in the corners, never on top of the filling.",
+      "palette": ["#0B0B0B", "#FFFFFF", "#FFB000", "#6B6B6B"],
+      "materials": [
+        "segmented OSD ink",
+        "corner focus brackets",
+        "zebra caution stripes",
+        "live pie photography"
+      ],
+      "viewport": "One full-bleed Makalipie tart; corner brackets on the slice, a tape-counter of kiosk hours, REC when open, zebra over sold-out flavors, W–T zoom from Streetscape to crust, Send DM as the shutter.",
+      "case": "Holds product clarity: the pie is unmissable and status lives in the HUD. Loses audience identification: it reads as camera gear, not a Cebuana kiosk.",
+      "risk": "The OSD can steal the crust, or the black letterbox can make a warm bakery feel like a camera shop.",
+      "hero": "https://impeccable.style/worlds/cards/pop-culture-shelf-viewfinder-bracket-hud-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/pop-culture-shelf-viewfinder-bracket-hud.webp",
+      "wireframe": {
+        "cols": 12,
+        "rows": 10,
+        "regions": [
+          { "label": "OSD hours / REC", "x": 0, "y": 0, "w": 4, "h": 1 },
+          { "label": "Buko window", "x": 8, "y": 0, "w": 4, "h": 1, "accent": true },
+          { "label": "full-bleed pie", "x": 1, "y": 1, "w": 10, "h": 6, "accent": true },
+          { "label": "focus brackets", "x": 3, "y": 2, "w": 6, "h": 4 },
+          { "label": "W–T zoom", "x": 2, "y": 7, "w": 8, "h": 1 },
+          { "label": "Send DM shutter", "x": 3, "y": 8, "w": 6, "h": 2, "accent": true }
+        ]
+      },
+      "comp": ".impeccable/mocks/decision/challenger-viewfinder.webp"
+    },
+    {
+      "id": "challenger-minihompy",
+      "label": "Kiosk Minihompy",
+      "verdict": "declined",
+      "lineage": "Cyworld minihompy room",
+      "thesis": "Makalipie as a furnishable isometric kiosk room.",
+      "palette": ["#F7D6E0", "#C8E4D0", "#FFE08A", "#4A3F38"],
+      "materials": ["pastel isometric tiles", "sticker furnishings", "guest ledger"],
+      "viewport": "A tiny Streetscape kiosk you decorate, with a visitor counter and a pie on the counter.",
+      "risk": "Cute room, hidden menu.",
+      "case": "Fuses poorly: Cebu customers came to secure a pie, not furnish a room.",
+      "kept": "Kiosk as a furnished place — the first viewport is a real counter of pies, not stock.",
+      "hero": "https://impeccable.style/worlds/cards/cyworld-minihompy-room-hero.webp",
+      "comp": ".impeccable/mocks/decision/challenger-minihompy.webp"
+    },
+    {
+      "id": "challenger-acetate",
+      "label": "Acetate Order Manual",
+      "verdict": "declined",
+      "lineage": "boxed-software acetate tab manual",
+      "thesis": "Menu, Visit, and Order as punched acetate leaves over a chrome-yellow board.",
+      "palette": ["#F5C400", "#F4F1EA", "#2A2A28", "#C41E3A"],
+      "materials": ["milk acetate", "chrome yellow board", "stepped tabs"],
+      "viewport": "An open manual: yellow divider, acetate price leaf, tab rail down the fore edge.",
+      "risk": "Reads as software docs, not merienda.",
+      "case": "Fuses poorly: a reference manual is not how Cebu finds a kiosk pie.",
+      "kept": "Stepped tab rail — current section is the mustard board; one type size does the work.",
+      "hero": "https://impeccable.style/worlds/cards/rw-manual-acetate-tab-board-hero.webp",
+      "comp": ".impeccable/mocks/decision/challenger-acetate.webp"
+    },
+    {
+      "id": "challenger-accretion",
+      "label": "Buko Horizon",
+      "verdict": "declined",
+      "lineage": "black-hole accretion disk",
+      "thesis": "Availability as matter crossing an irreversible threshold.",
+      "palette": ["#050505", "#7EB8FF", "#E85A2A", "#E6C35A"],
+      "materials": ["void black", "photon-ring gold", "redshifted ember"],
+      "viewport": "A dark disk of pies with Buko vanishing at a gold horizon when Friday ends.",
+      "risk": "Cosmic grammar swallows a Banilad kiosk.",
+      "case": "Fuses poorly: nobody looking for Streetscape identifies with a black hole.",
+      "kept": "Availability as a threshold — Buko and Sunday Market can be missed.",
+      "hero": "https://impeccable.style/worlds/cards/galaxies-nebulae-deep-time-accretion-disk-threshold-hero.webp",
+      "comp": ".impeccable/mocks/decision/challenger-accretion.webp"
+    },
+    {
+      "id": "challenger-cyclorama",
+      "label": "Merienda Cyclorama",
+      "verdict": "declined",
+      "lineage": "theater cyclorama dawn",
+      "thesis": "The page lights from closed night through opening to full kiosk day.",
+      "palette": ["#0A0C12", "#1E4F8A", "#E08AA4", "#F7F3EA"],
+      "materials": ["cyc black", "cobalt horizon", "rose first-light"],
+      "viewport": "A curved wash behind the pies that shifts with real Manila time.",
+      "risk": "Atmosphere without a menu.",
+      "case": "Fuses poorly: theater lighting is not a Cebuana bakery’s home.",
+      "kept": "Named time phases bound to real hours, labeled in words.",
+      "hero": "https://impeccable.style/worlds/cards/stagecraft-theater-lighting-cyclorama-dawn-hero.webp",
+      "comp": ".impeccable/mocks/decision/challenger-cyclorama.webp"
+    }
+  ],
+  "reroll": {
+    "registers": ["safer", "bolder"]
+  },
+  "buildPath": {
+    "value": "code",
+    "toggle": true
+  },
+  "canon": true,
+  "canonCard": {
+    "label": "Warm bakery landing",
+    "thesis": "Cream ground, display serif, pastry hero, dual CTAs — what bakery marketing sites always ship.",
+    "palette": ["#FFF8F0", "#2C2A28", "#E85D4C", "#F4C430"],
+    "materials": ["soft cream wash", "serif display", "rounded cards", "stock pastry photo"],
+    "viewport": "Split hero: tagline and Order now beside a tart photograph, then a card grid of flavors.",
+    "risk": "Indistinguishable from every other bakery site, including the current one.",
+    "comp": ".impeccable/mocks/decision/canon.webp",
+    "wireframe": {
+      "cols": 12,
+      "rows": 10,
+      "regions": [
+        { "label": "nav", "x": 0, "y": 0, "w": 12, "h": 1 },
+        { "label": "headline + CTAs", "x": 0, "y": 1, "w": 6, "h": 5 },
+        { "label": "pastry photo", "x": 6, "y": 1, "w": 6, "h": 5, "accent": true },
+        { "label": "flavor card", "x": 0, "y": 7, "w": 4, "h": 3 },
+        { "label": "flavor card", "x": 4, "y": 7, "w": 4, "h": 3 },
+        { "label": "flavor card", "x": 8, "y": 7, "w": 4, "h": 3 }
+      ]
+    }
+  },
+  "steer": true
+}

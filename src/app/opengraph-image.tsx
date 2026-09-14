@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { ImageResponse } from "next/og";
 
-export const alt = "Makalipie — Where every bite tastes like home";
+export const alt = "Makalipie gyud ni!";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -20,42 +20,30 @@ export default async function OpenGraphImage() {
           width: "100%",
           height: "100%",
           display: "flex",
-          position: "relative",
-          background: "#2C2A28",
-          color: "#FFF8F0",
+          background: "#F4C430",
+          color: "#2C2A28",
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={pieSrc}
           alt=""
-          width={1200}
+          width={520}
           height={630}
           style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
+            width: 520,
+            height: 630,
             objectFit: "cover",
+            objectPosition: "center 70%",
           }}
         />
         <div
           style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(90deg, rgba(44,42,40,0.92) 0%, rgba(44,42,40,0.72) 46%, rgba(44,42,40,0.28) 100%)",
-            display: "flex",
-          }}
-        />
-        <div
-          style={{
-            position: "relative",
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
-            padding: "72px 80px",
-            width: "58%",
+            padding: "64px 56px",
+            width: 680,
             height: "100%",
           }}
         >
@@ -63,35 +51,32 @@ export default async function OpenGraphImage() {
             style={{
               display: "flex",
               fontSize: 28,
-              fontWeight: 700,
+              fontWeight: 800,
               letterSpacing: 4,
               textTransform: "uppercase",
-              color: "#F4C430",
-              marginBottom: 20,
             }}
           >
-            Makalipie
+            Makalipie · Cebu
           </div>
           <div
             style={{
               display: "flex",
-              fontSize: 64,
+              fontSize: 72,
               fontWeight: 700,
-              lineHeight: 1.05,
-              letterSpacing: -1.5,
+              lineHeight: 0.95,
+              marginTop: 18,
             }}
           >
-            Where every bite tastes like home
+            Makalipie gyud ni!
           </div>
           <div
             style={{
               display: "flex",
               marginTop: 24,
               fontSize: 26,
-              color: "rgba(255,248,240,0.82)",
             }}
           >
-            Proudly Cebuana-made tarts & pies · Streetscape, Banilad
+            Tarts & pies · Streetscape, Banilad
           </div>
         </div>
       </div>

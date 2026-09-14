@@ -1,19 +1,27 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Geist_Mono, Nunito } from "next/font/google";
+import { Geist_Mono, Nunito, Oswald, Satisfy } from "next/font/google";
 
 import { getSiteUrl, site } from "@/lib/site";
 
 import "./globals.css";
 
-const nunito = Nunito({
-  variable: "--font-nunito",
+const sans = Nunito({
+  variable: "--font-sans-face",
   subsets: ["latin"],
   display: "swap",
 });
 
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
+const display = Oswald({
+  variable: "--font-display-face",
   subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  display: "swap",
+});
+
+const script = Satisfy({
+  variable: "--font-script-face",
+  subsets: ["latin"],
+  weight: "400",
   display: "swap",
 });
 
@@ -25,7 +33,7 @@ const geistMono = Geist_Mono({
 const siteUrl = getSiteUrl();
 
 export const viewport: Viewport = {
-  themeColor: "#FFF8F0",
+  themeColor: "#F4C430",
   width: "device-width",
   initialScale: 1,
 };
@@ -103,7 +111,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${nunito.variable} ${fraunces.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${sans.variable} ${display.variable} ${script.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         <script
