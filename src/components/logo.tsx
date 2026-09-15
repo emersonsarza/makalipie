@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-function pieCrustPath(
+export function pieCrustPath(
   cx: number,
   cy: number,
   radius: number,
@@ -30,9 +30,15 @@ function pieCrustPath(
   return parts.join(" ");
 }
 
-const GOLD = "#F4C430";
-const CHARCOAL = "#2C2A28";
-const CREAM = "#FFF8F0";
+export const logoColors = {
+  gold: "#F4C430",
+  charcoal: "#2C2A28",
+  cream: "#FFF8F0",
+} as const;
+
+const GOLD = logoColors.gold;
+const CHARCOAL = logoColors.charcoal;
+const CREAM = logoColors.cream;
 
 type LogoProps = {
   className?: string;
