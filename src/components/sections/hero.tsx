@@ -2,7 +2,6 @@ import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 
 import { LogoMark } from "@/components/logo";
-import { OrderChannelLine } from "@/components/order-channel-line";
 import { buttonVariants } from "@/components/ui/button";
 import { heroImage, site } from "@/lib/site";
 import { cn } from "@/lib/utils";
@@ -19,9 +18,8 @@ export function Hero() {
             {site.tagline}
           </h1>
           <p className="hero-enter hero-delay-2 mt-5 max-w-lg text-lg leading-relaxed text-charcoal/75">
-            Tarts &amp; pies with a one-of-a-kind handcrafted crust. Come hungry
-            to Streetscape, Banilad, or slide into our DMs. We&apos;ll save you
-            a slice.
+            Handcrafted crust tarts and pies at Streetscape, Banilad. Come
+            hungry, or slide into our DMs.
           </p>
           <div className="hero-enter hero-delay-3 mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
             <a
@@ -44,7 +42,6 @@ export function Hero() {
               Open order form
             </a>
           </div>
-          <OrderChannelLine className="hero-enter hero-delay-4 mt-4" />
         </div>
 
         <div className="hero-enter hero-delay-2 relative order-1 mx-auto w-full max-w-md lg:order-2 lg:max-w-none">
@@ -59,13 +56,10 @@ export function Hero() {
                 fill
                 priority
                 sizes="(max-width: 1024px) 90vw, 42vw"
-                className="object-cover object-[center_20%]"
+                className="object-cover object-center"
               />
             </div>
           </div>
-          <p className="hero-enter hero-delay-5 absolute right-3 -bottom-4 max-w-[11rem] rounded-2xl bg-charcoal px-4 py-3 text-sm leading-snug font-medium text-cream shadow-lg sm:right-6">
-            Handcrafted crust. Sweet &amp; savoury. Made in Cebu.
-          </p>
         </div>
       </div>
     </section>

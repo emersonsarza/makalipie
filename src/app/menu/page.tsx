@@ -6,7 +6,7 @@ import { SiteShell } from "@/components/site-shell";
 export const metadata: Metadata = {
   title: "Menu",
   description:
-    "Browse Makalipie tarts and pies — Keylime, Pecan, S’mores, Banoffee, Oreo, Buko, and Sunday savory — with prices and order links.",
+    "Browse Makalipie tarts and pies: Keylime, Pecan, S'mores, Banoffee, Oreo, Buko, and Sunday savory, with prices and order links.",
   alternates: {
     canonical: "/menu",
   },

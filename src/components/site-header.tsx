@@ -133,7 +133,7 @@ export function SiteHeader() {
               "hidden h-10 rounded-full px-4 font-semibold sm:inline-flex"
             )}
           >
-            Order via Instagram
+            Open order form
           </Link>
           <button
             type="button"
@@ -194,7 +194,7 @@ export function SiteHeader() {
               )}
               onClick={() => setOpen(false)}
             >
-              Order via Instagram
+              Open order form
             </Link>
           </nav>
         </div>

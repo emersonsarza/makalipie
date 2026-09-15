@@ -18,14 +18,14 @@ export const site = {
     floor: "2nd Floor",
     place: "Streetscape, Banilad",
     city: "Cebu",
-    hoursLabel: "Daily 10AM — 8PM",
+    hoursLabel: "Daily 10AM - 8PM",
     opens: "10:00",
     closes: "20:00",
   },
   sundayMarket: {
     name: "Sunday Market",
     item: "Butter Chicken Curry pie",
-    hoursLabel: "Sundays ~7AM — 3PM",
+    hoursLabel: "Sundays ~7AM - 3PM",
     opens: "07:00",
     closes: "15:00",
   },
@@ -62,9 +62,9 @@ export const menuItems: MenuItem[] = [
     name: "Keylime",
     kind: "sweet",
     price: 240,
-    blurb: "Tart, sunny, and a little tropical — a squeeze of sunshine in a flaky shell.",
+    blurb: "Tart, sunny, and a little tropical. A squeeze of sunshine in a flaky shell.",
     description:
-      "A zesty, tangy delight with a smooth lime filling on a graham crust, finished with a dollop of whipped cream—refreshingly irresistible.",
+      "A zesty, tangy delight with a smooth lime filling on a graham crust, finished with a dollop of whipped cream. Refreshingly irresistible.",
     image: {
       src: "/images/menu/keylime.jpg",
       alt: "A slice of Keylime tart with graham crust, creamy filling, and whipped cream",
@@ -101,7 +101,7 @@ export const menuItems: MenuItem[] = [
     name: "Banoffee",
     kind: "sweet",
     price: 240,
-    blurb: "Banana, toffee, cream — the kind of slice that makes people close their eyes.",
+    blurb: "Banana, toffee, cream. The kind of slice that makes people close their eyes.",
     description:
       "A heavenly blend of bananas and creamy caramel, topped with whipped cream for a classic indulgence.",
     image: {
@@ -129,12 +129,12 @@ export const menuItems: MenuItem[] = [
     priceLabel: "DM for price",
     blurb: "Young coconut, creamy filling, and the crust that started all the DMs.",
     description:
-      "Our bestseller: young coconut cream in a handcrafted crust. Available Friday to Sunday — message us to secure a pie.",
-    note: "Fri–Sun · pre-order via Instagram",
+      "Our bestseller: young coconut cream in a handcrafted crust. Available Friday to Sunday. Message us to secure a pie.",
+    note: "Fri-Sun · pre-order via Instagram",
     bestseller: true,
     image: {
       src: "/images/menu/buko.jpg",
-      alt: "A creamy tart slice in a graham crust, the style of our Buko bestseller",
+      alt: "Young coconut cream pie in a handcrafted crust, our Buko bestseller",
     },
   },
   {
@@ -142,13 +142,13 @@ export const menuItems: MenuItem[] = [
     name: "Butter Chicken Curry pie",
     kind: "savory",
     priceLabel: "DM for price",
-    blurb: "Slow, saucy, and wrapped in that one-of-a-kind flaky crust. Sunday’s savory hero.",
+    blurb: "Slow, saucy, and wrapped in that one-of-a-kind flaky crust. Sunday's savory hero.",
     description:
       "Slow, saucy butter chicken curry wrapped in our one-of-a-kind flaky crust. Find it at the Sunday market.",
-    note: "Sunday Market · ~7AM–3PM",
+    note: "Sunday Market · ~7AM-3PM",
     image: {
       src: "/images/menu/butter-chicken.jpg",
-      alt: "Close-up of Makalipie’s handcrafted golden tart crust",
+      alt: "Golden handcrafted crust, the shell for our Sunday Butter Chicken Curry pie",
     },
   },
 ];
@@ -158,7 +158,7 @@ export const savoryItems = menuItems.filter((item) => item.kind === "savory");
 
 export const featuredMenuSlugs = [
   "buko",
-  "keylime",
+  "smores",
   "pecan",
 ] as const;
 
@@ -186,7 +186,7 @@ export const deliveryOptions = [
   {
     id: "lalamove",
     label: "Delivery (Lalamove)",
-    detail: "We’ll coordinate booking after confirmation",
+    detail: "We'll coordinate booking after confirmation",
     needsAddress: true,
   },
 ] as const;
@@ -236,7 +236,7 @@ export const orderSteps = [
   {
     step: 4,
     title: "Delivery",
-    body: "Wait for your goodies to arrive! We’ll update you on the day of delivery.",
+    body: "Wait for your goodies to arrive! We'll update you on the day of delivery.",
   },
 ] as const;
 
@@ -250,21 +250,21 @@ export const reviews: Review[] = [];
 
 export const heroImage = {
   src: "/images/hero.jpg",
-  alt: "A handcrafted pecan tart with a golden fluted crust, baked in Cebu",
+  alt: "A toasted marshmallow tart with golden handcrafted crust, baked in Cebu",
 } as const;
 
 export const storyImages = {
   kitchen: {
     src: "/images/story/kitchen.jpg",
-    alt: "A freshly baked pecan tart with a golden handcrafted crust",
+    alt: "S'mores and pecan tarts with golden handcrafted crusts",
   },
   crust: {
     src: "/images/story/crust.jpg",
-    alt: "Close-up of Makalipie’s flaky, golden tart crust",
+    alt: "Close-up of Makalipie's flaky, golden tart crust",
   },
   bakery: {
     src: "/images/story/bakery.jpg",
-    alt: "Pecan and chocolate tarts with scalloped pastry crusts",
+    alt: "Toasted marshmallow tarts fresh from the bakery tray",
   },
 } as const;
 

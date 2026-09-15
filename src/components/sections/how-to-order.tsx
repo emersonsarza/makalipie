@@ -11,11 +11,8 @@ export function HowToOrderSection() {
     <section id="order" className="scroll-mt-24 py-16 sm:py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <Reveal>
-          <p className="text-xs font-bold tracking-[0.2em] text-charcoal/60 uppercase">
-            How to order
-          </p>
-          <h2 className="mt-2 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
-            Secure your Makalipies today — easy-peasy!
+          <h2 className="max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
+            Secure your Makalipies today. Easy-peasy.
           </h2>
           <p className="mt-4 max-w-2xl text-lg text-charcoal/70">
             Fill out the order form, copy your summary, and send it through our
@@ -24,22 +21,34 @@ export function HowToOrderSection() {
           </p>
         </Reveal>
 
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <ol className="relative mt-10 max-w-3xl list-none space-y-0 p-0">
           {orderSteps.map((step, index) => (
             <Reveal
               key={step.step}
-              delay={index * 50}
-              className="flex flex-col rounded-[1.6rem] bg-butter p-6 ring-1 ring-charcoal/8"
+              delay={index * 40}
+              as="li"
+              className="relative grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 pb-8 last:pb-0"
             >
-              <p className="text-sm font-bold tracking-[0.16em] text-crust uppercase">
-                {step.step}. {step.title}
-              </p>
-              <p className="mt-3 flex-1 text-[0.95rem] leading-relaxed text-charcoal/75">
-                {step.body}
-              </p>
+              {index < orderSteps.length - 1 ? (
+                <span
+                  aria-hidden
+                  className="absolute top-10 bottom-0 left-[1.15rem] w-px bg-charcoal/12"
+                />
+              ) : null}
+              <span className="relative z-10 flex size-9 items-center justify-center rounded-full bg-crust font-heading text-sm font-bold text-charcoal ring-4 ring-cream">
+                {step.step}
+              </span>
+              <div className="pt-1">
+                <p className="font-heading text-xl font-semibold tracking-tight">
+                  {step.title}
+                </p>
+                <p className="mt-1.5 text-[0.95rem] leading-relaxed text-charcoal/75">
+                  {step.body}
+                </p>
+              </div>
             </Reveal>
           ))}
-        </div>
+        </ol>
 
         <Reveal className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
           <Link
@@ -58,7 +67,7 @@ export function HowToOrderSection() {
               "h-12 rounded-full border-charcoal/15 bg-cream px-6 text-base font-semibold"
             )}
           >
-            Browse the menu
+            See the menu
           </Link>
         </Reveal>
         <OrderChannelLine className="mt-4" />

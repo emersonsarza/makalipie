@@ -10,14 +10,11 @@ export function VisitSection() {
     <section id="visit" className="scroll-mt-24 bg-butter/60 py-16 sm:py-20">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr]">
         <div>
-          <p className="text-xs font-bold tracking-[0.2em] text-charcoal/60 uppercase">
-            Visit
-          </p>
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             Pie heaven on the 2nd floor.
           </h2>
           <p className="mt-4 text-lg text-charcoal/75">
-            Find us at Streetscape, Banilad — the kiosk is open every day, and
+            Find us at Streetscape, Banilad. The kiosk is open every day, and
             Sundays have a savory plot twist.
           </p>
 

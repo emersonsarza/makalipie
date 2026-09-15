@@ -37,28 +37,21 @@ export function StorySection() {
         </Reveal>
 
         <Reveal delay={60}>
-          <p className="text-xs font-bold tracking-[0.2em] text-charcoal/60 uppercase">
-            Our story
-          </p>
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             Baked like someone at home was waiting for you.
           </h2>
           <div className="mt-6 space-y-4 text-[1.05rem] leading-relaxed text-charcoal/75">
             <p>
               Makalipie began in 2020 with a simple craving: tarts and pies that
-              taste like a hug from the kitchen — proudly Cebuana-made, never
-              factory-flat.
-            </p>
-            <p>
-              The thing people DM us about? The crust. We roll it by hand, bake
-              it till it shatters just so, and fill it with the flavors Cebu
-              keeps coming back for: Keylime, Pecan, S&apos;mores, Banoffee,
-              Oreo, and our bestseller Buko.
+              taste like a hug from the kitchen. Proudly Cebuana-made, never
+              factory-flat. The crust is what people DM us about. We roll it by
+              hand, bake it till it shatters just so, and fill it with the
+              flavors Cebu keeps coming back for.
             </p>
             <p>
               Some days it&apos;s a quiet kiosk slice at Streetscape. Sundays,
-              it&apos;s Butter Chicken Curry pie at the market. Always,
-              it&apos;s made with a little extra heart.
+              it&apos;s Butter Chicken Curry pie at the market. Always, it&apos;s
+              made with a little extra heart.
             </p>
           </div>
         </Reveal>

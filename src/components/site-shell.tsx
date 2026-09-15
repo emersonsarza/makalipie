@@ -13,7 +13,7 @@ export function SiteShell({ children, showBanner = true }: SiteShellProps) {
       {showBanner ? (
         <div className="bg-charcoal px-3 py-2.5 text-center text-cream sm:px-4">
           <p className="text-[0.8125rem] leading-snug text-pretty sm:text-sm">
-            Buko pie (bestseller) · Fri–Sun ·{" "}
+            Buko pie (bestseller) · Fri-Sun ·{" "}
             <a
               href={site.instagramDmUrl}
               target="_blank"

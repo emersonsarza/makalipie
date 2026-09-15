@@ -21,8 +21,8 @@ export function SiteFooter() {
           </div>
           <p className="mt-5 max-w-sm text-sm leading-relaxed text-cream/75">
             Proudly Cebuana-made tarts &amp; pies with a one-of-a-kind
-            handcrafted crust. Come by Streetscape, or send us a little DM —
-            we&apos;re friendlier than a warm slice.
+            handcrafted crust. Come by Streetscape, or send us a little DM.
+            We&apos;re friendlier than a warm slice.
           </p>
         </div>
 
@@ -68,12 +68,12 @@ export function SiteFooter() {
                 >
                   GrabFood
                 </a>
-                . Custom, corporate, and dessert tables — message us on
+                . Custom, corporate, and dessert tables: message us on
                 Instagram.
               </>
             ) : (
               <>
-                Custom, corporate, and dessert tables — message us on Instagram.
+                Custom, corporate, and dessert tables: message us on Instagram.
               </>
             )}
           </p>

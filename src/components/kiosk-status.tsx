@@ -48,7 +48,7 @@ export function KioskStatus({ className }: { className?: string }) {
     } else if (kioskOpen) {
       label = "Kiosk is open now · until 8PM";
     } else {
-      label = "Kiosk hours · daily 10AM — 8PM";
+      label = "Kiosk hours · daily 10AM - 8PM";
     }
   }
 

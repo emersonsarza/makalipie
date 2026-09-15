@@ -165,6 +165,16 @@
   }
 }
 
+@keyframes bestseller-soft {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.045);
+  }
+}
+
 @layer components {
   .site-header {
     background: rgb(255 248 240 / 70%);
@@ -223,6 +233,10 @@
 
   .hero-delay-6 {
     animation-delay: 360ms;
+  }
+
+  .bestseller-pulse {
+    animation: bestseller-soft 2.4s var(--ease-in-out) 700ms 2 both;
   }
 
   .reveal {
@@ -369,7 +383,8 @@
   }
 
   .hero-enter,
-  .hero-enter-scale {
+  .hero-enter-scale,
+  .bestseller-pulse {
     animation-name: fade-in;
     animation-duration: 200ms;
   }

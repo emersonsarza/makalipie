@@ -33,7 +33,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Makalipie — Where every bite tastes like home",
+    default: "Makalipie · Where every bite tastes like home",
     template: "%s · Makalipie",
   },
   description: site.description,
@@ -51,12 +51,12 @@ export const metadata: Metadata = {
     locale: "en_PH",
     url: siteUrl,
     siteName: site.name,
-    title: "Makalipie — Where every bite tastes like home",
+    title: "Makalipie · Where every bite tastes like home",
     description: site.description,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Makalipie — Where every bite tastes like home",
+    title: "Makalipie · Where every bite tastes like home",
     description: site.description,
   },
   alternates: {

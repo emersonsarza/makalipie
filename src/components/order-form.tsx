@@ -69,7 +69,7 @@ function formatPreferredWhen(date: Date | undefined, time: string) {
 }
 
 function flavorNote(item: MenuItem) {
-  if (item.slug === "buko") return "Fri–Sun";
+  if (item.slug === "buko") return "Fri-Sun";
   if (item.slug === "butter-chicken-curry") return "Sunday Market";
   return item.note;
 }
@@ -299,7 +299,7 @@ export function OrderForm() {
     <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:py-16">
       <div>
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          Order via Instagram
+          Open order form
         </h1>
         <p className="mt-4 text-charcoal/70">
           Tap flavors and quantities. We&apos;ll copy a clean summary, then open
@@ -560,7 +560,7 @@ export function OrderForm() {
           {status === "fallback" ? (
             <div className="space-y-2" role="status">
               <p className="text-sm font-medium text-charcoal">
-                Couldn&apos;t copy automatically — select and copy the summary
+                Couldn&apos;t copy automatically. Select and copy the summary
                 below, then paste into Instagram.
               </p>
               <textarea
@@ -586,7 +586,7 @@ export function OrderForm() {
       </div>
 
       <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
-        <div className="rounded-[1.6rem] bg-butter p-6 ring-1 ring-charcoal/8">
+        <div className="rounded-[1.6rem] bg-butter/70 p-6">
           <h2 className="font-heading text-xl font-semibold">
             Payment after confirmation
           </h2>
@@ -617,7 +617,7 @@ export function OrderForm() {
           </div>
         </div>
 
-        <div className="rounded-[1.6rem] bg-cream p-6 ring-1 ring-charcoal/8">
+        <div className="rounded-[1.6rem] bg-butter/40 p-6">
           <h2 className="font-heading text-xl font-semibold">Delivery</h2>
           <ul className="mt-4 space-y-3 text-sm text-charcoal/80">
             <li>
