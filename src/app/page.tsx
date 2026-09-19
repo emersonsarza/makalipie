@@ -5,11 +5,25 @@ import { InstagramIcon } from "@/components/icons";
 import { PieSelection } from "@/components/sections/pie-selection";
 import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
-import { site } from "@/lib/site";
+import { getSiteUrl, site } from "@/lib/site";
 
 export default function Home() {
   return (
     <SiteShell>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "@id": `${getSiteUrl()}/#website`,
+            name: site.name,
+            url: `${getSiteUrl()}/`,
+            inLanguage: "en-PH",
+            publisher: { "@id": `${getSiteUrl()}/#bakery` },
+          }).replace(/</g, "\\u003c"),
+        }}
+      />
       <section className="home-hero wrap">
         <div className="hero-copy">
           <p className="eyebrow hero-enter">CEBU’S HOME FOR TARTS & PIES</p>

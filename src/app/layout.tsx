@@ -33,7 +33,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Makalipie · Making people happy, one pie at a time",
+    default: "Makalipie | Handcrafted Tarts & Pies in Cebu",
     template: "%s · Makalipie",
   },
   description: site.description,
@@ -51,30 +51,45 @@ export const metadata: Metadata = {
     locale: "en_PH",
     url: siteUrl,
     siteName: site.name,
-    title: "Makalipie · Making people happy, one pie at a time",
+    title: "Makalipie | Handcrafted Tarts & Pies in Cebu",
     description: site.description,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Makalipie · Making people happy, one pie at a time",
+    title: "Makalipie | Handcrafted Tarts & Pies in Cebu",
     description: site.description,
   },
   alternates: {
     canonical: "/",
   },
+  verification: { google: process.env.GOOGLE_SITE_VERIFICATION || undefined },
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
   },
 };
 
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "Bakery",
+  "@id": `${siteUrl}/#bakery`,
+  logo: `${siteUrl}/brand/seal.png`,
+  hasMenu: `${siteUrl}/menu`,
+  hasMap: site.mapsUrl,
   name: site.name,
   description: site.description,
   url: siteUrl,
-  image: `${siteUrl}/opengraph-image`,
+  image: [
+    `${siteUrl}/images/brand/hero.webp`,
+    `${siteUrl}/images/brand/gift.webp`,
+  ],
   sameAs: [site.instagramUrl],
   address: {
     "@type": "PostalAddress",
@@ -105,7 +120,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col">
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
+          }}
         />
         {children}
       </body>

@@ -282,7 +282,9 @@ export function itemPriceText(item: Pick<MenuItem, "price" | "priceLabel">) {
 }
 
 export function getSiteUrl() {
-  return process.env.NEXT_PUBLIC_SITE_URL ?? "https://makalipie.by1002.com";
+  return new URL(
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://makalipie.by1002.com",
+  ).origin;
 }
 
 export function getOrderSummarySource() {
