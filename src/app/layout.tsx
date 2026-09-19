@@ -1,31 +1,31 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Geist_Mono, Nunito } from "next/font/google";
+import localFont from "next/font/local";
 
 import { getSiteUrl, site } from "@/lib/site";
 
 import "./globals.css";
 
-const nunito = Nunito({
-  variable: "--font-nunito",
-  subsets: ["latin"],
+const garet = localFont({
+  src: [
+    {
+      path: "../../public/fonts/Garet-Book.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../../public/fonts/Garet-Heavy.woff2",
+      weight: "700",
+      style: "normal",
+    },
+  ],
+  variable: "--font-garet",
   display: "swap",
-});
-
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
 });
 
 const siteUrl = getSiteUrl();
 
 export const viewport: Viewport = {
-  themeColor: "#FFF8F0",
+  themeColor: "#FAF9F6",
   width: "device-width",
   initialScale: 1,
 };
@@ -33,7 +33,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Makalipie · Where every bite tastes like home",
+    default: "Makalipie · Making people happy, one pie at a time",
     template: "%s · Makalipie",
   },
   description: site.description,
@@ -51,12 +51,12 @@ export const metadata: Metadata = {
     locale: "en_PH",
     url: siteUrl,
     siteName: site.name,
-    title: "Makalipie · Where every bite tastes like home",
+    title: "Makalipie · Making people happy, one pie at a time",
     description: site.description,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Makalipie · Where every bite tastes like home",
+    title: "Makalipie · Making people happy, one pie at a time",
     description: site.description,
   },
   alternates: {
@@ -101,10 +101,7 @@ const jsonLd = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${nunito.variable} ${fraunces.variable} ${geistMono.variable} h-full antialiased`}
-    >
+    <html lang="en" className={`${garet.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <script
           type="application/ld+json"

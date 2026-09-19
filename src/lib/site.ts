@@ -1,6 +1,6 @@
 export const site = {
   name: "Makalipie",
-  tagline: "Where every bite tastes like home",
+  tagline: "Making people happy, one pie at a time",
   slogan: "Makalipie gyud ni!",
   description:
     "Proudly Cebuana-made tarts and pies with a one-of-a-kind handcrafted crust. Visit us at Streetscape, Banilad, Cebu.",
@@ -62,12 +62,13 @@ export const menuItems: MenuItem[] = [
     name: "Keylime",
     kind: "sweet",
     price: 240,
-    blurb: "Tart, sunny, and a little tropical. A squeeze of sunshine in a flaky shell.",
+    blurb:
+      "Tart, sunny, and a little tropical. A squeeze of sunshine in a flaky shell.",
     description:
       "A zesty, tangy delight with a smooth lime filling on a graham crust, finished with a dollop of whipped cream. Refreshingly irresistible.",
     image: {
-      src: "/images/menu/keylime.jpg",
-      alt: "A slice of Keylime tart with graham crust, creamy filling, and whipped cream",
+      src: "/images/brand/keylime.webp",
+      alt: "A Keylime tart with graham crust, creamy lime filling, and whipped cream",
     },
   },
   {
@@ -75,11 +76,12 @@ export const menuItems: MenuItem[] = [
     name: "Pecan",
     kind: "sweet",
     price: 240,
-    blurb: "Toasty pecans, caramel-deep sweetness, and that crackly top we all fight over.",
+    blurb:
+      "Toasty pecans, caramel-deep sweetness, and that crackly top we all fight over.",
     description:
       "A decadent mix of buttery caramel and toasted pecans on our signature all butter shortcrust.",
     image: {
-      src: "/images/menu/pecan.jpg",
+      src: "/images/brand/pecan.webp",
       alt: "A whole pecan tart with a golden fluted crust and glossy toasted pecans",
     },
   },
@@ -88,11 +90,12 @@ export const menuItems: MenuItem[] = [
     name: "S’mores",
     kind: "sweet",
     price: 190,
-    blurb: "Campfire nostalgia: toasted marshmallow, chocolate, and a graham-kissed crust.",
+    blurb:
+      "Campfire nostalgia: toasted marshmallow, chocolate, and a graham-kissed crust.",
     description:
       "A rich chocolate ganache topped with graham and gooey marshmallows for the ultimate treat.",
     image: {
-      src: "/images/menu/smores.jpg",
+      src: "/images/brand/smores.webp",
       alt: "Close-up of a chocolate tart topped with toasted marshmallow",
     },
   },
@@ -101,11 +104,12 @@ export const menuItems: MenuItem[] = [
     name: "Banoffee",
     kind: "sweet",
     price: 240,
-    blurb: "Banana, toffee, cream. The kind of slice that makes people close their eyes.",
+    blurb:
+      "Banana, toffee, cream. The kind of slice that makes people close their eyes.",
     description:
       "A heavenly blend of bananas and creamy caramel, topped with whipped cream for a classic indulgence.",
     image: {
-      src: "/images/menu/banoffee.jpg",
+      src: "/images/brand/banoffee.webp",
       alt: "A slice of Banoffee tart with banana, caramel, and cream",
     },
   },
@@ -118,8 +122,8 @@ export const menuItems: MenuItem[] = [
     description:
       "A rich and creamy Oreo-infused white chocolate ganache with layers of crushed cookies, a true crowd-pleaser.",
     image: {
-      src: "/images/menu/oreo.jpg",
-      alt: "Stacked slices of Oreo tart with cookies-and-cream filling",
+      src: "/images/brand/oreo.webp",
+      alt: "Oreo tart slices with cookies-and-cream filling",
     },
   },
   {
@@ -127,7 +131,8 @@ export const menuItems: MenuItem[] = [
     name: "Buko",
     kind: "sweet",
     priceLabel: "DM for price",
-    blurb: "Young coconut, creamy filling, and the crust that started all the DMs.",
+    blurb:
+      "Young coconut, creamy filling, and the crust that started all the DMs.",
     description:
       "Our bestseller: young coconut cream in a handcrafted crust. Available Friday to Sunday. Message us to secure a pie.",
     note: "Fri-Sun · pre-order via Instagram",
@@ -142,7 +147,8 @@ export const menuItems: MenuItem[] = [
     name: "Butter Chicken Curry pie",
     kind: "savory",
     priceLabel: "DM for price",
-    blurb: "Slow, saucy, and wrapped in that one-of-a-kind flaky crust. Sunday's savory hero.",
+    blurb:
+      "Slow, saucy, and wrapped in that one-of-a-kind flaky crust. Sunday's savory hero.",
     description:
       "Slow, saucy butter chicken curry wrapped in our one-of-a-kind flaky crust. Find it at the Sunday market.",
     note: "Sunday Market · ~7AM-3PM",
@@ -156,11 +162,7 @@ export const menuItems: MenuItem[] = [
 export const sweetItems = menuItems.filter((item) => item.kind === "sweet");
 export const savoryItems = menuItems.filter((item) => item.kind === "savory");
 
-export const featuredMenuSlugs = [
-  "buko",
-  "smores",
-  "pecan",
-] as const;
+export const featuredMenuSlugs = ["buko", "smores", "pecan"] as const;
 
 export const addons = [
   {
