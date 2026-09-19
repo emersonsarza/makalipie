@@ -6,7 +6,22 @@ import { SiteShell } from "@/components/site-shell";
 export const metadata: Metadata = {
   title: "Menu",
   description:
-    "Browse Makalipie tarts and pies: Keylime, Pecan, S'mores, Banoffee, Oreo, Buko, and Sunday savory, with prices and order links.",
+    "Explore handmade sweet tarts, Friday-to-Sunday Buko pie, and Butter Chicken Curry. Find your favourites and check availability with Makalipie in Cebu.",
+  openGraph: {
+    title: "Menu · Makalipie",
+    description:
+      "Explore handmade sweet tarts, Friday-to-Sunday Buko pie, and Butter Chicken Curry. Find your favourites and check availability with Makalipie in Cebu.",
+    url: "/menu",
+    type: "website",
+    locale: "en_PH",
+    siteName: "Makalipie",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Menu · Makalipie",
+    description:
+      "Explore handmade sweet tarts, Friday-to-Sunday Buko pie, and Butter Chicken Curry. Find your favourites and check availability with Makalipie in Cebu.",
+  },
   alternates: {
     canonical: "/menu",
   },

@@ -80,12 +80,14 @@ export default function Home() {
               To make you happy.
             </h2>
             <p>
-              That’s where our name comes from. And why we make pies small
-              enough for an ordinary Tuesday, and good enough for a celebration.
+              Back home in Cebu after working in Sydney, chef Dominika Miranda
+              started with a craving for mango pie. Her brother suggested a name
+              inspired by makalipay, the Bisaya word for making someone happy.
             </p>
             <p>
-              Every crust is hand-rolled, pressed one by one, and blind-baked. A
-              little patience you can taste in the first bite.
+              Today, that same idea lives in our small-batch tarts and pies.
+              Hand-rolled, pressed one by one, and made for the little moments
+              worth sharing.
             </p>
             <div className="story-signoff">
               <Image
@@ -191,9 +193,8 @@ export default function Home() {
                 Find your way here <ArrowUpRight size={18} aria-hidden />
               </a>
               <p className="visit-market">
-                Sunday market regular? Look out for our
-                <br />
-                Butter Chicken Curry pie, around 7am to 3pm.
+                Catch us at local pop-ups, too. Check Instagram for the next
+                market, seasonal pie, or special drop.
               </p>
             </div>
           </div>
@@ -222,7 +223,11 @@ export default function Home() {
             <p>
               Yes. Select Lalamove delivery in the order form and add your
               address. We’ll coordinate the booking and confirm the delivery fee
-              with you. You can also pick up at Streetscape.
+              with you. You can also pick up at Streetscape, or browse our{" "}
+              <a href={site.foodpandaUrl} target="_blank" rel="noreferrer">
+                Foodpanda menu
+              </a>
+              . Platform prices and availability may differ.
             </p>
           </details>
           <details>
@@ -236,6 +241,26 @@ export default function Home() {
             </p>
           </details>
           <details>
+            <summary>Do you deliver to Manila?</summary>
+            <p>
+              We arrange occasional Manila drops. Follow our{" "}
+              <a href={site.instagramUrl} target="_blank" rel="noreferrer">
+                Instagram posts and stories
+              </a>{" "}
+              for the next announcement, then message us for details. Manila
+              drops are separate from our regular Cebu pickup and delivery
+              orders.
+            </p>
+          </details>
+          <details>
+            <summary>When are the pies best enjoyed?</summary>
+            <p>
+              We bake daily and recommend enjoying your pies soon after you
+              receive them. For storage, travel, or serving instructions for a
+              particular filling, message us when ordering.
+            </p>
+          </details>
+          <details>
             <summary>What about gifts and bigger gatherings?</summary>
             <p>
               Add a note card or birthday topper in the order form. For
@@ -243,6 +268,52 @@ export default function Home() {
               message on Instagram and we’ll talk through the details.
             </p>
           </details>
+        </div>
+      </section>
+      <section className="press-section wrap">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">A LITTLE MORE OF OUR STORY</p>
+            <h2>Beyond the pie box.</h2>
+          </div>
+        </div>
+        <div className="press-links">
+          <a
+            href="https://www.instagram.com/makalipie/p/DdNwqSvD4kd/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span className="eyebrow">THE DAILY DISH · SEPTEMBER 2026</span>
+            <h3>A Makalipie moment on screen.</h3>
+            <p>Our announcement of a feature on Bilyonaryo News Channel.</p>
+            <span>
+              See the post <ArrowUpRight size={17} aria-hidden />
+            </span>
+          </a>
+          <a
+            href="https://www.instagram.com/featrmedia/reel/DX3xVJFNsmH/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span className="eyebrow">FEATR</span>
+            <h3>Inside our Buko pie.</h3>
+            <p>A closer look at our homemade French butter crust.</p>
+            <span>
+              Watch the feature <ArrowUpRight size={17} aria-hidden />
+            </span>
+          </a>
+          <a
+            href="https://keeta.ph/how-makalipie-redefined-happiness/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span className="eyebrow">KEETA</span>
+            <h3>How it all began.</h3>
+            <p>Meet chef Dominika Miranda and the idea behind Makalipie.</p>
+            <span>
+              Read the story <ArrowUpRight size={17} aria-hidden />
+            </span>
+          </a>
         </div>
       </section>
       <section className="social-section wrap">

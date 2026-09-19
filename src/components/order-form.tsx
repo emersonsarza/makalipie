@@ -1,9 +1,10 @@
 "use client";
 
-import { CalendarDays, Minus, Plus } from "lucide-react";
+import { ArrowUpRight, CalendarDays, Minus, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { OrderChannelLine } from "@/components/order-channel-line";
+import Image from "next/image";
+import Link from "next/link";
 import { Calendar } from "@/components/ui/calendar";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,6 @@ import {
 import { dayjs } from "@/lib/dayjs";
 import {
   addons,
-  bankDetails,
   deliveryOptions,
   formatPrice,
   getOrderSummarySource,
@@ -46,7 +46,7 @@ type FormState = {
 };
 
 const initialQuantities = Object.fromEntries(
-  menuItems.map((item) => [item.slug, 0])
+  menuItems.map((item) => [item.slug, 0]),
 ) as Record<string, number>;
 
 const initialState: FormState = {
@@ -70,7 +70,7 @@ function formatPreferredWhen(date: Date | undefined, time: string) {
 
 function flavorNote(item: MenuItem) {
   if (item.slug === "buko") return "Fri-Sun";
-  if (item.slug === "butter-chicken-curry") return "Sunday Market";
+  if (item.slug === "butter-chicken-curry") return "Availability to confirm";
   return item.note;
 }
 
@@ -97,7 +97,9 @@ function buildOrderSummary(form: FormState) {
     })
     .filter(Boolean);
 
-  const delivery = deliveryOptions.find((option) => option.id === form.delivery);
+  const delivery = deliveryOptions.find(
+    (option) => option.id === form.delivery,
+  );
   const payment = paymentMethods.find((method) => method.id === form.payment);
   const flavorLines = buildFlavorLines(form.quantities);
 
@@ -139,10 +141,10 @@ function QtyStepper({
   label: string;
 }) {
   return (
-    <div className="inline-flex items-center rounded-full bg-cream ring-1 ring-charcoal/10">
+    <div className="order-stepper">
       <button
         type="button"
-        className="pressable inline-flex size-9 items-center justify-center rounded-full text-charcoal disabled:opacity-30"
+        className="pressable inline-flex size-11 items-center justify-center rounded-full text-charcoal disabled:opacity-30"
         aria-label={`Decrease ${label}`}
         disabled={value <= 0}
         onClick={() => onChange(Math.max(0, value - 1))}
@@ -154,7 +156,7 @@ function QtyStepper({
       </span>
       <button
         type="button"
-        className="pressable inline-flex size-9 items-center justify-center rounded-full text-charcoal"
+        className="pressable inline-flex size-11 items-center justify-center rounded-full text-charcoal"
         aria-label={`Increase ${label}`}
         onClick={() => onChange(value + 1)}
       >
@@ -177,14 +179,25 @@ function FlavorRow({
   const extra = flavorNote(item);
 
   return (
-    <div
-      className={cn(
-        "flex items-center gap-3 rounded-2xl px-3 py-3 ring-1 transition-[background-color,box-shadow] duration-150 ease-[var(--ease-out)] sm:px-4",
-        selected
-          ? "bg-butter ring-crust/70"
-          : "bg-cream ring-charcoal/10"
+    <div className={cn("order-flavor", selected ? "is-selected" : "")}>
+      {item.price != null ? (
+        <Image
+          src={`/images/thumbs/${item.slug}.webp`}
+          unoptimized
+          alt=""
+          width={72}
+          height={72}
+          className="order-thumb"
+        />
+      ) : (
+        <Image
+          src="/brand/seal.png"
+          alt=""
+          width={72}
+          height={72}
+          className="order-thumb order-seal"
+        />
       )}
-    >
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <p className="font-heading text-base font-semibold">{item.name}</p>
@@ -216,11 +229,23 @@ export function OrderForm() {
   const needsNote = form.selectedAddons.includes("note-card");
   const selectedCount = useMemo(
     () => Object.values(form.quantities).reduce((sum, qty) => sum + qty, 0),
-    [form.quantities]
+    [form.quantities],
   );
+  const selectedItems = menuItems.filter(
+    (item) => form.quantities[item.slug] > 0,
+  );
+  const chosenAddons = addons.filter((addon) =>
+    form.selectedAddons.includes(addon.id),
+  );
+  const subtotal =
+    selectedItems.reduce(
+      (sum, item) => sum + (item.price ?? 0) * form.quantities[item.slug],
+      0,
+    ) + chosenAddons.reduce((sum, addon) => sum + addon.price, 0);
+  const hasUnpriced = selectedItems.some((item) => item.price == null);
   const today = useMemo(
     () => dayjs().tz(site.timezone).startOf("day").toDate(),
-    []
+    [],
   );
   const dateLabel = form.preferredDate
     ? dayjs(form.preferredDate).format("ddd, MMM D")
@@ -296,343 +321,416 @@ export function OrderForm() {
   }
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:py-16">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          Open order form
-        </h1>
-        <p className="mt-4 text-charcoal/70">
-          Tap flavors and quantities. We&apos;ll copy a clean summary, then open
-          Instagram so you can paste it into our DM.
-        </p>
-        <OrderChannelLine className="mt-3" />
-
-        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-          <div className="grid gap-5 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                name="name"
-                required
-                value={form.name}
-                onChange={(event) => update("name", event.target.value)}
-                className="h-11 rounded-xl bg-cream px-3"
-                autoComplete="name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="contact">Contact Number</Label>
-              <Input
-                id="contact"
-                name="contact"
-                required
-                value={form.contact}
-                onChange={(event) => update("contact", event.target.value)}
-                className="h-11 rounded-xl bg-cream px-3"
-                autoComplete="tel"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <Label>Preferred date</Label>
-            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-              <PopoverTrigger
-                type="button"
-                className={cn(
-                  buttonVariants({ variant: "outline" }),
-                  "h-11 w-full justify-start rounded-xl border-charcoal/15 bg-cream px-3 text-base font-medium md:text-sm"
-                )}
-              >
-                <CalendarDays className="size-4 text-charcoal/60" />
-                <span
-                  className={
-                    form.preferredDate ? "text-charcoal" : "text-charcoal/45"
-                  }
-                >
-                  {dateLabel}
-                </span>
-              </PopoverTrigger>
-              <PopoverContent
-                align="start"
-                className="w-auto overflow-hidden rounded-2xl p-2"
-              >
-                <Calendar
-                  mode="single"
-                  selected={form.preferredDate}
-                  onSelect={(date) => {
-                    update("preferredDate", date);
-                    if (date) setCalendarOpen(false);
-                  }}
-                  disabled={{ before: today }}
-                  defaultMonth={form.preferredDate ?? today}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div className="space-y-3">
-            <Label>Preferred time</Label>
-            <div className="flex flex-wrap gap-2">
-              {pickupTimes.map((time) => {
-                const active = form.preferredTime === time;
-                return (
-                  <button
-                    key={time}
-                    type="button"
-                    onClick={() => update("preferredTime", time)}
-                    className={cn(
-                      "pressable rounded-full px-3.5 py-2 text-sm font-semibold ring-1 transition-colors duration-150 ease-[var(--ease-out)]",
-                      active
-                        ? "bg-crust text-charcoal ring-crust"
-                        : "bg-cream text-charcoal/80 ring-charcoal/10 hover:bg-butter"
-                    )}
-                    aria-pressed={active}
-                  >
-                    {time}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <fieldset className="space-y-3">
-            <legend className="text-sm font-medium">Flavors</legend>
-            <p className="text-xs text-charcoal/55">
-              Tap + to add a pie. Buko is Friday to Sunday; Butter Chicken
-              Curry is the Sunday market savory.
-            </p>
-            <div className="space-y-2">
-              {sweetItems.map((item) => (
-                <FlavorRow
-                  key={item.slug}
-                  item={item}
-                  quantity={form.quantities[item.slug] ?? 0}
-                  onQuantityChange={(next) => setQuantity(item.slug, next)}
-                />
-              ))}
-            </div>
-            <p className="pt-2 text-xs font-semibold tracking-wide text-charcoal/50 uppercase">
-              Savory
-            </p>
-            <div className="space-y-2">
-              {savoryItems.map((item) => (
-                <FlavorRow
-                  key={item.slug}
-                  item={item}
-                  quantity={form.quantities[item.slug] ?? 0}
-                  onQuantityChange={(next) => setQuantity(item.slug, next)}
-                />
-              ))}
-            </div>
-            {bukoQty > 0 && form.preferredDate && !bukoDayOk ? (
-              <p className="text-sm text-charcoal/70">
-                Buko is baked Friday to Sunday. We&apos;ll confirm timing in DM.
-              </p>
-            ) : null}
-            <div className="space-y-2 pt-1">
-              <Label htmlFor="notes">Notes (optional)</Label>
-              <textarea
-                id="notes"
-                name="notes"
-                rows={2}
-                value={form.notes}
-                onChange={(event) => update("notes", event.target.value)}
-                className="w-full rounded-xl border border-input bg-cream px-3 py-2.5 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
-                placeholder="Allergies, packing notes, or anything else"
-              />
-            </div>
-          </fieldset>
-
-          <fieldset className="space-y-3">
-            <legend className="text-sm font-medium">Add-Ons</legend>
-            {addons.map((addon) => (
-              <label
-                key={addon.id}
-                className="pressable flex cursor-pointer items-start gap-3 rounded-xl bg-butter/60 px-4 py-3"
-              >
-                <input
-                  type="checkbox"
-                  checked={form.selectedAddons.includes(addon.id)}
-                  onChange={() => toggleAddon(addon.id)}
-                  className="mt-1 size-4 accent-crust"
-                />
-                <span className="text-sm">
-                  <span className="font-semibold">{addon.label}</span>
-                  <span className="text-charcoal/60">
-                    {" "}
-                    (+{formatPrice(addon.price)})
-                  </span>
-                </span>
-              </label>
-            ))}
-            {needsNote ? (
-              <div className="space-y-2 pl-1">
-                <Label htmlFor="noteMessage">Message for note card</Label>
-                <Input
-                  id="noteMessage"
-                  name="noteMessage"
-                  value={form.noteMessage}
-                  onChange={(event) => update("noteMessage", event.target.value)}
-                  className="h-11 rounded-xl bg-cream px-3"
-                  placeholder="Write your note…"
-                />
-              </div>
-            ) : null}
-          </fieldset>
-
-          <fieldset className="space-y-3">
-            <legend className="text-sm font-medium">Delivery Option</legend>
-            {deliveryOptions.map((option) => (
-              <label
-                key={option.id}
-                className="pressable flex cursor-pointer items-start gap-3 rounded-xl bg-butter/60 px-4 py-3"
-              >
-                <input
-                  type="radio"
-                  name="delivery"
-                  value={option.id}
-                  checked={form.delivery === option.id}
-                  onChange={() => update("delivery", option.id)}
-                  className="mt-1 size-4 accent-crust"
-                />
-                <span className="text-sm">
-                  <span className="font-semibold">{option.label}</span>
-                  <span className="mt-0.5 block text-charcoal/60">
-                    {option.detail}
-                  </span>
-                </span>
-              </label>
-            ))}
-            {needsAddress ? (
-              <div className="space-y-2 pl-1">
-                <Label htmlFor="address">Delivery Address</Label>
-                <textarea
-                  id="address"
-                  name="address"
-                  rows={3}
-                  value={form.address}
-                  onChange={(event) => update("address", event.target.value)}
-                  className="w-full rounded-xl border border-input bg-cream px-3 py-2.5 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
-                  placeholder="Full address for Lalamove"
-                />
-              </div>
-            ) : null}
-          </fieldset>
-
-          <fieldset className="space-y-3">
-            <legend className="text-sm font-medium">Mode of Payment</legend>
-            <p className="text-xs text-charcoal/55">
-              Choose how you&apos;d like to pay after we confirm and send an
-              invoice. No payment yet.
-            </p>
-            {paymentMethods.map((method) => (
-              <label
-                key={method.id}
-                className="pressable flex cursor-pointer items-center gap-3 rounded-xl bg-butter/60 px-4 py-3"
-              >
-                <input
-                  type="radio"
-                  name="payment"
-                  value={method.id}
-                  checked={form.payment === method.id}
-                  onChange={() => update("payment", method.id)}
-                  className="size-4 accent-crust"
-                />
-                <span className="text-sm font-semibold">{method.label}</span>
-              </label>
-            ))}
-          </fieldset>
-
-          {error ? (
-            <p className="text-sm font-medium text-berry" role="alert">
-              {error}
-            </p>
-          ) : null}
-
-          {status === "copied" ? (
-            <p className="text-sm font-medium text-charcoal" role="status">
-              Order copied. Paste it into the Instagram DM that just opened.
-            </p>
-          ) : null}
-
-          {status === "fallback" ? (
-            <div className="space-y-2" role="status">
-              <p className="text-sm font-medium text-charcoal">
-                Couldn&apos;t copy automatically. Select and copy the summary
-                below, then paste into Instagram.
-              </p>
-              <textarea
-                readOnly
-                value={fallbackSummary}
-                rows={12}
-                className="w-full rounded-xl border border-charcoal/15 bg-cream px-3 py-2.5 font-mono text-xs"
-                onFocus={(event) => event.currentTarget.select()}
-              />
-            </div>
-          ) : null}
-
-          <button
-            type="submit"
-            className={cn(
-              buttonVariants({ variant: "default" }),
-              "h-12 w-full rounded-full px-6 text-base font-semibold sm:w-auto"
-            )}
-          >
-            Copy order &amp; open Instagram
-          </button>
-        </form>
-      </div>
-
-      <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
-        <div className="rounded-[1.6rem] bg-butter/70 p-6">
-          <h2 className="font-heading text-xl font-semibold">
-            Payment after confirmation
-          </h2>
-          <p className="mt-2 text-sm leading-relaxed text-charcoal/70">
-            Bank and GCash details are here so you&apos;re ready. Please wait
-            for our confirmation and invoice before paying, then send proof of
-            payment to secure your slot.
+    <div className="order-page wrap">
+      <header className="order-intro">
+        <div>
+          <p className="eyebrow">A LITTLE HAPPINESS, COMING YOUR WAY</p>
+          <h1>
+            Let’s put together
+            <br />
+            your <span>box of happy.</span>
+          </h1>
+          <p>
+            Choose your pies and tell us the details.
+            <br />
+            We’ll take it from there, together on Instagram.
           </p>
-          <div className="mt-4 space-y-4 text-sm leading-relaxed text-charcoal/80">
-            <div>
-              <p className="font-bold tracking-wide text-charcoal uppercase">
-                {bankDetails.bank}
+        </div>
+        <Image
+          src="/brand/seal.png"
+          alt="Makalipie Tarts & Pies"
+          width={145}
+          height={145}
+        />
+      </header>
+      <div className="order-layout">
+        <div>
+          <form id="pie-order" onSubmit={handleSubmit} className="order-form">
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-medium">Pick your pies</legend>
+              <p className="text-xs text-charcoal/55">
+                A few for you, a few to share. Use + to add your favourites.
               </p>
-              <p>{bankDetails.accountName}</p>
-              <p className="font-mono text-base text-charcoal">
-                {bankDetails.accountNumber}
+              <div className="space-y-2">
+                {sweetItems.map((item) => (
+                  <FlavorRow
+                    key={item.slug}
+                    item={item}
+                    quantity={form.quantities[item.slug] ?? 0}
+                    onQuantityChange={(next) => setQuantity(item.slug, next)}
+                  />
+                ))}
+              </div>
+              <p className="pt-2 text-xs font-semibold tracking-wide text-charcoal/50 uppercase">
+                Savoury
               </p>
-            </div>
-            <div>
-              <p className="font-bold tracking-wide text-charcoal uppercase">
-                GCash
+              <div className="space-y-2">
+                {savoryItems.map((item) => (
+                  <FlavorRow
+                    key={item.slug}
+                    item={item}
+                    quantity={form.quantities[item.slug] ?? 0}
+                    onQuantityChange={(next) => setQuantity(item.slug, next)}
+                  />
+                ))}
+              </div>
+              {bukoQty > 0 && form.preferredDate && !bukoDayOk ? (
+                <p className="text-sm text-charcoal/70">
+                  Buko is baked Friday to Sunday. We&apos;ll confirm timing in
+                  DM.
+                </p>
+              ) : null}
+              <div className="space-y-2 pt-1">
+                <Label htmlFor="notes">Notes (optional)</Label>
+                <textarea
+                  id="notes"
+                  name="notes"
+                  rows={2}
+                  value={form.notes}
+                  onChange={(event) => update("notes", event.target.value)}
+                  className="w-full rounded-xl border border-input bg-cream px-3 py-2.5 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
+                  placeholder="Allergies, packing notes, or anything else"
+                />
+              </div>
+            </fieldset>
+
+            <fieldset className="order-details-fields space-y-5">
+              <legend>Your details & timing</legend>
+              <p className="order-section-help">
+                Let us know who it’s for and when you’d like it.
               </p>
-              <p>Account name: {bankDetails.gcashName}</p>
-              <p className="mt-1 text-charcoal/60">
-                Scan or send via the QR we share in DM after confirmation.
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    required
+                    value={form.name}
+                    onChange={(event) => update("name", event.target.value)}
+                    className="h-11 rounded-xl bg-cream px-3"
+                    autoComplete="name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="contact">Contact Number</Label>
+                  <Input
+                    id="contact"
+                    type="tel"
+                    name="contact"
+                    required
+                    value={form.contact}
+                    onChange={(event) => update("contact", event.target.value)}
+                    className="h-11 rounded-xl bg-cream px-3"
+                    autoComplete="tel"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Label htmlFor="preferred-date">Preferred date</Label>
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                  <PopoverTrigger
+                    id="preferred-date"
+                    type="button"
+                    className={cn(
+                      buttonVariants({ variant: "outline" }),
+                      "h-11 w-full justify-start rounded-xl border-charcoal/15 bg-cream px-3 text-base font-medium md:text-sm",
+                    )}
+                  >
+                    <CalendarDays className="size-4 text-charcoal/60" />
+                    <span
+                      className={
+                        form.preferredDate
+                          ? "text-charcoal"
+                          : "text-charcoal/45"
+                      }
+                    >
+                      {dateLabel}
+                    </span>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="start"
+                    className="w-auto overflow-hidden rounded-2xl p-2"
+                  >
+                    <Calendar
+                      mode="single"
+                      selected={form.preferredDate}
+                      onSelect={(date) => {
+                        update("preferredDate", date);
+                        if (date) setCalendarOpen(false);
+                      }}
+                      disabled={{ before: today }}
+                      defaultMonth={form.preferredDate ?? today}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-3">
+                <Label>Preferred time</Label>
+                <div className="flex flex-wrap gap-2">
+                  {pickupTimes.map((time) => {
+                    const active = form.preferredTime === time;
+                    return (
+                      <button
+                        key={time}
+                        type="button"
+                        onClick={() => update("preferredTime", time)}
+                        className={cn(
+                          "pressable rounded-full px-3.5 py-2 text-sm font-semibold ring-1 transition-colors duration-150 ease-[var(--ease-out)]",
+                          active
+                            ? "bg-charcoal text-white ring-charcoal"
+                            : "bg-cream text-charcoal/80 ring-charcoal/10 hover:bg-butter",
+                        )}
+                        aria-pressed={active}
+                      >
+                        {time}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </fieldset>
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-medium">
+                Make it a little personal
+              </legend>
+              {addons.map((addon) => (
+                <label
+                  key={addon.id}
+                  className="pressable flex cursor-pointer items-start gap-3 rounded-xl bg-butter/60 px-4 py-3"
+                >
+                  <input
+                    type="checkbox"
+                    checked={form.selectedAddons.includes(addon.id)}
+                    onChange={() => toggleAddon(addon.id)}
+                    className="mt-1 size-4 accent-crust"
+                  />
+                  <span className="text-sm">
+                    <span className="font-semibold">{addon.label}</span>
+                    <span className="text-charcoal/60">
+                      {" "}
+                      (+{formatPrice(addon.price)})
+                    </span>
+                  </span>
+                </label>
+              ))}
+              {needsNote ? (
+                <div className="space-y-2 pl-1">
+                  <Label htmlFor="noteMessage">Message for note card</Label>
+                  <Input
+                    id="noteMessage"
+                    name="noteMessage"
+                    value={form.noteMessage}
+                    onChange={(event) =>
+                      update("noteMessage", event.target.value)
+                    }
+                    className="h-11 rounded-xl bg-cream px-3"
+                    placeholder="Write your note…"
+                  />
+                </div>
+              ) : null}
+            </fieldset>
+
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-medium">
+                How shall we get it to you?
+              </legend>
+              {deliveryOptions.map((option) => (
+                <label
+                  key={option.id}
+                  className="pressable flex cursor-pointer items-start gap-3 rounded-xl bg-butter/60 px-4 py-3"
+                >
+                  <input
+                    type="radio"
+                    name="delivery"
+                    value={option.id}
+                    checked={form.delivery === option.id}
+                    onChange={() => update("delivery", option.id)}
+                    className="mt-1 size-4 accent-crust"
+                  />
+                  <span className="text-sm">
+                    <span className="font-semibold">{option.label}</span>
+                    <span className="mt-0.5 block text-charcoal/60">
+                      {option.detail}
+                    </span>
+                  </span>
+                </label>
+              ))}
+              {needsAddress ? (
+                <div className="space-y-2 pl-1">
+                  <Label htmlFor="address">Delivery Address</Label>
+                  <textarea
+                    id="address"
+                    name="address"
+                    rows={3}
+                    value={form.address}
+                    onChange={(event) => update("address", event.target.value)}
+                    className="w-full rounded-xl border border-input bg-cream px-3 py-2.5 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
+                    placeholder="Full address for Lalamove"
+                  />
+                </div>
+              ) : null}
+            </fieldset>
+
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-medium">
+                Your payment preference
+              </legend>
+              <p className="text-xs text-charcoal/55">
+                Choose how you&apos;d like to pay after we confirm and send an
+                invoice. No payment yet.
               </p>
-            </div>
-          </div>
+              {paymentMethods.map((method) => (
+                <label
+                  key={method.id}
+                  className="pressable flex cursor-pointer items-center gap-3 rounded-xl bg-butter/60 px-4 py-3"
+                >
+                  <input
+                    type="radio"
+                    name="payment"
+                    value={method.id}
+                    checked={form.payment === method.id}
+                    onChange={() => update("payment", method.id)}
+                    className="size-4 accent-crust"
+                  />
+                  <span className="text-sm font-semibold">{method.label}</span>
+                </label>
+              ))}
+            </fieldset>
+
+            {error ? (
+              <p className="text-sm font-medium text-berry" role="alert">
+                {error}
+              </p>
+            ) : null}
+
+            {status === "copied" ? (
+              <p className="text-sm font-medium text-charcoal" role="status">
+                Order copied. Paste it into the Instagram DM that just opened.
+              </p>
+            ) : null}
+
+            {status === "fallback" ? (
+              <div className="space-y-2" role="status">
+                <p className="text-sm font-medium text-charcoal">
+                  Couldn&apos;t copy automatically. Select and copy the summary
+                  below, then paste into Instagram.
+                </p>
+                <textarea
+                  readOnly
+                  value={fallbackSummary}
+                  rows={12}
+                  className="w-full rounded-xl border border-charcoal/15 bg-cream px-3 py-2.5 font-mono text-xs"
+                  onFocus={(event) => event.currentTarget.select()}
+                />
+              </div>
+            ) : null}
+
+            <button
+              type="submit"
+              className={cn(
+                buttonVariants({ variant: "default" }),
+                "order-submit brand-button",
+              )}
+            >
+              Copy order &amp; open Instagram{" "}
+              <ArrowUpRight size={18} aria-hidden />
+            </button>
+            <p className="order-submit-note">
+              Your order is placed once we confirm it in our conversation. No
+              payment is taken here.
+            </p>
+          </form>
         </div>
 
-        <div className="rounded-[1.6rem] bg-butter/40 p-6">
-          <h2 className="font-heading text-xl font-semibold">Delivery</h2>
-          <ul className="mt-4 space-y-3 text-sm text-charcoal/80">
-            <li>
-              <span className="font-semibold text-charcoal">Self pick-up</span>
-              <br />
-              {site.kiosk.floor}, {site.kiosk.place}
-            </li>
-            <li>
-              <span className="font-semibold text-charcoal">Lalamove booking</span>
-              <br />
-              Share your address on the form; we&apos;ll confirm logistics in DM.
-            </li>
-          </ul>
-        </div>
-      </aside>
+        <aside className="order-summary" aria-label="Your order summary">
+          <div className="order-summary-heading">
+            <p className="eyebrow">A BOX TO LOOK FORWARD TO</p>
+            <h2>Your little lineup.</h2>
+            <p aria-live="polite">
+              {selectedCount === 0
+                ? "Your favourites will appear here."
+                : `${selectedCount} ${selectedCount === 1 ? "pie" : "pies"} picked. Good choices.`}
+            </p>
+          </div>
+          {selectedCount === 0 ? (
+            <div className="order-empty">
+              <Image
+                src="/images/brand/gift.webp"
+                alt="An assortment of Makalipie tarts in a gift box"
+                width={700}
+                height={500}
+              />
+              <p>
+                A tart for Tuesday.
+                <br />A box for the whole table.
+              </p>
+            </div>
+          ) : (
+            <ul className="order-summary-lines">
+              {selectedItems.map((item) => (
+                <li key={item.slug}>
+                  <span>
+                    {form.quantities[item.slug]} × {item.name}
+                  </span>
+                  <span>
+                    {item.price == null
+                      ? "To confirm"
+                      : formatPrice(item.price * form.quantities[item.slug])}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {chosenAddons.length > 0 && (
+            <ul className="order-summary-lines order-summary-addons">
+              {chosenAddons.map((addon) => (
+                <li key={addon.id}>
+                  <span>{addon.label}</span>
+                  <span>{formatPrice(addon.price)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="order-subtotal">
+            <span>Known subtotal</span>
+            <strong>{formatPrice(subtotal)}</strong>
+          </div>
+          <p className="order-total-note">
+            {hasUnpriced
+              ? "Weekend pie prices will be added after confirmation. "
+              : ""}
+            {needsAddress ? "Delivery fee is not included. " : ""}We’ll confirm
+            the final total in Instagram.
+          </p>
+          <div className="order-summary-logistics">
+            <span>
+              {needsAddress
+                ? "Lalamove delivery"
+                : "Pickup at Streetscape, Banilad"}
+            </span>
+            <span>
+              {formatPreferredWhen(form.preferredDate, form.preferredTime) ||
+                "Choose your preferred date and time."}
+            </span>
+          </div>
+          <div className="order-next">
+            <p className="eyebrow">WHAT HAPPENS NEXT</p>
+            <p>
+              Copy your order and paste it into our Instagram conversation.
+              We’ll confirm your pies and send payment details.
+            </p>
+            <a href={site.instagramDmUrl} target="_blank" rel="noreferrer">
+              Have a question? Talk to us <ArrowUpRight size={15} aria-hidden />
+            </a>
+          </div>
+          <Link href="/menu" className="order-back-menu">
+            Take another look at the menu <ArrowUpRight size={15} aria-hidden />
+          </Link>
+        </aside>
+      </div>
     </div>
   );
 }

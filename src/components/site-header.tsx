@@ -4,13 +4,24 @@ import { ArrowUpRight, Menu, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 
 const links = [
   { href: "/menu", label: "Our pies" },
   { href: "/#story", label: "Our story" },
   { href: "/#visit", label: "Find us" },
 ];
+
+function scrollToHash(href: string, pathname: string, event: MouseEvent) {
+  const hash = href.includes("#") ? href.slice(href.indexOf("#") + 1) : "";
+  if (!hash || pathname !== "/") return;
+
+  // Same-hash clicks are a no-op for the browser; force scroll when already on #visit / #story.
+  if (window.location.hash === `#${hash}`) {
+    event.preventDefault();
+    document.getElementById(hash)?.scrollIntoView({ behavior: "smooth" });
+  }
+}
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
@@ -50,6 +61,7 @@ export function SiteHeader() {
               key={link.href}
               href={link.href}
               aria-current={pathname === link.href ? "page" : undefined}
+              onClick={(event) => scrollToHash(link.href, pathname, event)}
             >
               {link.label}
             </Link>
@@ -77,7 +89,10 @@ export function SiteHeader() {
             <Link
               key={link.href}
               href={link.href}
-              onClick={() => setOpen(false)}
+              onClick={(event) => {
+                scrollToHash(link.href, pathname, event);
+                setOpen(false);
+              }}
             >
               {link.label}
               <ArrowUpRight size={20} aria-hidden />

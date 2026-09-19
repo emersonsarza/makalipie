@@ -1,149 +1,271 @@
 import Image from "next/image";
 import Link from "next/link";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { itemPriceText, menuItems, site } from "@/lib/site";
 
-import { Reveal } from "@/components/reveal";
-import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
-import { OrderChannelLine } from "@/components/order-channel-line";
-import { itemPriceText, savoryItems, site, sweetItems } from "@/lib/site";
-import { cn } from "@/lib/utils";
+const descriptions: Record<string, string> = {
+  keylime:
+    "Smooth, tangy lime filling on a graham crust. Finished with a little whipped cream.",
+  pecan:
+    "Toasted pecans and buttery caramel, baked into our all-butter shortcrust.",
+  smores:
+    "Rich chocolate ganache, graham, and marshmallows toasted until golden.",
+  banoffee:
+    "Banana, creamy caramel, and whipped cream. A familiar favourite, one tart at a time.",
+  oreo: "Oreo-infused white chocolate ganache with layers of crushed cookies.",
+};
 
 export function MenuCatalog() {
-  const savory = savoryItems[0];
-
+  const classics = menuItems.filter(
+    (item) => item.kind === "sweet" && item.slug !== "buko",
+  );
   return (
-    <div>
-      <section className="bg-butter/40 py-14 sm:py-16">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <p className="text-xs font-bold tracking-[0.2em] text-charcoal/70 uppercase">
-            Our menu
-          </p>
-          <h1 className="mt-3 max-w-2xl text-4xl font-semibold tracking-tight text-charcoal sm:text-5xl">
-            Your favourite is in here.
+    <div className="menu-page">
+      <section className="menu-intro wrap">
+        <div>
+          <p className="eyebrow">THE MAKALIPIE MENU</p>
+          <h1>
+            A little of
+            <br />
+            what makes you <span>happy.</span>
           </h1>
-          <p className="mt-4 max-w-xl text-lg text-charcoal/80">
-            Sweet tarts, weekend Buko pie, and a little something savoury.{" "}
-            <span className="font-semibold italic">{site.slogan}</span>
+          <p>
+            Something bright. Something chocolatey.
+            <br />
+            Always a crust worth saving the last bite for.
           </p>
-          <Link
-            href="/order"
-            className={cn(
-              buttonVariants({ variant: "default" }),
-              "mt-8 h-12 rounded-full bg-charcoal px-6 text-base font-semibold text-cream hover:bg-charcoal/90",
-            )}
-          >
-            Open order form
-          </Link>
+        </div>
+        <div className="menu-intro-photo">
+          <Image
+            src="/images/brand/gift.webp"
+            alt="A box of four Makalipie tarts on a wooden table"
+            fill
+            priority
+            sizes="(max-width: 767px) 100vw, 40vw"
+          />
         </div>
       </section>
-
-      <section className="py-14 sm:py-16">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <Reveal>
-            <h2 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
-              Sweet tarts &amp; pies
-            </h2>
-          </Reveal>
-
-          <div className="mt-8 grid gap-8 sm:grid-cols-2">
-            {sweetItems.map((item, index) => (
-              <Reveal
-                key={item.slug}
-                delay={(index % 2) * 50}
-                className="grid scroll-mt-32 gap-4 sm:grid-cols-[minmax(0,11rem)_1fr] sm:items-start"
-              >
-                <div className="relative aspect-square overflow-hidden rounded-[1.4rem] bg-butter">
-                  <Image
-                    src={item.image.src}
-                    alt={item.image.alt}
-                    fill
-                    sizes="(max-width: 640px) 100vw, 11rem"
-                    className="object-cover"
-                  />
-                  {item.bestseller ? (
-                    <Badge
-                      variant="berry"
-                      className="absolute top-3 left-3 shadow-sm"
-                    >
-                      Bestseller
-                    </Badge>
-                  ) : null}
-                  <span className="absolute right-3 bottom-3 rounded-full bg-cream px-3 py-1 text-sm font-bold text-charcoal shadow-sm ring-1 ring-charcoal/10">
-                    {itemPriceText(item)}
-                  </span>
-                </div>
-                <div id={item.slug} className="scroll-mt-32">
-                  <h3 className="font-heading text-2xl font-semibold tracking-tight">
-                    {item.name}
-                  </h3>
-                  <p className="mt-2 text-[0.95rem] leading-relaxed text-charcoal/75">
-                    {item.description}
-                  </p>
-                  {item.note ? (
-                    <p className="mt-3 text-sm font-semibold text-berry">
-                      {item.note}
-                    </p>
-                  ) : null}
-                </div>
-              </Reveal>
-            ))}
+      <nav className="menu-jump wrap" aria-label="Menu categories">
+        <div>
+          <a href="#sweet-tarts">
+            Sweet tarts <span>05</span>
+          </a>
+          <a href="#weekend-pies">
+            Weekend & savoury <span>02</span>
+          </a>
+        </div>
+        <Link href="/order">
+          Put together a box <ArrowUpRight size={17} aria-hidden />
+        </Link>
+      </nav>
+      <section id="sweet-tarts" className="menu-classics wrap section-space">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">FOR THE EVERYDAY LITTLE TREAT</p>
+            <h2>Sweet by nature.</h2>
           </div>
-
-          {savory ? (
-            <Reveal className="mt-12 overflow-hidden rounded-[2rem] bg-butter ring-1 ring-charcoal/8">
-              <div className="grid items-stretch lg:grid-cols-[1.1fr_0.9fr]">
-                <div className="flex flex-col justify-center px-6 py-10 sm:px-10">
-                  <p className="text-sm font-bold tracking-[0.18em] text-charcoal/70 uppercase">
-                    Something savory?
-                  </p>
-                  <h3
-                    id={savory.slug}
-                    className="scroll-mt-32 mt-3 font-heading text-3xl font-semibold tracking-tight sm:text-4xl"
-                  >
-                    {savory.name}
-                  </h3>
-                  <p className="mt-4 max-w-md text-lg leading-relaxed text-charcoal/80">
-                    {savory.description}
-                  </p>
-                  <p className="mt-5 text-sm font-semibold text-charcoal">
-                    {itemPriceText(savory)}
-                    {savory.note ? ` · ${savory.note}` : ""}
-                  </p>
-                </div>
-                <div className="relative min-h-64">
-                  <Image
-                    src={savory.image.src}
-                    alt={savory.image.alt}
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 40vw"
-                    className="object-cover"
-                  />
-                  <span className="absolute top-4 right-4 rounded-full bg-cream px-3 py-1 text-sm font-bold text-charcoal shadow-sm ring-1 ring-charcoal/10">
-                    {itemPriceText(savory)}
-                  </span>
-                </div>
-              </div>
-            </Reveal>
-          ) : null}
-
-          <Reveal className="mt-12 flex flex-col items-start gap-3 rounded-[1.6rem] bg-charcoal px-6 py-6 text-cream sm:flex-row sm:items-center sm:justify-between">
-            <p className="max-w-xl text-sm leading-relaxed sm:text-base">
-              Ready to order? Open the form, copy your summary, and send it
-              through our Instagram inbox.
-            </p>
-            <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+          <p className="menu-section-note">
+            Hand-rolled. Pressed one by one.
+            <br />
+            Made to make your day.
+          </p>
+        </div>
+        <div className="catalog-grid">
+          {classics.map((item) => (
+            <article id={item.slug} key={item.slug} className="catalog-item">
               <Link
                 href="/order"
-                className={cn(
-                  buttonVariants({ variant: "default" }),
-                  "h-11 rounded-full px-5 font-semibold",
-                )}
+                className="catalog-photo"
+                aria-label={`Order ${item.name}`}
               >
-                Open order form
+                <Image
+                  src={item.image.src}
+                  alt={item.image.alt}
+                  fill
+                  sizes="(max-width: 600px) 100vw, (max-width: 1000px) 45vw, 30vw"
+                />
+                <span className="catalog-photo-action">
+                  <ArrowUpRight size={21} aria-hidden />
+                </span>
               </Link>
-              <OrderChannelLine tone="dark" />
+              <div className="catalog-title">
+                <h3>{item.name}</h3>
+                <span>
+                  {itemPriceText(item)}
+                  <small> / tart</small>
+                </span>
+              </div>
+              <p>{descriptions[item.slug]}</p>
+              <Link href="/order" className="catalog-order">
+                Go to order form <ArrowRight size={15} aria-hidden />
+              </Link>
+            </article>
+          ))}
+          <div className="catalog-gift">
+            <Image
+              src="/brand/seal.png"
+              alt="Makalipie original seal"
+              width={100}
+              height={100}
+            />
+            <p className="eyebrow">A LITTLE OF EVERYTHING</p>
+            <h3>
+              Can’t pick
+              <br />
+              just one?
+            </h3>
+            <p>
+              Mix your favourites into a box.
+              <br />
+              One for you. A few to share.
+            </p>
+            <Link href="/order" className="brand-button">
+              Make it a box <ArrowUpRight size={18} aria-hidden />
+            </Link>
+          </div>
+        </div>
+      </section>
+      <section id="weekend-pies" className="menu-weekend">
+        <div className="wrap section-space">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">SOMETHING TO LOOK FORWARD TO</p>
+              <h2>A little sweet. A little savoury.</h2>
             </div>
-          </Reveal>
+            <p className="menu-section-note">
+              A different rhythm.
+              <br />
+              The same care in every crust.
+            </p>
+          </div>
+          <div className="weekend-grid">
+            <article id="buko" className="weekend-buko">
+              <div className="weekend-seal">
+                <Image
+                  src="/brand/seal.png"
+                  alt="Makalipie Tarts & Pies"
+                  width={100}
+                  height={100}
+                />
+              </div>
+              <div className="weekend-copy">
+                <p className="eyebrow">FRIDAY TO SUNDAY</p>
+                <h3>Buko pie</h3>
+                <p>
+                  Young coconut, creamy filling, and our handcrafted crust. The
+                  pie we’d bring to Sunday lunch.
+                </p>
+                <a
+                  href={site.instagramDmUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-link"
+                >
+                  Ask about this weekend’s batch{" "}
+                  <ArrowUpRight size={18} aria-hidden />
+                </a>
+                <span className="weekend-price">
+                  Message us for price & availability.
+                </span>
+              </div>
+            </article>
+            <article id="butter-chicken-curry" className="weekend-savory">
+              <p className="eyebrow">SOMETHING HEARTY</p>
+              <h3>
+                Butter Chicken
+                <br />
+                Curry pie.
+              </h3>
+              <p>
+                Homemade Indian butter chicken curry in our signature French
+                all-butter flaky crust. A little savoury comfort.
+              </p>
+              <div className="market-details">
+                <span>Ask about the current batch at Streetscape</span>
+                <strong>Message us to confirm availability</strong>
+              </div>
+              <a
+                href={site.instagramDmUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="brand-button"
+              >
+                Ask about this pie <ArrowUpRight size={18} aria-hidden />
+              </a>
+              <span className="weekend-price">
+                Message us for price & availability.
+              </span>
+            </article>
+          </div>
+        </div>
+      </section>
+      <section className="menu-seasonal wrap">
+        <div>
+          <p className="eyebrow">THERE’S MORE IN THE KITCHEN</p>
+          <h2>Keep an eye on the next batch.</h2>
+          <p>
+            Apple Makalipie joined our recent Manila drop. Seasonal flavours and
+            special drops are announced on Instagram; ask us what’s baking
+            before you order.
+          </p>
+        </div>
+        <a
+          href={site.instagramUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="text-link"
+        >
+          See the latest from our kitchen <ArrowUpRight size={18} aria-hidden />
+        </a>
+      </section>
+      <section className="menu-order-note wrap section-space">
+        <div>
+          <p className="eyebrow">FROM OUR KITCHEN TO YOUR TABLE</p>
+          <h2>Picked your favourites?</h2>
+          <p>
+            Fill in your order, then send the summary through Instagram. We’ll
+            confirm availability, payment, and pickup or delivery with you.
+          </p>
+          <Link href="/order" className="brand-button">
+            Put together your order <ArrowUpRight size={18} aria-hidden />
+          </Link>
+        </div>
+        <div className="menu-order-details">
+          <div>
+            <span>Prefer to order through Foodpanda?</span>
+            <p>
+              <a href={site.foodpandaUrl} target="_blank" rel="noreferrer">
+                Browse our Foodpanda menu
+              </a>
+              . Prices, delivery fees, and availability are set on the platform.
+            </p>
+          </div>
+          <div>
+            <span>Taking it home</span>
+            <p>
+              Pick up at Streetscape, Banilad.
+              <br />
+              Daily, 10am to 8pm.
+            </p>
+          </div>
+          <div>
+            <span>Sending a little happiness</span>
+            <p>
+              Choose Lalamove delivery in the order form.
+              <br />
+              We’ll confirm the fee and details in our reply.
+            </p>
+          </div>
+          <div>
+            <span>Something we should know?</span>
+            <p>
+              For allergies or dietary questions,{" "}
+              <a href={site.instagramDmUrl} target="_blank" rel="noreferrer">
+                talk to us
+              </a>{" "}
+              before placing your order.
+            </p>
+          </div>
         </div>
       </section>
     </div>

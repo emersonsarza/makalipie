@@ -7,6 +7,8 @@ export const site = {
   established: 2020,
   instagramHandle: "makalipie",
   instagramUrl: "https://www.instagram.com/makalipie/",
+  foodpandaUrl:
+    "https://www.foodpanda.ph/restaurant/gpj2/makalipie-paseo-saturnino",
   instagramDmUrl: "https://ig.me/m/makalipie",
   mapsUrl:
     "https://www.google.com/maps/search/?api=1&query=Streetscape%20Banilad%20Cebu",
@@ -148,13 +150,13 @@ export const menuItems: MenuItem[] = [
     kind: "savory",
     priceLabel: "DM for price",
     blurb:
-      "Slow, saucy, and wrapped in that one-of-a-kind flaky crust. Sunday's savory hero.",
+      "Slow, saucy, and wrapped in that one-of-a-kind flaky crust. A little savoury comfort.",
     description:
-      "Slow, saucy butter chicken curry wrapped in our one-of-a-kind flaky crust. Find it at the Sunday market.",
-    note: "Sunday Market · ~7AM-3PM",
+      "Homemade Indian butter chicken curry in our French all-butter flaky crust. Ask us about the current batch at Streetscape.",
+    note: "Ask about availability at Streetscape",
     image: {
       src: "/images/menu/butter-chicken.jpg",
-      alt: "Golden handcrafted crust, the shell for our Sunday Butter Chicken Curry pie",
+      alt: "Golden handcrafted crust, the shell for our Butter Chicken Curry pie",
     },
   },
 ];
