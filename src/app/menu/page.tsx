@@ -1,5 +1,7 @@
+import { readPublicMenu } from "@/lib/products/public";
+export const dynamic = "force-dynamic";
 import type { Metadata } from "next";
-import { getSiteUrl, menuItems } from "@/lib/site";
+import { getSiteUrl } from "@/lib/site";
 
 import { MenuCatalog } from "@/components/sections/menu-catalog";
 import { SiteShell } from "@/components/site-shell";
@@ -28,7 +30,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default function MenuPage() {
+export default async function MenuPage() {
+  const { items, unavailable } = await readPublicMenu();
   return (
     <SiteShell>
       <script
@@ -41,25 +44,16 @@ export default function MenuPage() {
             name: "Makalipie Tarts & Pies Menu",
             url: `${getSiteUrl()}/menu`,
             inLanguage: "en-PH",
-            hasMenuItem: menuItems.map((item) => ({
+            hasMenuItem: items.map((item) => ({
               "@type": "MenuItem",
               name: item.name,
               description: item.description,
-              ...(item.price != null
-                ? {
-                    offers: {
-                      "@type": "Offer",
-                      price: item.price,
-                      priceCurrency: "PHP",
-                      url: `${getSiteUrl()}/order`,
-                    },
-                  }
-                : {}),
+              offers: (item.variants ?? []).filter((v) => v.active && v.pricingMode === "fixed").map((v) => ({ "@type": "Offer", name: v.label, price: v.priceCentavos! / 100, priceCurrency: "PHP", url: `${getSiteUrl()}/order` })),
             })),
           }).replace(/</g, "\\u003c"),
         }}
       />
-      <MenuCatalog />
+      <MenuCatalog items={items} unavailable={unavailable} />
     </SiteShell>
   );
 }

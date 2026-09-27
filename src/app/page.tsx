@@ -1,3 +1,5 @@
+import { readPublicMenu } from "@/lib/products/public";
+export const dynamic = "force-dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, MapPin } from "lucide-react";
@@ -7,7 +9,8 @@ import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { getSiteUrl, site } from "@/lib/site";
 
-export default function Home() {
+export default async function Home() {
+  const { items } = await readPublicMenu();
   return (
     <SiteShell>
       <script
@@ -65,7 +68,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-      <PieSelection />
+      <PieSelection items={items} />
       <section id="story" className="story-section section-space">
         <div className="wrap story-layout">
           <Reveal className="story-photos">
@@ -237,12 +240,27 @@ export default function Home() {
             <p>
               Yes. Select Lalamove delivery in the order form and add your
               address. We’ll coordinate the booking and confirm the delivery fee
-              with you. You can also pick up at Streetscape, or browse our{" "}
-              <a href={site.foodpandaUrl} target="_blank" rel="noreferrer">
-                Foodpanda menu
-              </a>
-              . Platform prices and availability may differ.
+              with you. You can also pick up at Streetscape, or open our store
+              on Grab or Foodpanda. Platform prices and availability may differ.
             </p>
+            <div className="delivery-app-actions">
+              <a
+                href={site.grabUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="brand-button outline-button"
+              >
+                Order on Grab <ArrowUpRight size={16} aria-hidden />
+              </a>
+              <a
+                href={site.foodpandaUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="brand-button outline-button"
+              >
+                Order on Foodpanda <ArrowUpRight size={16} aria-hidden />
+              </a>
+            </div>
           </details>
           <details>
             <summary>When can I get Buko pie?</summary>

@@ -41,3 +41,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local Firebase emulator output and exported test data
+.firebase/
+*-debug.log
+emulator-data/
+
+.next-emulator/

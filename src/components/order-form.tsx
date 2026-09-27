@@ -16,19 +16,18 @@ import {
 } from "@/components/ui/popover";
 import { dayjs } from "@/lib/dayjs";
 import {
-  addons,
   deliveryOptions,
   formatPrice,
   getOrderSummarySource,
   itemPriceText,
-  menuItems,
   paymentMethods,
   pickupTimes,
-  savoryItems,
   site,
-  sweetItems,
   type MenuItem,
 } from "@/lib/site";
+import { CatalogAddonOptions } from "@/components/catalog-addon-options";
+import { availabilityReason, availabilityText, manilaDate, quoteSelection } from "@/lib/catalog/rules";
+import type { Addon, Catalog, Selection, Variant } from "@/lib/catalog/schema";
 import { cn } from "@/lib/utils";
 
 type FormState = {
@@ -39,25 +38,23 @@ type FormState = {
   quantities: Record<string, number>;
   notes: string;
   selectedAddons: string[];
-  noteMessage: string;
+  addonMessages: Record<string, string>;
+  lineAddons: Record<string, string[]>;
+  lineMessages: Record<string, Record<string, string>>;
   delivery: string;
   address: string;
   payment: string;
 };
-
-const initialQuantities = Object.fromEntries(
-  menuItems.map((item) => [item.slug, 0]),
-) as Record<string, number>;
 
 const initialState: FormState = {
   name: "",
   contact: "",
   preferredDate: undefined,
   preferredTime: "",
-  quantities: initialQuantities,
+  quantities: {},
   notes: "",
   selectedAddons: [],
-  noteMessage: "",
+  addonMessages: {}, lineAddons: {}, lineMessages: {},
   delivery: "pickup",
   address: "",
   payment: "bank",
@@ -69,39 +66,16 @@ function formatPreferredWhen(date: Date | undefined, time: string) {
 }
 
 function flavorNote(item: MenuItem) {
-  if (item.slug === "buko") return "Fri-Sun";
-  if (item.slug === "butter-chicken-curry") return "Availability to confirm";
   return item.note;
 }
 
-function buildFlavorLines(quantities: Record<string, number>) {
-  return menuItems
-    .filter((item) => (quantities[item.slug] ?? 0) > 0)
-    .map((item) => {
-      const qty = quantities[item.slug];
-      const extra = flavorNote(item);
-      return `- ${qty}× ${item.name} (${itemPriceText(item)})${extra ? ` · ${extra}` : ""}`;
-    });
-}
-
-function buildOrderSummary(form: FormState) {
-  const addonLines = form.selectedAddons
-    .map((id) => {
-      const addon = addons.find((item) => item.id === id);
-      if (!addon) return null;
-      const price = formatPrice(addon.price);
-      if (addon.id === "note-card" && form.noteMessage.trim()) {
-        return `- ${addon.label} (${price}): "${form.noteMessage.trim()}"`;
-      }
-      return `- ${addon.label} (${price})`;
-    })
-    .filter(Boolean);
-
+function buildOrderSummary(form: FormState, quote: ReturnType<typeof quoteSelection>) {
+  const addonLines = quote.addonLines;
   const delivery = deliveryOptions.find(
     (option) => option.id === form.delivery,
   );
   const payment = paymentMethods.find((method) => method.id === form.payment);
-  const flavorLines = buildFlavorLines(form.quantities);
+  const flavorLines = quote.lines;
 
   const lines = [
     "Makalipie Order Form",
@@ -125,6 +99,7 @@ function buildOrderSummary(form: FormState) {
       : null,
     `Mode of Payment: ${payment?.label ?? form.payment}`,
     "",
+    `Known subtotal: ₱${(quote.knownSubtotalCentavos / 100).toLocaleString("en-PH")}${quote.quoteRequired ? " · quoted items still to confirm" : ""}`,
     "Sent via " + getOrderSummarySource(),
   ];
 
@@ -135,7 +110,9 @@ function QtyStepper({
   value,
   onChange,
   label,
+  unavailable = false,
 }: {
+  unavailable?: boolean;
   value: number;
   onChange: (next: number) => void;
   label: string;
@@ -158,6 +135,7 @@ function QtyStepper({
         type="button"
         className="pressable inline-flex size-11 items-center justify-center rounded-full text-charcoal"
         aria-label={`Increase ${label}`}
+        disabled={unavailable || value >= 100}
         onClick={() => onChange(value + 1)}
       >
         <Plus className="size-3.5" />
@@ -170,7 +148,9 @@ function FlavorRow({
   item,
   quantity,
   onQuantityChange,
+  reason,
 }: {
+  reason?: string | null;
   item: MenuItem;
   quantity: number;
   onQuantityChange: (next: number) => void;
@@ -180,24 +160,7 @@ function FlavorRow({
 
   return (
     <div className={cn("order-flavor", selected ? "is-selected" : "")}>
-      {item.price != null ? (
-        <Image
-          src={`/images/thumbs/${item.slug}.webp`}
-          unoptimized
-          alt=""
-          width={72}
-          height={72}
-          className="order-thumb"
-        />
-      ) : (
-        <Image
-          src="/brand/seal.png"
-          alt=""
-          width={72}
-          height={72}
-          className="order-thumb order-seal"
-        />
-      )}
+      <Image src={item.image.src} unoptimized alt="" width={72} height={72} className="order-thumb" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <p className="font-heading text-base font-semibold">{item.name}</p>
@@ -205,6 +168,8 @@ function FlavorRow({
             {itemPriceText(item)}
           </p>
         </div>
+        {!!item.allergens?.length && <p className="text-xs">Contains: {item.allergens.join(", ")}.</p>}
+        {reason && <p className="mt-1 text-xs text-berry">{reason}</p>}
         {extra ? (
           <p className="mt-0.5 text-xs font-medium text-charcoal/55">{extra}</p>
         ) : null}
@@ -212,51 +177,48 @@ function FlavorRow({
       <QtyStepper
         value={quantity}
         onChange={onQuantityChange}
+        unavailable={Boolean(reason)}
         label={item.name}
       />
     </div>
   );
 }
 
-export function OrderForm() {
-  const [form, setForm] = useState<FormState>(initialState);
+type OrderItem = MenuItem & { productId: string; variant: Variant };
+export function OrderForm({ items, catalogAddons }: { items: MenuItem[]; catalogAddons: Addon[] }) {
+  const menuItems: OrderItem[] = items.flatMap((item) => (item.variants ?? []).filter((v) => v.active).map((v) => ({ ...item, productId: item.slug, slug: `${item.slug}:${v.id}`, name: `${item.name} · ${v.label}`, price: v.pricingMode === "fixed" ? v.priceCentavos! / 100 : undefined, priceLabel: "DM for price", variant: v })));
+  const sweetItems = menuItems.filter((item) => item.kind === "sweet");
+  const savoryItems = menuItems.filter((item) => item.kind === "savory");
+  const [form, setForm] = useState<FormState>(() => ({ ...initialState, quantities: Object.fromEntries(menuItems.map((item) => [item.slug, 0])) }));
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [status, setStatus] = useState<"idle" | "copied" | "fallback">("idle");
   const [error, setError] = useState<string | null>(null);
   const [fallbackSummary, setFallbackSummary] = useState("");
 
   const needsAddress = form.delivery === "lalamove";
-  const needsNote = form.selectedAddons.includes("note-card");
-  const selectedCount = useMemo(
-    () => Object.values(form.quantities).reduce((sum, qty) => sum + qty, 0),
-    [form.quantities],
-  );
+  const [checking, setChecking] = useState(false);
+  const selectedCount = menuItems.reduce((sum, item) => sum + (form.quantities[item.slug] ?? 0), 0);
   const selectedItems = menuItems.filter(
     (item) => form.quantities[item.slug] > 0,
   );
-  const chosenAddons = addons.filter((addon) =>
-    form.selectedAddons.includes(addon.id),
-  );
-  const subtotal =
-    selectedItems.reduce(
-      (sum, item) => sum + (item.price ?? 0) * form.quantities[item.slug],
-      0,
-    ) + chosenAddons.reduce((sum, addon) => sum + addon.price, 0);
-  const hasUnpriced = selectedItems.some((item) => item.price == null);
-  const today = useMemo(
-    () => dayjs().tz(site.timezone).startOf("day").toDate(),
-    [],
-  );
+  const chosenAddons = catalogAddons.filter((a) => form.selectedAddons.includes(a.id));
+  const selectedDate = form.preferredDate ? dayjs(form.preferredDate).format("YYYY-MM-DD") : "";
+  const selection: Selection = { date: selectedDate, lines: selectedItems.map((item) => ({ productId: item.productId, variantId: item.variant.id, quantity: form.quantities[item.slug], addons: (form.lineAddons[item.slug] ?? []).map((id) => ({ id, message: form.lineMessages[item.slug]?.[id] ?? "" })) })), addons: form.selectedAddons.map((id) => ({ id, message: form.addonMessages[id] ?? "" })) };
+  const clientCatalog: Catalog = { initialized: true, addons: catalogAddons, products: items.map((p) => ({ id: p.slug, slug: p.slug, name: p.name, blurb: p.blurb, description: p.description, category: p.kind, image: { url: p.image.src, alt: p.image.alt }, allergens: p.allergens ?? [], publicNotes: p.note ?? "", active: true, sortOrder: 0, version: 1, updatedAt: null, legacyPriceCentavos: null, variants: p.variants ?? [], availableWeekdays: p.availableWeekdays ?? [], unavailableDates: p.unavailableDates ?? [], allowedAddonIds: p.allowedAddonIds ?? [] })) };
+  const quote = quoteSelection(clientCatalog, { ...selection, date: selectedDate || manilaDate() });
+  const subtotal = quote.knownSubtotalCentavos / 100;
+  const hasUnpriced = quote.quoteRequired;
+  const today = useMemo(() => new Date(`${manilaDate()}T00:00:00`), []);
+  function row(item: OrderItem) {
+    const quantity = form.quantities[item.slug] ?? 0;
+    const product = clientCatalog.products.find((p) => p.id === item.productId)!;
+    const reason = selectedDate ? availabilityReason(product, item.variant, selectedDate) : null;
+    const extras = catalogAddons.filter((a) => a.scope === "per_item" && (product.allowedAddonIds.includes(a.id) || form.lineAddons[item.slug]?.includes(a.id)));
+    return <div key={item.slug} className="space-y-2"><FlavorRow item={item} quantity={quantity} onQuantityChange={(n) => setQuantity(item.slug, n)} reason={reason} /><p className="px-3 text-xs text-charcoal/65">{availabilityText(product)}{item.variant.minLeadDays > 0 ? ` · ${item.variant.minLeadDays} days preparation` : ""}</p>{quantity > 0 && extras.length > 0 && <div className="ml-3 border-l border-charcoal/15 pl-3"><p className="mb-2 text-xs font-semibold">Extras for {item.name}</p><CatalogAddonOptions addons={extras} quantity={quantity} prefix={item.slug} selected={form.lineAddons[item.slug] ?? []} messages={form.lineMessages[item.slug] ?? {}} toggle={(id) => { const current = form.lineAddons[item.slug] ?? []; update("lineAddons", { ...form.lineAddons, [item.slug]: current.includes(id) ? current.filter((x) => x !== id) : [...current, id] }); }} message={(id, value) => update("lineMessages", { ...form.lineMessages, [item.slug]: { ...form.lineMessages[item.slug], [id]: value } })} /></div>}</div>;
+  }
   const dateLabel = form.preferredDate
     ? dayjs(form.preferredDate).format("ddd, MMM D")
     : "Pick a date";
-  const bukoQty = form.quantities.buko ?? 0;
-  const selectedWeekday = form.preferredDate
-    ? dayjs(form.preferredDate).day()
-    : null;
-  const bukoDayOk =
-    selectedWeekday === 0 || selectedWeekday === 5 || selectedWeekday === 6;
-
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
     setStatus("idle");
@@ -285,6 +247,7 @@ export function OrderForm() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    if (checking) return;
 
     if (!form.name.trim() || !form.contact.trim()) {
       setError("Please fill in your name and contact number.");
@@ -306,7 +269,15 @@ export function OrderForm() {
       return;
     }
 
-    const summary = buildOrderSummary(form);
+    let summary: string;
+    setChecking(true);
+    try {
+      const response = await fetch("/api/catalog/preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(selection) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Please check your selections.");
+      summary = buildOrderSummary(form, result);
+    } catch(e) { setError(e instanceof Error ? e.message : "Could not check the current menu. Please retry."); setChecking(false); return; }
+    setChecking(false);
 
     try {
       await navigator.clipboard.writeText(summary);
@@ -346,40 +317,23 @@ export function OrderForm() {
       <div className="order-layout">
         <div>
           <form id="pie-order" onSubmit={handleSubmit} className="order-form">
+            <fieldset disabled={checking} className="contents">
+              <legend className="sr-only">Your order</legend>
             <fieldset className="space-y-3">
               <legend className="text-sm font-medium">Pick your pies</legend>
               <p className="text-xs text-charcoal/55">
                 A few for you, a few to share. Use + to add your favourites.
               </p>
               <div className="space-y-2">
-                {sweetItems.map((item) => (
-                  <FlavorRow
-                    key={item.slug}
-                    item={item}
-                    quantity={form.quantities[item.slug] ?? 0}
-                    onQuantityChange={(next) => setQuantity(item.slug, next)}
-                  />
-                ))}
+                {sweetItems.map(row)}
               </div>
               <p className="pt-2 text-xs font-semibold tracking-wide text-charcoal/50 uppercase">
                 Savoury
               </p>
               <div className="space-y-2">
-                {savoryItems.map((item) => (
-                  <FlavorRow
-                    key={item.slug}
-                    item={item}
-                    quantity={form.quantities[item.slug] ?? 0}
-                    onQuantityChange={(next) => setQuantity(item.slug, next)}
-                  />
-                ))}
+                {savoryItems.map(row)}
               </div>
-              {bukoQty > 0 && form.preferredDate && !bukoDayOk ? (
-                <p className="text-sm text-charcoal/70">
-                  Buko is baked Friday to Sunday. We&apos;ll confirm timing in
-                  DM.
-                </p>
-              ) : null}
+              {!!selectedDate && quote.errors.length > 0 && <p role="status" className="text-sm text-berry">{quote.errors.join(" ")}</p>}
               <div className="space-y-2 pt-1">
                 <Label htmlFor="notes">Notes (optional)</Label>
                 <textarea
@@ -496,41 +450,8 @@ export function OrderForm() {
               <legend className="text-sm font-medium">
                 Make it a little personal
               </legend>
-              {addons.map((addon) => (
-                <label
-                  key={addon.id}
-                  className="pressable flex cursor-pointer items-start gap-3 rounded-xl bg-butter/60 px-4 py-3"
-                >
-                  <input
-                    type="checkbox"
-                    checked={form.selectedAddons.includes(addon.id)}
-                    onChange={() => toggleAddon(addon.id)}
-                    className="mt-1 size-4 accent-crust"
-                  />
-                  <span className="text-sm">
-                    <span className="font-semibold">{addon.label}</span>
-                    <span className="text-charcoal/60">
-                      {" "}
-                      (+{formatPrice(addon.price)})
-                    </span>
-                  </span>
-                </label>
-              ))}
-              {needsNote ? (
-                <div className="space-y-2 pl-1">
-                  <Label htmlFor="noteMessage">Message for note card</Label>
-                  <Input
-                    id="noteMessage"
-                    name="noteMessage"
-                    value={form.noteMessage}
-                    onChange={(event) =>
-                      update("noteMessage", event.target.value)
-                    }
-                    className="h-11 rounded-xl bg-cream px-3"
-                    placeholder="Write your note…"
-                  />
-                </div>
-              ) : null}
+              <p className="text-xs text-charcoal/60">Choose a pie to see compatible extras for the whole order.</p>
+              <CatalogAddonOptions addons={catalogAddons.filter((a) => a.scope === "per_order" && (selectedItems.some((item) => item.allowedAddonIds?.includes(a.id)) || form.selectedAddons.includes(a.id)))} selected={form.selectedAddons} messages={form.addonMessages} prefix="order-extra" toggle={toggleAddon} message={(id, value) => update("addonMessages", { ...form.addonMessages, [id]: value })} />
             </fieldset>
 
             <fieldset className="space-y-3">
@@ -630,18 +551,20 @@ export function OrderForm() {
 
             <button
               type="submit"
+              disabled={checking}
               className={cn(
                 buttonVariants({ variant: "default" }),
                 "order-submit brand-button",
               )}
             >
-              Copy order &amp; open Instagram{" "}
+              {checking ? "Checking the latest menu…" : "Copy order & open Instagram"}{" "}
               <ArrowUpRight size={18} aria-hidden />
             </button>
             <p className="order-submit-note">
               Your order is placed once we confirm it in our conversation. No
               payment is taken here.
             </p>
+            </fieldset>
           </form>
         </div>
 
@@ -684,12 +607,13 @@ export function OrderForm() {
               ))}
             </ul>
           )}
+          {selection.lines.some((line) => line.addons.length) && <p className="order-total-note">Selected per-pie extras are included in the known subtotal.</p>}
           {chosenAddons.length > 0 && (
             <ul className="order-summary-lines order-summary-addons">
               {chosenAddons.map((addon) => (
                 <li key={addon.id}>
-                  <span>{addon.label}</span>
-                  <span>{formatPrice(addon.price)}</span>
+                  <span>{addon.name}</span>
+                  <span>{formatPrice(addon.priceCentavos / 100)}</span>
                 </li>
               ))}
             </ul>
@@ -700,7 +624,7 @@ export function OrderForm() {
           </div>
           <p className="order-total-note">
             {hasUnpriced
-              ? "Weekend pie prices will be added after confirmation. "
+              ? "Quoted sizes will be priced after confirmation. "
               : ""}
             {needsAddress ? "Delivery fee is not included. " : ""}We’ll confirm
             the final total in Instagram.

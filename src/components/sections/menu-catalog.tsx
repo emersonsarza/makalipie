@@ -1,24 +1,14 @@
+import { CatalogDetails } from "@/components/catalog-details";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
-import { itemPriceText, menuItems, site } from "@/lib/site";
+import { itemPriceText, site, type MenuItem } from "@/lib/site";
 
-const descriptions: Record<string, string> = {
-  keylime:
-    "Smooth, tangy lime filling on a graham crust. Finished with a little whipped cream.",
-  pecan:
-    "Toasted pecans and buttery caramel, baked into our all-butter shortcrust.",
-  smores:
-    "Rich chocolate ganache, graham, and marshmallows toasted until golden.",
-  banoffee:
-    "Banana, creamy caramel, and whipped cream. A familiar favourite, one tart at a time.",
-  oreo: "Oreo-infused white chocolate ganache with layers of crushed cookies.",
-};
-
-export function MenuCatalog() {
+export function MenuCatalog({ items: menuItems, unavailable = false }: { items: MenuItem[]; unavailable?: boolean }) {
   const classics = menuItems.filter(
     (item) => item.kind === "sweet" && item.slug !== "buko",
   );
+  const special = menuItems.filter((item) => item.kind === "savory" || item.slug === "buko");
   return (
     <div className="menu-page">
       <section className="menu-intro wrap">
@@ -48,10 +38,10 @@ export function MenuCatalog() {
       <nav className="menu-jump wrap" aria-label="Menu categories">
         <div>
           <a href="#sweet-tarts">
-            Sweet tarts <span>05</span>
+            Sweet tarts <span>{classics.length}</span>
           </a>
           <a href="#weekend-pies">
-            Weekend & savoury <span>02</span>
+            Weekend & savoury <span>{special.length}</span>
           </a>
         </div>
         <Link href="/order">
@@ -70,6 +60,7 @@ export function MenuCatalog() {
             Made to make your day.
           </p>
         </div>
+        {!menuItems.length && <p role="status">{unavailable ? "Our menu is temporarily unavailable. Please message us on Instagram for help." : "Our menu is being updated. Please check back soon."}</p>}
         <div className="catalog-grid">
           {classics.map((item) => (
             <article id={item.slug} key={item.slug} className="catalog-item">
@@ -80,6 +71,7 @@ export function MenuCatalog() {
               >
                 <Image
                   src={item.image.src}
+                  unoptimized
                   alt={item.image.alt}
                   fill
                   sizes="(max-width: 600px) 100vw, (max-width: 1000px) 45vw, 30vw"
@@ -92,10 +84,12 @@ export function MenuCatalog() {
                 <h3>{item.name}</h3>
                 <span>
                   {itemPriceText(item)}
-                  <small> / tart</small>
+                  
                 </span>
               </div>
-              <p>{descriptions[item.slug]}</p>
+              <p>{item.description}</p><CatalogDetails item={item} />
+              {item.note && <p>{item.note}</p>}
+              {!!item.allergens?.length && <p>Contains: {item.allergens.join(", ")}.</p>}
               <Link href="/order" className="catalog-order">
                 Go to order form <ArrowRight size={15} aria-hidden />
               </Link>
@@ -125,7 +119,7 @@ export function MenuCatalog() {
           </div>
         </div>
       </section>
-      <section id="weekend-pies" className="menu-weekend">
+      {special.length > 0 && <section id="weekend-pies" className="menu-weekend">
         <div className="wrap section-space">
           <div className="section-heading">
             <div>
@@ -139,66 +133,19 @@ export function MenuCatalog() {
             </p>
           </div>
           <div className="weekend-grid">
-            <article id="buko" className="weekend-buko">
-              <div className="weekend-seal">
-                <Image
-                  src="/brand/seal.png"
-                  alt="Makalipie Tarts & Pies"
-                  width={100}
-                  height={100}
-                />
-              </div>
-              <div className="weekend-copy">
-                <p className="eyebrow">FRIDAY TO SUNDAY</p>
-                <h3>Buko pie</h3>
-                <p>
-                  Young coconut, creamy filling, and our handcrafted crust. The
-                  pie we’d bring to Sunday lunch.
-                </p>
-                <a
-                  href={site.instagramDmUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-link"
-                >
-                  Ask about this weekend’s batch{" "}
-                  <ArrowUpRight size={18} aria-hidden />
-                </a>
-                <span className="weekend-price">
-                  Message us for price & availability.
-                </span>
-              </div>
-            </article>
-            <article id="butter-chicken-curry" className="weekend-savory">
-              <p className="eyebrow">SOMETHING HEARTY</p>
-              <h3>
-                Butter Chicken
-                <br />
-                Curry pie.
-              </h3>
-              <p>
-                Homemade Indian butter chicken curry in our signature French
-                all-butter flaky crust. A little savoury comfort.
-              </p>
-              <div className="market-details">
-                <span>Ask about the current batch at Streetscape</span>
-                <strong>Message us to confirm availability</strong>
-              </div>
-              <a
-                href={site.instagramDmUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="brand-button"
-              >
-                Ask about this pie <ArrowUpRight size={18} aria-hidden />
-              </a>
-              <span className="weekend-price">
-                Message us for price & availability.
-              </span>
-            </article>
+            {special.map((item) => <article id={item.slug} key={item.slug} className="weekend-savory">
+              <Image src={item.image.src} alt={item.image.alt} unoptimized width={480} height={320} style={{ width: "100%", height: 220, objectFit: "cover", borderRadius: 12, marginBottom: 24 }} />
+              <p className="eyebrow">{item.kind === "sweet" ? "SOMETHING SWEET" : "SOMETHING HEARTY"}</p>
+              <h3>{item.name}</h3><p>{item.description}</p><CatalogDetails item={item} />
+              {item.note && <p>{item.note}</p>}
+              {!!item.allergens?.length && <p>Contains: {item.allergens.join(", ")}.</p>}
+              <a href={site.instagramDmUrl} target="_blank" rel="noreferrer" className="brand-button">Ask about this pie <ArrowUpRight size={18} aria-hidden /></a>
+              <span className="weekend-price">{itemPriceText(item)}</span>
+            </article>)}
           </div>
         </div>
       </section>
+      }
       <section className="menu-seasonal wrap">
         <div>
           <p className="eyebrow">THERE’S MORE IN THE KITCHEN</p>
@@ -232,13 +179,29 @@ export function MenuCatalog() {
         </div>
         <div className="menu-order-details">
           <div>
-            <span>Prefer to order through Foodpanda?</span>
+            <span>Prefer Grab or Foodpanda?</span>
             <p>
-              <a href={site.foodpandaUrl} target="_blank" rel="noreferrer">
-                Browse our Foodpanda menu
-              </a>
-              . Prices, delivery fees, and availability are set on the platform.
+              Open our store in the app. Prices, delivery fees, and availability
+              are set on the platform.
             </p>
+            <div className="delivery-app-actions">
+              <a
+                href={site.grabUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="brand-button outline-button"
+              >
+                Order on Grab <ArrowUpRight size={16} aria-hidden />
+              </a>
+              <a
+                href={site.foodpandaUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="brand-button outline-button"
+              >
+                Order on Foodpanda <ArrowUpRight size={16} aria-hidden />
+              </a>
+            </div>
           </div>
           <div>
             <span>Taking it home</span>

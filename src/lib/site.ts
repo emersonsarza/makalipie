@@ -7,8 +7,8 @@ export const site = {
   established: 2020,
   instagramHandle: "makalipie",
   instagramUrl: "https://www.instagram.com/makalipie/",
-  foodpandaUrl:
-    "https://www.foodpanda.ph/restaurant/gpj2/makalipie-paseo-saturnino",
+  grabUrl: "https://app.grab.com/s/4lIwVCJJ",
+  foodpandaUrl: "https://foodpanda.go.link/dIyqs",
   instagramDmUrl: "https://ig.me/m/makalipie",
   mapsUrl:
     "https://www.google.com/maps/search/?api=1&query=Streetscape%20Banilad%20Cebu",
@@ -52,6 +52,11 @@ export type MenuItem = {
   priceLabel?: string;
   note?: string;
   bestseller?: boolean;
+  variants?: import("@/lib/catalog/schema").Variant[];
+  availableWeekdays?: number[];
+  unavailableDates?: string[];
+  allowedAddonIds?: string[];
+  allergens?: string[];
   image: {
     src: string;
     alt: string;
@@ -296,7 +301,8 @@ export function getOrderSummarySource() {
   }
 }
 
-const grabFoodStoreUrl = process.env.NEXT_PUBLIC_GRABFOOD_URL?.trim() ?? "";
+const grabFoodStoreUrl =
+  process.env.NEXT_PUBLIC_GRABFOOD_URL?.trim() || site.grabUrl;
 
 export function getGrabFood() {
   if (grabFoodStoreUrl) {

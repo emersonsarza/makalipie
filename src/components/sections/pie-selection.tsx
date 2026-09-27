@@ -4,17 +4,15 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
-import { itemPriceText, menuItems } from "@/lib/site";
+import { itemPriceText, type MenuItem } from "@/lib/site";
 
 const filters = ["House favourites", "Sweet", "Savoury"] as const;
-export function PieSelection() {
+export function PieSelection({ items: menuItems }: { items: MenuItem[] }) {
   const [filter, setFilter] =
     useState<(typeof filters)[number]>("House favourites");
   const items =
     filter === "House favourites"
-      ? ["keylime", "smores", "pecan", "oreo"].map((slug) =>
-          menuItems.find((item) => item.slug === slug)!,
-        )
+      ? menuItems.slice(0, 4)
       : menuItems.filter(
           (item) => item.kind === (filter === "Sweet" ? "sweet" : "savory"),
         );
@@ -41,6 +39,7 @@ export function PieSelection() {
         ))}
       </div>
       <div className="pie-grid" aria-live="polite">
+        {!items.length && <p>No products to show here right now. Please check back soon.</p>}
         {items.map((item) => (
           <Link
             key={item.slug}
@@ -50,6 +49,7 @@ export function PieSelection() {
             <div className="pie-photo">
               <Image
                 src={item.image.src}
+                unoptimized
                 alt={item.image.alt}
                 fill
                 sizes="(max-width: 600px) 46vw, (max-width: 900px) 45vw, 23vw"
@@ -59,20 +59,10 @@ export function PieSelection() {
               <h3>{item.name}</h3>
               <ArrowUpRight size={20} aria-hidden />
             </div>
-            <p>
-              {item.slug === "keylime"
-                ? "Real lime. A bright little bite."
-                : item.slug === "smores"
-                  ? "Chocolate. Marshmallow. One more bite."
-                  : item.slug === "pecan"
-                    ? "Toasted pecans, buttery caramel."
-                    : item.slug === "oreo"
-                      ? "Cookies and cream, all grown up."
-                      : item.blurb}
-            </p>
+            <p>{item.blurb}</p>
             <span className="pie-price">
               {itemPriceText(item)}{" "}
-              <span>{item.price != null ? "/ tart" : ""}</span>
+              <span>{item.price != null && item.variants?.length === 1 ? `/ ${item.variants[0].label.toLowerCase()}` : ""}</span>
             </span>
           </Link>
         ))}

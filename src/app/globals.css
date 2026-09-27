@@ -1618,9 +1618,23 @@ summary:focus-visible {
   line-height: 1.8;
   margin-top: 7px;
 }
-.menu-order-details a {
+.menu-order-details a:not(.brand-button) {
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+.delivery-app-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+.delivery-app-actions .brand-button {
+  min-height: 44px;
+  gap: 10px;
+  padding: 10px 16px;
+}
+.faq-list .delivery-app-actions {
+  padding: 0 0 24px;
 }
 @media (max-width: 1000px) {
   .menu-intro {
@@ -2191,3 +2205,7 @@ summary:focus-visible {
     padding-top: 45px;
   }
 }
+
+.public-catalog-details { margin-block: 16px; font-size: 13px; line-height: 1.7; }
+.public-catalog-details li { display: flex; justify-content: space-between; gap: 12px; padding-block: 5px; border-bottom: 1px solid rgb(44 42 40 / 12%); }
+.public-catalog-details p { font-size: 12px; margin-top: 12px; }

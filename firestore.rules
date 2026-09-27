@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Part 1 uses server-side access only. Browser clients cannot self-promote
+    // or access private data, even after signing in to Firebase Auth.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

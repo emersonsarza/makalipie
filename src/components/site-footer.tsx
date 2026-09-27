@@ -54,6 +54,12 @@ export function SiteFooter() {
             <a href={site.instagramDmUrl} target="_blank" rel="noreferrer">
               Gifts & gatherings <ArrowUpRight size={14} aria-hidden />
             </a>
+            <a href={site.grabUrl} target="_blank" rel="noreferrer">
+              Order on Grab <ArrowUpRight size={14} aria-hidden />
+            </a>
+            <a href={site.foodpandaUrl} target="_blank" rel="noreferrer">
+              Order on Foodpanda <ArrowUpRight size={14} aria-hidden />
+            </a>
           </div>
         </div>
         <div className="footer-bottom">
