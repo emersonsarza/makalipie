@@ -1,5 +1,7 @@
 # Makalipie — Admin Data Model & Build Plan
 
+> Ordering policy update: the current phased plan and `MAKALIPIE_ORDERING_PHASE_PROGRESS.md` supersede older conflicting rules below. Capacity is one daily order-count pool per main branch shared by regular/preorder and pickup/delivery. The initial hold is 30 minutes (configurable), Processing stops initial expiration, and verified full payment is required before preparation. Older next-day holds, item/slot capacity limits, and payment-on-collection preparation rules are not the current requirements.
+
 Implementation specification for the existing Next.js Makalipie bakery site. This document describes intended behavior; it does not imply that the backend or admin features already exist.
 
 ## 1. Product and scope

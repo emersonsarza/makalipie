@@ -16,7 +16,8 @@
     "test:session": "node --conditions=react-server --import tsx --test tests/admin-session.integration.ts",
     "test:products": "node --conditions=react-server --import tsx --test tests/products.integration.ts",
     "test:catalog": "node --import tsx --test tests/catalog.test.ts",
-    "test:catalog:integration": "node --conditions=react-server --import tsx --test tests/catalog.integration.ts"
+    "test:catalog:integration": "node --conditions=react-server --import tsx --test tests/catalog.integration.ts",
+    "test:order-policy": "node --import tsx --test tests/order-policy.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
