@@ -17,7 +17,13 @@
     "test:products": "node --conditions=react-server --import tsx --test tests/products.integration.ts",
     "test:catalog": "node --import tsx --test tests/catalog.test.ts",
     "test:catalog:integration": "node --conditions=react-server --import tsx --test tests/catalog.integration.ts",
-    "test:order-policy": "node --import tsx --test tests/order-policy.test.ts"
+    "test:order-policy": "node --import tsx --test tests/order-policy.test.ts",
+    "test:branches": "node --import tsx --test tests/branches.test.ts",
+    "test:branches:integration": "node --conditions=react-server --import tsx --test tests/branches.integration.ts",
+    "test:scheduling": "node --import tsx --test tests/scheduling.test.ts",
+    "test:orders": "node --import tsx --test tests/allocation.test.ts",
+    "test:orders:integration": "node --conditions=react-server --import tsx --test tests/orders.integration.ts",
+    "test:scheduling:integration": "node --conditions=react-server --import tsx --test tests/scheduling.integration.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

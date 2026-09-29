@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { AdminAccessError, assertRecentSignIn, authorizeOwner, isAllowedMutationOrigin } from "../src/lib/admin/access";
+import { AdminAccessError, authorizeAdmin, authorizeBranch, assertRecentSignIn, authorizeOwner, isAllowedMutationOrigin } from "../src/lib/admin/access";
 import { businessDateSchema, moneySchema, sessionRequestSchema, variantSchema } from "../src/lib/admin/schemas";
 
 const owner = { email: "owner@example.test", role: "owner", active: true };
@@ -35,4 +35,21 @@ test("shared values reject invalid dates, fractions, and quote-required zero pri
   assert.equal(moneySchema.safeParse(12.5).success, false);
   assert.equal(moneySchema.safeParse(-1).success, false);
   assert.equal(variantSchema.safeParse({ label: "Whole", pricingMode: "quote_required", priceCentavos: 0, minLeadDays: 1, active: true, sortOrder: 0 }).success, false);
+});
+
+test("active staff can sign in without gaining owner settings access", () => {
+  const staff = { email: "staff@example.test", role: "staff" as const, active: true, branchIds: ["cebu"] };
+  assert.equal(authorizeAdmin("staff", staff).role, "staff");
+  assert.equal(authorizeAdmin("owner", owner).role, "owner");
+  assert.throws(() => authorizeAdmin("staff", { ...staff, active: false }), AdminAccessError);
+  assert.throws(() => authorizeOwner("staff", staff), AdminAccessError);
+});
+test("branch order authorization denies unassigned, other-branch and inactive staff", () => {
+  const staff = { email: "staff@example.test", role: "staff", active: true, branchIds: ["cebu"] };
+  assert.equal(authorizeBranch("staff", staff, "cebu").uid, "staff");
+  assert.throws(() => authorizeBranch("staff", staff, "manila"), AdminAccessError);
+  assert.throws(() => authorizeBranch("staff", { ...staff, branchIds: [] }, "cebu"), AdminAccessError);
+  assert.throws(() => authorizeBranch("staff", { ...staff, active: false }, "cebu"), AdminAccessError);
+  assert.equal(authorizeBranch("owner", owner, "manila").role, "owner");
+  assert.throws(() => authorizeOwner("staff", staff), AdminAccessError);
 });

@@ -32,6 +32,7 @@ export function quoteSelection(catalog: Catalog, selection: Selection, today = m
   }
   const selectedProducts = selection.lines.flatMap((l) => catalog.products.find((p) => p.id === l.productId && p.active) ?? []);
   const orderAddons = addonsFor(selection.addons, "per_order", selectedProducts, 1);
+  let preparationDays = orderAddons.lead;
   const days = (Date.parse(`${selection.date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000;
   if (days < orderAddons.lead) errors.push(`Your add-ons need ${orderAddons.lead} days of preparation.`);
   knownSubtotalCentavos += orderAddons.total;
@@ -42,6 +43,7 @@ export function quoteSelection(catalog: Catalog, selection: Selection, today = m
     const variant = product?.variants.find((v) => v.id === line.variantId);
     if (!product || !variant) { errors.push("A selected product or size is no longer available."); continue; }
     const extras = addonsFor(line.addons, "per_item", [product], line.quantity);
+    preparationDays = Math.max(preparationDays, variant.minLeadDays, extras.lead);
     const reason = availabilityReason(product, variant, selection.date, extras.lead, today);
     if (reason) errors.push(`${product.name} · ${variant.label}: ${reason}`);
     const unit = variant.pricingMode === "fixed" ? variant.priceCentavos! : null;
@@ -49,5 +51,5 @@ export function quoteSelection(catalog: Catalog, selection: Selection, today = m
     quoteRequired ||= unit === null;
     lines.push(`${line.quantity} × ${product.name} · ${variant.label} (${unit === null ? "Price to confirm" : `₱${(unit / 100).toLocaleString("en-PH")} each`})${extras.labels.length ? `\n  + ${extras.labels.join("\n  + ")}` : ""}`);
   }
-  return { errors, lines, addonLines: orderAddons.labels, knownSubtotalCentavos, quoteRequired };
+  return { errors, lines, addonLines: orderAddons.labels, knownSubtotalCentavos, quoteRequired, preparationDays };
 }

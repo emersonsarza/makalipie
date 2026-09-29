@@ -8,18 +8,23 @@
   --ov-muted: var(--admin-muted, #656466);
   --ov-line: var(--admin-line, rgb(44 42 40 / 13%));
   --ov-ok: #2a4a36;
+  --ov-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
   color: var(--ov-charcoal);
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .admin-overview .ov-fixture-notice {
-  margin-bottom: 18px;
-  padding: 12px 14px;
-  border-radius: 10px;
+  margin: 0;
+  padding: 16px;
+  border-radius: 12px;
   border: 1px solid var(--ov-line);
   background: color-mix(in srgb, var(--ov-butter) 75%, var(--ov-cream));
-  font-size: 12px;
-  line-height: 1.6;
+  box-shadow: var(--ov-shadow);
+  font-size: 13px;
+  line-height: 1.45;
   color: var(--ov-muted);
 }
 
@@ -29,28 +34,28 @@
 
 .admin-overview .ov-eyebrow {
   margin: 0;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.17em;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ov-muted);
 }
 
 .admin-overview .ov-heading h1 {
-  margin: 8px 0 0;
-  font-size: clamp(26px, 2.8vw, 36px);
-  letter-spacing: -0.045em;
-  line-height: 1.15;
+  margin: 4px 0 0;
+  font-size: 16px;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
   font-weight: 700;
 }
 
 .admin-overview .ov-meta-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 16px;
+  gap: 4px 16px;
   align-items: center;
-  margin-top: 10px;
-  font-size: 12px;
+  margin-top: 0;
+  font-size: 13px;
   color: var(--ov-muted);
 }
 
@@ -62,7 +67,7 @@
 }
 
 .admin-overview .ov-manager-heading h1 {
-  font-size: 28px;
+  font-size: 16px;
   margin-bottom: 0;
 }
 
@@ -78,51 +83,55 @@
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 3px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .admin-overview .ov-badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--ov-line);
-  font-size: 11px;
-  line-height: 1.4;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
   white-space: nowrap;
-  text-transform: capitalize;
+  text-transform: uppercase;
 }
 
 .admin-overview .ov-badge-status {
-  background: color-mix(in srgb, var(--ov-butter) 50%, white);
+  background: var(--ov-butter);
+  color: var(--ov-charcoal);
 }
 
 .admin-overview .ov-badge-ready {
-  background: color-mix(in srgb, #356045 12%, white);
-  border-color: color-mix(in srgb, #356045 25%, var(--ov-line));
-  color: var(--ov-ok);
+  background: color-mix(in srgb, var(--ov-crust) 42%, white);
+  color: var(--ov-charcoal);
 }
 
 .admin-overview .ov-badge-pay {
-  background: color-mix(in srgb, white 70%, var(--ov-cream));
+  background: color-mix(in srgb, var(--ov-berry) 14%, white);
+  color: var(--ov-berry);
 }
 
 .admin-overview .ov-section {
-  margin-top: 22px;
+  margin-top: 0;
 }
 
 .admin-overview .ov-section-lead {
   margin: 0 0 12px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ov-muted);
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 .admin-overview .ov-panel {
   border: 1px solid var(--ov-line);
-  border-radius: 14px;
-  background: color-mix(in srgb, white 55%, var(--ov-cream));
-  padding: 14px 16px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: var(--ov-shadow);
+  padding: 24px;
   min-width: 0;
 }
 
@@ -138,32 +147,35 @@
 .admin-overview .ov-panel-head h2 {
   margin: 0;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.02em;
 }
 
 .admin-overview .ov-count {
   color: var(--ov-muted);
-  font-size: 12px;
-  margin-left: 5px;
-  font-weight: 400;
+  font-size: 11.5px;
+  margin-left: 6px;
+  font-weight: 600;
 }
 
 .admin-overview .ov-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 16px;
+  gap: 16px;
+  margin-top: 0;
 }
 
 .admin-overview .ov-metric {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   text-decoration: none;
   color: inherit;
   border: 1px solid var(--ov-line);
   border-radius: 12px;
-  padding: 12px 14px;
-  background: color-mix(in srgb, white 50%, var(--ov-cream));
+  padding: 24px;
+  background: #fff;
+  box-shadow: var(--ov-shadow);
   transition: background 150ms ease-out;
 }
 
@@ -173,43 +185,47 @@
 
 .admin-overview .ov-metric span {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--ov-muted);
 }
 
 .admin-overview .ov-metric strong {
   display: block;
-  margin-top: 6px;
-  font-size: 24px;
+  margin-top: 0;
+  font-size: 44px;
+  font-weight: 700;
   letter-spacing: -0.04em;
   line-height: 1;
+  color: var(--ov-charcoal);
 }
 
 .admin-overview .ov-metric-money {
-  font-size: 20px !important;
+  font-size: 44px !important;
 }
 
 .admin-overview .ov-dual {
   display: grid;
   grid-template-columns: minmax(0, 1.65fr) minmax(285px, 1fr);
-  gap: 14px;
-  margin-top: 18px;
+  gap: 16px;
+  margin-top: 0;
   align-items: start;
 }
 
 .admin-overview .ov-row {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--ov-line);
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--ov-line);
+  border-radius: 12px;
   text-decoration: none;
   color: inherit;
   flex-wrap: wrap;
 }
 
-.admin-overview .ov-row:last-child {
-  border-bottom: 0;
+.admin-overview .ov-row + .ov-row {
+  margin-top: 16px;
 }
 
 .admin-overview .ov-row:hover {
@@ -224,24 +240,32 @@
 
 .admin-overview .ov-row-copy strong {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 600;
   letter-spacing: -0.02em;
 }
 
 .admin-overview .ov-row-copy span {
   display: block;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--ov-muted);
   margin-top: 2px;
+}
+
+.admin-overview .ov-order-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .admin-overview .ov-scheduled-order {
   display: grid;
   grid-template-columns: 86px minmax(0, 1fr) auto;
-  gap: 12px;
+  gap: 16px;
   align-items: center;
-  padding: 18px 0;
-  border-bottom: 1px solid var(--ov-line);
+  padding: 16px;
+  border: 1px solid var(--ov-line);
+  border-radius: 12px;
   color: inherit;
   text-decoration: none;
 }
@@ -256,15 +280,16 @@
 .admin-overview .ov-order-time strong {
   display: block;
   font-size: 14px;
+  font-weight: 600;
   white-space: nowrap;
 }
 
 .admin-overview .ov-order-time span {
   display: block;
-  font-size: 12px;
+  font-size: 11.5px;
   text-transform: capitalize;
   color: var(--ov-muted);
-  margin-top: 5px;
+  margin-top: 4px;
 }
 
 .admin-overview .ov-order-description,
@@ -276,6 +301,7 @@
 
 .admin-overview .ov-order-description strong {
   font-size: 14px;
+  font-weight: 600;
   display: block;
 }
 
@@ -283,12 +309,12 @@
   font-size: 13px;
   display: block;
   margin-top: 4px;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 .admin-overview .ov-order-description small {
   display: block;
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--ov-muted);
   margin-top: 4px;
 }
@@ -301,12 +327,12 @@
 }
 
 .admin-overview .ov-completed {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--ov-muted);
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
-  margin: 16px 0;
+  margin: 16px 0 0;
 }
 
 .admin-overview .ov-collections {
@@ -316,26 +342,34 @@
 
 .admin-overview .ov-collections h3 {
   font-size: 14px;
-  margin: 0 0 5px;
+  font-weight: 600;
+  margin: 0 0 4px;
 }
 
 .admin-overview .ov-collection {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   color: inherit;
   text-decoration: none;
-  min-height: 44px;
+  padding: 16px;
+  border: 1px solid var(--ov-line);
+  border-radius: 12px;
+}
+
+.admin-overview .ov-collection + .ov-collection {
+  margin-top: 16px;
 }
 
 .admin-overview .ov-collection strong {
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .admin-overview .ov-collection span span {
   display: block;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--ov-muted);
   margin-top: 4px;
 }
@@ -343,24 +377,27 @@
 .admin-overview .ov-attention-item {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   color: inherit;
   text-decoration: none;
-  border-bottom: 1px solid var(--ov-line);
-  padding: 13px 0;
+  border: 1px solid var(--ov-line);
+  border-radius: 12px;
+  padding: 16px;
 }
 
-.admin-overview .ov-attention-item:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
+.admin-overview .ov-attention-item + .ov-attention-item {
+  margin-top: 16px;
 }
 
 .admin-overview .ov-attention-label {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   color: #6a5421;
-  font-size: 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .admin-overview .ov-attention-label.is-urgent {
@@ -368,34 +405,36 @@
 }
 
 .admin-overview .ov-attention-item > strong {
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .admin-overview .ov-attention-item small {
   font-weight: 400;
   color: var(--ov-muted);
   margin-left: 5px;
-  font-size: 11px;
+  font-size: 11.5px;
 }
 
 .admin-overview .ov-attention-detail {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ov-muted);
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 .admin-overview .ov-attention-action {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 12px;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 13px;
   font-weight: 600;
 }
 
 .admin-overview .ov-bake-grid {
   display: grid;
   grid-template-columns: 1fr 1.4fr;
-  gap: 14px;
+  gap: 16px;
 }
 
 .admin-overview .ov-bake-list {
@@ -418,7 +457,7 @@
 }
 
 .admin-overview .ov-cap-legend {
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--ov-muted);
 }
 
@@ -430,10 +469,25 @@
 
 .admin-overview .ov-cap-day {
   display: grid;
-  grid-template-columns: 64px 1fr 72px;
-  gap: 8px;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  gap: 12px;
   align-items: center;
+  padding: 12px;
+  border-radius: 6px;
+  background: var(--ov-butter);
   font-size: 11px;
+}
+
+.admin-overview .ov-cap-day > strong {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.admin-overview .ov-cap-day > span:last-child {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
 }
 
 .admin-overview .ov-cap-track {
@@ -462,8 +516,8 @@
 .admin-overview .ov-insights {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.8fr);
-  gap: 14px;
-  margin-top: 18px;
+  gap: 16px;
+  margin-top: 0;
   align-items: start;
 }
 
@@ -472,8 +526,10 @@
 }
 
 .admin-overview .ov-insights h3 {
-  margin: 0 0 8px;
+  margin: 0 0 12px;
   font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .admin-overview .ov-stat-line {
@@ -487,7 +543,7 @@
 
 .admin-overview .ov-stat-muted {
   margin: 0 0 4px;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--ov-muted);
 }
 
@@ -511,12 +567,12 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 11.5px;
   font-variant-numeric: tabular-nums;
 }
 
 .admin-overview .ov-sales-day small {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--ov-muted);
   text-align: center;
 }
@@ -550,12 +606,13 @@
 .admin-overview .ov-bestseller-heading {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
-  margin: 20px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 16px 0 8px;
 }
 
 .admin-overview .ov-bestseller-heading span {
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 400;
   color: var(--ov-muted);
 }
@@ -580,7 +637,7 @@
 .admin-overview .ov-bestsellers li::before {
   content: counter(bestseller);
   color: var(--ov-muted);
-  font-size: 11px;
+  font-size: 11.5px;
 }
 
 .admin-overview .ov-bestsellers li > span {
@@ -589,7 +646,7 @@
 
 .admin-overview .ov-bestsellers small {
   color: var(--ov-muted);
-  font-size: 11px;
+  font-size: 11.5px;
   margin-left: 5px;
 }
 
@@ -633,7 +690,7 @@
 
   .admin-overview .ov-scheduled-order {
     grid-template-columns: 76px minmax(0, 1fr);
-    gap: 8px;
+    gap: 16px;
   }
 
   .admin-overview .ov-order-state {
@@ -647,15 +704,26 @@
   }
 
   .admin-overview .ov-sales-day {
-    font-size: 10px;
+    font-size: 11px;
   }
 
-  .admin-overview .ov-panel {
-    padding: 14px 12px;
+  .admin-overview .ov-panel,
+  .admin-overview .ov-metric {
+    padding: 16px;
+  }
+
+  .admin-overview .ov-metric strong,
+  .admin-overview .ov-metric-money {
+    font-size: 32px !important;
   }
 
   .admin-overview .ov-cap-day {
-    grid-template-columns: 60px minmax(0, 1fr) 72px;
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+
+  .admin-overview .ov-cap-day > span:last-child {
+    grid-column: 1 / -1;
+    font-size: 16px;
   }
 }
 
@@ -665,24 +733,26 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 18px;
-  padding: 14px 16px;
+  gap: 16px;
+  margin: 0;
+  padding: 24px;
   border-radius: 12px;
   border: 1px solid var(--ov-line);
   background: color-mix(in srgb, var(--ov-butter) 70%, var(--ov-cream));
+  box-shadow: var(--ov-shadow);
 }
 
 .admin-overview.ov-empty-shell .ov-empty-cta strong {
   display: block;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .admin-overview.ov-empty-shell .ov-empty-cta p {
   margin: 4px 0 0;
   font-size: 13px;
-  line-height: 1.55;
+  line-height: 1.45;
   color: var(--ov-muted);
   max-width: 52ch;
 }
@@ -690,17 +760,34 @@
 .admin-overview.ov-empty-shell .ov-empty-cta-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
 }
 
-.admin-overview.ov-empty-shell .ov-empty-btn {
-  min-height: 44px;
-  gap: 8px;
+.admin-overview .ov-empty-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: auto;
+  min-height: 0;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--ov-crust);
+  color: var(--ov-charcoal);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.admin-overview .ov-empty-btn-quiet {
+  border: 1px solid var(--ov-line);
+  background: #fff;
+  color: var(--ov-charcoal);
 }
 
 .admin-overview.ov-empty-shell .ov-metrics-empty {
-  margin-top: 0;
-  margin-bottom: 14px;
+  margin: 0;
 }
 
 .admin-overview.ov-empty-shell .ov-metric-empty {
@@ -708,31 +795,32 @@
 }
 
 .admin-overview.ov-empty-shell .ov-metric-empty:hover {
-  background: color-mix(in srgb, white 50%, var(--ov-cream));
+  background: #fff;
 }
 
 .admin-overview.ov-empty-shell .ov-metric-empty strong {
-  font-size: 15px;
+  font-size: 16px !important;
   font-weight: 600;
   color: var(--ov-muted);
   letter-spacing: -0.02em;
 }
 
 .admin-overview.ov-empty-shell .ov-panel h2 {
-  margin: 0 0 6px;
-  font-size: 15px;
+  margin: 0 0 12px;
+  font-size: 16px;
   font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .admin-overview .ov-empty-slot {
-  margin-top: 14px;
-  padding: 20px 14px;
-  border-radius: 10px;
+  margin-top: 12px;
+  padding: 16px;
+  border-radius: 12px;
   border: 1px dashed var(--ov-line);
   text-align: center;
   font-size: 13px;
   color: var(--ov-muted);
-  line-height: 1.55;
+  line-height: 1.45;
 }
 
 @media (max-width: 900px) {

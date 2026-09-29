@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { emulatorEnv } from "../scripts/emulator-env.mjs";
+import { defaultScheduleSettings } from "../src/lib/scheduling/schema";
+import { addCalendarDays } from "../src/lib/scheduling/rules";
+import { manilaDate } from "../src/lib/catalog/rules";
 Object.assign(process.env, emulatorEnv);
-const origin = "http://localhost:3001";
+const origin = process.env.CATALOG_TEST_ORIGIN || "http://localhost:3001";
+if (!/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) throw new Error("Use a local demo preview only.");
+const testDate=addCalendarDays(manilaDate(),2);
 test("catalog migration, editing, server previews, access control and storefront", async (t) => {
   const { getServerFirebase } = await import("../src/lib/firebase/server"); const { app, db, auth } = getServerFirebase(); assert.equal(app.options.projectId, "demo-makalipie");
   await db.recursiveDelete(db.collection("products")); await db.recursiveDelete(db.collection("addons"));
@@ -18,6 +23,9 @@ test("catalog migration, editing, server previews, access control and storefront
   const preview = (body: unknown) => fetch(`${origin}/api/catalog/preview`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   let catalog: import("../src/lib/catalog/schema").Catalog;
   const options = (p: typeof catalog.products[number]) => ({ version: p.version, variants: p.variants, availableWeekdays: p.availableWeekdays, unavailableDates: p.unavailableDates, allowedAddonIds: p.allowedAddonIds });
+  const scheduleRef=db.doc("settings/orderingSchedule"), scheduleBefore=await scheduleRef.get();
+  const schedule=defaultScheduleSettings(); schedule.branches.cebu.enabled=true;
+  await scheduleRef.set({...schedule,updatedBy:user.uid});
   try {
     await t.test("owner-only setup, existing product edits and repeatable import", async () => {
       assert.equal((await fetch(`${origin}/api/admin/catalog`)).status, 401);
@@ -41,13 +49,13 @@ test("catalog migration, editing, server previews, access control and storefront
       for (const page of ["/menu", "/order"]) { const html = await (await fetch(`${origin}${page}`)).text(); assert.match(html, /Small tart/); assert.match(html, /Large pie/); assert.match(html, /250.5/); }
     });
     await t.test("server recalculates prices and rejects inactive sizes, bad dates and messages", async () => {
-      const selection = { date: "2099-01-02", lines: [{ productId: "keylime", variantId: "standard", quantity: 2, addons: [] }], addons: [{ id: "note-card", message: "Hello!" }] };
+      const selection = { branchId:"cebu",slotId:"10:00",date: testDate, lines: [{ productId: "keylime", variantId: "standard", quantity: 2, addons: [] }], addons: [{ id: "note-card", message: "Hello!" }] };
       const quote = await preview(selection); assert.equal(quote.status, 200, await quote.clone().text()); assert.equal((await quote.json()).knownSubtotalCentavos, 51600);
       assert.equal((await preview({ ...selection, priceCentavos: 1 })).status, 400);
-      assert.equal((await preview({ ...selection, date: "2000-01-01" })).status, 400);
+      assert.equal((await preview({ ...selection, date: "2000-01-01" })).status, 409);
       assert.equal((await preview({ ...selection, addons: [{ id: "birthday-topper", message: "forbidden" }] })).status, 400);
       const p = catalog.products.find((p) => p.id === "keylime")!;
-      const saved = await post({ action: "product", id: p.id, fields: { ...options(p), unavailableDates: ["2099-01-02"], variants: p.variants.map((v) => ({ ...v, active: false })) } }); assert.equal(saved.status, 200); catalog = await saved.json();
+      const saved = await post({ action: "product", id: p.id, fields: { ...options(p), unavailableDates: [testDate], variants: p.variants.map((v) => ({ ...v, active: false })) } }); assert.equal(saved.status, 200); catalog = await saved.json();
       assert.equal((await preview(selection)).status, 400);
       const html = await (await fetch(`${origin}/order`)).text(); assert.doesNotMatch(html, /Edited lime pie · Small tart/);
     });
@@ -60,6 +68,7 @@ test("catalog migration, editing, server previews, access control and storefront
       await db.doc(`admins/${user.uid}`).update({ active: false }); assert.equal((await post({ action: "initialize" })).status, 403);
     });
   } finally {
+    await db.runTransaction(async tx=>{const current=await tx.get(scheduleRef);if(current.data()?.updatedBy===user.uid){if(scheduleBefore.exists)tx.set(scheduleRef,scheduleBefore.data()!);else tx.delete(scheduleRef);}});
     await auth.deleteUser(user.uid); await db.doc(`admins/${user.uid}`).delete();
     await db.recursiveDelete(db.collection("products")); await db.recursiveDelete(db.collection("addons")); await db.doc("privateSettings/catalogV2").delete(); await db.doc("privateSettings/productCatalog").delete();
   }

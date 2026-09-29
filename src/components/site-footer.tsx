@@ -45,6 +45,9 @@ export function SiteFooter() {
             <Link href="/menu">Our pies</Link>
             <Link href="/#story">Our story</Link>
             <Link href="/order">Order a pie</Link>
+            <Link href="/terms">Terms</Link>
+            <Link href="/privacy">Privacy</Link>
+            <Link href="/refund">Refund policy</Link>
           </div>
           <div>
             <p className="eyebrow">SAY HELLO</p>

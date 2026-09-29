@@ -194,8 +194,8 @@ export const deliveryOptions = [
   },
   {
     id: "lalamove",
-    label: "Delivery (Lalamove)",
-    detail: "We'll coordinate booking after confirmation",
+    label: "Delivery",
+    detail: "Staff confirm the address and fee in chat. This request does not confirm delivery.",
     needsAddress: true,
   },
 ] as const;

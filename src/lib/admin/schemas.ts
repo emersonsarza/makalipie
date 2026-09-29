@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { branchIdSchema } from "../branches/schema";
 
 export const businessTimezone = "Asia/Manila";
 export const moneySchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
@@ -9,12 +10,13 @@ export const adminProfileSchema = z.object({
   displayName: z.string().trim().max(100).optional(),
   role: adminRoleSchema,
   active: z.boolean(),
+  branchIds: z.array(branchIdSchema).max(24).default([]),
 });
 export type AdminProfile = z.infer<typeof adminProfileSchema>;
 export type AdminIdentity = AdminProfile & { uid: string };
 
 export const orderStatusSchema = z.enum([
-  "requested", "confirmed", "preparing", "ready", "completed", "cancelled", "expired",
+  "requested", "processing", "confirmed", "preparing", "ready", "completed", "cancelled", "expired",
 ]);
 export const paymentStatusSchema = z.enum(["unpaid", "partially_paid", "paid", "refunded"]);
 export const quoteStatusSchema = z.enum(["pending", "finalized"]);

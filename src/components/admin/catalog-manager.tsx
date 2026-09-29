@@ -7,11 +7,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useCatalogEditState } from "./catalog-edit-guard";
 import Image from "next/image";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { CatalogTabActions } from "./catalog-tab-actions";
 import { ArrowLeft, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -149,6 +151,39 @@ function CheckRow({
   );
 }
 
+function Choice({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  const items = Object.fromEntries(options.map((option) => [option.value, option.label]));
+  return (
+    <Field label={label}>
+      <Select value={value} items={items} onValueChange={(next) => { if (next != null) onChange(String(next)); }}>
+        <SelectTrigger aria-label={label}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent alignItemWithTrigger={false} align="start">
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Field>
+  );
+}
+
+function priceLabel(variant: ProductCatalog["variants"][number]) {
+  if (variant.pricingMode === "quote_required") return "Quote";
+  return `₱${((variant.priceCentavos ?? 0) / 100).toFixed(2)}`;
+}
+
 function validationMessage(issues: { path: PropertyKey[]; message: string }[]) {
   return issues.map((i) => `${i.path.join(" › ") || "Catalog"}: ${i.message}`).join(" · ");
 }
@@ -174,6 +209,7 @@ export function ProductOptions({
     allowedAddonIds: product.allowedAddonIds,
   };
   const [form, setForm] = useState(original);
+  const [openId, setOpenId] = useState(product.variants[0]?.id ?? "");
   const [date, setDate] = useState("");
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [error, setError] = useState("");
@@ -198,6 +234,7 @@ export function ProductOptions({
         <Link href={`/admin/catalog?product=${encodeURIComponent(product.id)}&tab=details`}>Edit product details</Link>
       </div></>}
       <form
+        id={embedded ? "catalog-selling-form" : undefined}
         onSubmit={async (e) => {
           e.preventDefault();
           setError("");
@@ -217,67 +254,82 @@ export function ProductOptions({
         }}
       >
         <Feedback error={error} />
-        <fieldset disabled={pending} className="catalog-fields">
+        <fieldset disabled={pending} className="catalog-fields catalog-ledger">
           <legend className="sr-only">Catalog options</legend>
-          <section className="product-editor-section">
-            <div className="admin-section-heading">
-              <h2>Sizes & prices</h2>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={form.variants.length >= 30}
-                onClick={() =>
-                  setForm({
-                    ...form,
-                    variants: [
-                      ...form.variants,
-                      {
-                        id: `size-${crypto.randomUUID().slice(0, 8)}`,
-                        label: "",
-                        pricingMode: "quote_required",
-                        priceCentavos: null,
-                        minLeadDays: 0,
-                        active: false,
-                        sortOrder: form.variants.length,
-                      },
-                    ],
-                  })
-                }
-              >
-                <Plus aria-hidden /> Add size
-              </Button>
+          <div className="catalog-ledger-split">
+            <div className="catalog-ledger-list">
+              <div className="catalog-ledger-head">
+                <h2>Sizes & prices</h2>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={form.variants.length >= 30}
+                  onClick={() => {
+                    const id = `size-${crypto.randomUUID().slice(0, 8)}`;
+                    setOpenId(id);
+                    setForm({
+                      ...form,
+                      variants: [
+                        ...form.variants,
+                        {
+                          id,
+                          label: "",
+                          pricingMode: "quote_required",
+                          priceCentavos: null,
+                          minLeadDays: 0,
+                          active: false,
+                          sortOrder: form.variants.length,
+                        },
+                      ],
+                    });
+                  }}
+                >
+                  <Plus aria-hidden /> Add size
+                </Button>
+              </div>
+              {form.variants.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  className="catalog-size-row"
+                  data-on={v.id === (form.variants.find((row) => row.id === openId) ?? form.variants[0])?.id}
+                  data-off={!v.active}
+                  onClick={() => setOpenId(v.id)}
+                >
+                  <span className="catalog-size-copy">
+                    <strong>{v.label || "New size"}</strong>
+                    <span>{priceLabel(v)} · {v.minLeadDays} days</span>
+                  </span>
+                  <em>{v.active ? "Available" : "Inactive"}</em>
+                </button>
+              ))}
             </div>
-            <p className="product-help">
-              Every size has its own price and preparation time. Deactivate a size to stop new selections; its record is
-              retained.
-            </p>
             {form.variants.map((v, index) => {
+              const shown = v.id === (form.variants.find((row) => row.id === openId) ?? form.variants[0])?.id;
+              if (!shown) return null;
               const update = (values: Partial<typeof v>) =>
                 setForm({
                   ...form,
                   variants: form.variants.map((row, i) => (i === index ? { ...row, ...values } : row)),
                 });
               return (
-                <fieldset className="catalog-variant" key={v.id}>
-                  <legend>{v.label || `New size ${index + 1}`}</legend>
+                <section className="product-editor-section" key={v.id}>
+                  <h2>{v.label || "New size"}</h2>
                   <div className="catalog-grid-fields">
                     <Field label="Size name">
                       <Input required maxLength={80} value={v.label} onChange={(e) => update({ label: e.target.value })} />
                     </Field>
-                    <Field label="Pricing">
-                      <NativeSelect
-                        value={v.pricingMode}
-                        onChange={(e) =>
-                          update({
-                            pricingMode: e.target.value as typeof v.pricingMode,
-                            priceCentavos: e.target.value === "fixed" ? 0 : null,
-                          })
-                        }
-                      >
-                        <option value="fixed">Fixed price</option>
-                        <option value="quote_required">Quote required</option>
-                      </NativeSelect>
-                    </Field>
+                    <Choice
+                      label="Pricing"
+                      value={v.pricingMode}
+                      options={[{ value: "fixed", label: "Fixed price" }, { value: "quote_required", label: "Quote required" }]}
+                      onChange={(pricingMode) =>
+                        update({
+                          pricingMode: pricingMode as typeof v.pricingMode,
+                          priceCentavos: pricingMode === "fixed" ? (v.priceCentavos ?? 0) : null,
+                        })
+                      }
+                    />
                     {v.pricingMode === "fixed" ? (
                       <Money key={`${v.id}-fixed`} value={v.priceCentavos} onChange={(priceCentavos) => update({ priceCentavos })} />
                     ) : (
@@ -285,39 +337,39 @@ export function ProductOptions({
                     )}
                     <NumberField label="Preparation days" max={365} value={v.minLeadDays} onChange={(minLeadDays) => update({ minLeadDays })} />
                     <NumberField label="Display order" value={v.sortOrder} onChange={(sortOrder) => update({ sortOrder })} />
-                    <Field label="Status">
-                      <NativeSelect
-                        value={v.active ? "active" : "inactive"}
-                        onChange={(e) => update({ active: e.target.value === "active" })}
-                      >
-                        <option value="active">Available</option>
-                        <option value="inactive">Inactive</option>
-                      </NativeSelect>
-                    </Field>
+                    <Choice
+                      label="Status"
+                      value={v.active ? "active" : "inactive"}
+                      options={[{ value: "active", label: "Available" }, { value: "inactive", label: "Inactive" }]}
+                      onChange={(status) => update({ active: status === "active" })}
+                    />
                   </div>
-                </fieldset>
+                </section>
               );
             })}
-          </section>
+          </div>
+          <div className="catalog-ledger-band">
           <section className="product-editor-section">
             <h2>Weekly availability</h2>
-            <p className="product-help">Leave every day unchecked for daily availability. Dates use Manila time.</p>
-            <div className="catalog-checks">
+            <p className="product-help">Leave every day off for daily availability. Dates use Manila time.</p>
+            <div className="catalog-days">
               {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((label, i) => (
-                <CheckRow
+                <Button
                   key={label}
-                  checked={form.availableWeekdays.includes(i)}
-                  onCheckedChange={(checked) =>
+                  type="button"
+                  variant="outline"
+                  data-on={form.availableWeekdays.includes(i)}
+                  onClick={() =>
                     setForm({
                       ...form,
-                      availableWeekdays: checked
-                        ? [...form.availableWeekdays, i].sort()
-                        : form.availableWeekdays.filter((d) => d !== i),
+                      availableWeekdays: form.availableWeekdays.includes(i)
+                        ? form.availableWeekdays.filter((d) => d !== i)
+                        : [...form.availableWeekdays, i].sort(),
                     })
                   }
                 >
-                  {label}
-                </CheckRow>
+                  {label.slice(0, 3)}
+                </Button>
               ))}
             </div>
             <p className="product-help">{availabilityText(form)}</p>
@@ -393,17 +445,18 @@ export function ProductOptions({
               ))}
             </div>
           </section>
+          </div>
         </fieldset>
         <div className="product-savebar">
           <p className="product-help">{dirty ? "You have unsaved changes." : "Prices and availability apply after saving."}</p>
-          <div className="product-save-actions">
+          <CatalogTabActions active={embedded}>
             <Button type="button" variant="outline" disabled={pending} onClick={leave}>
               Back
             </Button>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" form={embedded ? "catalog-selling-form" : undefined} disabled={pending}>
               {pending ? "Saving…" : "Save selling options"}
             </Button>
-          </div>
+          </CatalogTabActions>
         </div>
       </form>
     </>

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerFirebase } from "@/lib/firebase/server";
-import { AdminAccessError, assertRecentSignIn, authorizeOwner, isAllowedMutationOrigin } from "@/lib/admin/access";
+import { AdminAccessError, assertRecentSignIn, authorizeAdmin, isAllowedMutationOrigin } from "@/lib/admin/access";
 import { sessionRequestSchema } from "@/lib/admin/schemas";
-import { isInvalidCredential, readOwnerSession, SESSION_COOKIE, SESSION_SECONDS, sessionCookieOptions } from "@/lib/admin/session";
+import { isInvalidCredential, readAdminSession, SESSION_COOKIE, SESSION_SECONDS, sessionCookieOptions } from "@/lib/admin/session";
 
 export const runtime = "nodejs";
 
@@ -20,8 +20,8 @@ function failure(error: unknown) {
 
 export async function GET(request: NextRequest) {
   try {
-    const owner = await readOwnerSession(request.cookies.get(SESSION_COOKIE)?.value);
-    return json({ user: { displayName: owner.displayName, role: owner.role } });
+    const admin = await readAdminSession(request.cookies.get(SESSION_COOKIE)?.value);
+    return json({ user: { displayName: admin.displayName, role: admin.role } });
   } catch (error) {
     return failure(error);
   }
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     const token = await auth.verifyIdToken(parsed.data.idToken, true);
     assertRecentSignIn(token.auth_time);
     const profile = await db.doc(`admins/${token.uid}`).get();
-    authorizeOwner(token.uid, profile.data());
+    authorizeAdmin(token.uid, profile.data());
     const cookie = await auth.createSessionCookie(parsed.data.idToken, { expiresIn: SESSION_SECONDS * 1000 });
     const response = json({ ok: true });
     response.cookies.set(SESSION_COOKIE, cookie, { ...sessionCookieOptions, maxAge: SESSION_SECONDS });

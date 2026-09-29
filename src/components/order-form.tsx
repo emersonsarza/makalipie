@@ -1,33 +1,40 @@
 "use client";
 
 import { ArrowUpRight, CalendarDays, Minus, Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import Image from "next/image";
 import Link from "next/link";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Calendar } from "@/components/ui/calendar";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
 import { dayjs } from "@/lib/dayjs";
 import {
   deliveryOptions,
   formatPrice,
-  getOrderSummarySource,
   itemPriceText,
   paymentMethods,
-  pickupTimes,
   site,
   type MenuItem,
 } from "@/lib/site";
 import { CatalogAddonOptions } from "@/components/catalog-addon-options";
 import { availabilityReason, availabilityText, manilaDate, quoteSelection } from "@/lib/catalog/rules";
 import type { Addon, Catalog, Selection, Variant } from "@/lib/catalog/schema";
+import { useOrderSchedule } from "@/hooks/use-order-schedule";
+import type { ScheduleSettings } from "@/lib/scheduling/schema";
+import { addCalendarDays, availableOrderDates } from "@/lib/scheduling/rules";
+import { branchById, branchCatalog, variantAssignment, variantAvailable, visibleBranches, type BranchId, type BranchSettings, type CatalogMode } from "@/lib/branches/schema";
 import { cn } from "@/lib/utils";
 
 type FormState = {
@@ -69,43 +76,6 @@ function flavorNote(item: MenuItem) {
   return item.note;
 }
 
-function buildOrderSummary(form: FormState, quote: ReturnType<typeof quoteSelection>) {
-  const addonLines = quote.addonLines;
-  const delivery = deliveryOptions.find(
-    (option) => option.id === form.delivery,
-  );
-  const payment = paymentMethods.find((method) => method.id === form.payment);
-  const flavorLines = quote.lines;
-
-  const lines = [
-    "Makalipie Order Form",
-    "--------------------",
-    `Name: ${form.name.trim()}`,
-    `Contact Number: ${form.contact.trim()}`,
-    `Preferred Date & Time: ${formatPreferredWhen(form.preferredDate, form.preferredTime)}`,
-    "",
-    "Order Details:",
-    flavorLines.length > 0 ? flavorLines.join("\n") : "- None selected",
-    form.notes.trim() ? `\nNotes:\n${form.notes.trim()}` : null,
-    "",
-    "Add-Ons:",
-    addonLines.length > 0 ? addonLines.join("\n") : "- None",
-    "",
-    `Delivery: ${delivery?.label ?? form.delivery}${
-      delivery?.detail ? ` (${delivery.detail})` : ""
-    }`,
-    form.delivery === "lalamove" && form.address.trim()
-      ? `Address: ${form.address.trim()}`
-      : null,
-    `Mode of Payment: ${payment?.label ?? form.payment}`,
-    "",
-    `Known subtotal: ₱${(quote.knownSubtotalCentavos / 100).toLocaleString("en-PH")}${quote.quoteRequired ? " · quoted items still to confirm" : ""}`,
-    "Sent via " + getOrderSummarySource(),
-  ];
-
-  return lines.filter((line) => line !== null).join("\n");
-}
-
 function QtyStepper({
   value,
   onChange,
@@ -119,27 +89,29 @@ function QtyStepper({
 }) {
   return (
     <div className="order-stepper">
-      <button
+      <Button
         type="button"
-        className="pressable inline-flex size-11 items-center justify-center rounded-full text-charcoal disabled:opacity-30"
+        variant="ghost"
+        className="pressable size-11 rounded-full text-charcoal hover:bg-transparent"
         aria-label={`Decrease ${label}`}
         disabled={value <= 0}
         onClick={() => onChange(Math.max(0, value - 1))}
       >
         <Minus className="size-3.5" />
-      </button>
+      </Button>
       <span className="w-7 text-center text-sm font-semibold tabular-nums">
         {value}
       </span>
-      <button
+      <Button
         type="button"
-        className="pressable inline-flex size-11 items-center justify-center rounded-full text-charcoal"
+        variant="ghost"
+        className="pressable size-11 rounded-full text-charcoal hover:bg-transparent"
         aria-label={`Increase ${label}`}
         disabled={unavailable || value >= 100}
         onClick={() => onChange(value + 1)}
       >
         <Plus className="size-3.5" />
-      </button>
+      </Button>
     </div>
   );
 }
@@ -185,15 +157,72 @@ function FlavorRow({
 }
 
 type OrderItem = MenuItem & { productId: string; variant: Variant };
-export function OrderForm({ items, catalogAddons }: { items: MenuItem[]; catalogAddons: Addon[] }) {
-  const menuItems: OrderItem[] = items.flatMap((item) => (item.variants ?? []).filter((v) => v.active).map((v) => ({ ...item, productId: item.slug, slug: `${item.slug}:${v.id}`, name: `${item.name} · ${v.label}`, price: v.pricingMode === "fixed" ? v.priceCentavos! / 100 : undefined, priceLabel: "DM for price", variant: v })));
-  const sweetItems = menuItems.filter((item) => item.kind === "sweet");
-  const savoryItems = menuItems.filter((item) => item.kind === "savory");
+export function OrderForm({ items, catalogAddons, branches, initialBranch, schedule, serverNow, openDates = {}, openProducts = {}, intakeEnabled = false, mode = "regular" }: { items: MenuItem[]; catalogAddons: Addon[]; branches: BranchSettings; initialBranch: BranchId; schedule: ScheduleSettings; serverNow: string; openDates?: Record<string, string[]>; openProducts?: Record<string, Record<string, string[]>>; intakeEnabled?: boolean; mode?: CatalogMode }) {
+  const scheduleState = useOrderSchedule(schedule, serverNow, openDates, openProducts);
+  const router = useRouter();
+  const idempotencyKey = useRef("");
+  const recoveryToken = useRef("");
+  const [recovery, setRecovery] = useState<{ orderNumber: string; priceChanges: { from: string; to: string }[]; unavailableLines: { productId: string; variantId: string; label: string }[] } | null>(null);
+  const [dismissedLines, setDismissedLines] = useState<string[]>([]);
+  const [branch, setBranch] = useState<BranchId>(initialBranch);
+  const shop = branchById(branches, branch);
+  const publicBranches = visibleBranches(branches);
+  const menuItems: OrderItem[] = items.flatMap((item) => (item.variants ?? []).filter((v) => v.active && variantAssignment(branches, item.slug, v.id, v.minLeadDays).mode === mode && (mode === "preorder" || v.minLeadDays === 0)).map((v) => ({ ...item, productId: item.slug, slug: `${item.slug}:${v.id}`, name: `${item.name} · ${v.label}`, price: v.pricingMode === "fixed" ? v.priceCentavos! / 100 : undefined, priceLabel: "DM for price", variant: v })));
+  const availableHere = (item: OrderItem) => variantAvailable(branches, branch, item.productId, item.variant.id, item.variant.minLeadDays, mode);
+  const visibleItems = menuItems.filter(availableHere);
+  const sweetItems = visibleItems.filter((item) => item.kind === "sweet");
+  const savoryItems = visibleItems.filter((item) => item.kind === "savory");
   const [form, setForm] = useState<FormState>(() => ({ ...initialState, quantities: Object.fromEntries(menuItems.map((item) => [item.slug, 0])) }));
+  useEffect(() => {
+    const hash = window.location.hash.replace(/^#/, "");
+    if (!hash.startsWith("reorder=")) return;
+    const token = decodeURIComponent(hash.slice("reorder=".length));
+    let disposed = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/orders/recovery", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+        const data = await response.json();
+        if (disposed) return;
+        if (!response.ok) throw new Error(data.error || "This request can no longer be reordered.");
+        const draft = data.draft;
+        if (draft.catalogMode !== mode) {
+          setError(mode === "preorder" ? "Open the regular order page to reorder these pies." : "Open the pre-order page to reorder these pies.");
+          return;
+        }
+        recoveryToken.current = token;
+        setBranch(draft.branchId);
+        setRecovery({ orderNumber: draft.orderNumber, priceChanges: draft.review.priceChanges ?? [], unavailableLines: draft.review.unavailableLines ?? [] });
+        setForm((current) => ({
+          ...current,
+          name: draft.name,
+          contact: draft.contact,
+          notes: draft.notes,
+          delivery: draft.delivery,
+          address: draft.address,
+          payment: draft.payment,
+          preferredDate: new Date(`${draft.selection.date}T12:00:00`),
+          preferredTime: draft.slotId,
+          selectedAddons: draft.selection.addons.map((addon: { id: string }) => addon.id),
+          addonMessages: Object.fromEntries(draft.selection.addons.map((addon: { id: string; message?: string }) => [addon.id, addon.message ?? ""])),
+          quantities: {
+            ...current.quantities,
+            ...Object.fromEntries(draft.selection.lines.map((line: { productId: string; variantId: string; quantity: number }) => [`${line.productId}:${line.variantId}`, line.quantity])),
+          },
+          lineAddons: Object.fromEntries(draft.selection.lines.map((line: { productId: string; variantId: string; addons: { id: string }[] }) => [`${line.productId}:${line.variantId}`, line.addons.map((addon) => addon.id)])),
+          lineMessages: Object.fromEntries(draft.selection.lines.map((line: { productId: string; variantId: string; addons: { id: string; message?: string }[] }) => [`${line.productId}:${line.variantId}`, Object.fromEntries(line.addons.map((addon) => [addon.id, addon.message ?? ""]))])),
+        }));
+      } catch (loadError) {
+        if (!disposed) setError(loadError instanceof Error ? loadError.message : "This request can no longer be reordered.");
+      }
+    })();
+    return () => { disposed = true; };
+  }, [mode]);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [status, setStatus] = useState<"idle" | "copied" | "fallback">("idle");
   const [error, setError] = useState<string | null>(null);
-  const [fallbackSummary, setFallbackSummary] = useState("");
 
   const needsAddress = form.delivery === "lalamove";
   const [checking, setChecking] = useState(false);
@@ -201,27 +230,49 @@ export function OrderForm({ items, catalogAddons }: { items: MenuItem[]; catalog
   const selectedItems = menuItems.filter(
     (item) => form.quantities[item.slug] > 0,
   );
+  const unavailableItems = selectedItems.filter((item) => !availableHere(item));
+  const pendingUnavailable = (recovery?.unavailableLines ?? []).filter((line) => !dismissedLines.includes(`${line.productId}:${line.variantId}`));
+  function changeBranch(next: BranchId) {
+    setBranch(next);
+    if (!branchById(branches, next).deliveryEnabled) setForm((current) => ({ ...current, delivery: "pickup" }));
+    setError(null);
+    const url = new URL(window.location.href); url.searchParams.set("branch", next);
+    window.history.replaceState(null, "", url.toString());
+  }
   const chosenAddons = catalogAddons.filter((a) => form.selectedAddons.includes(a.id));
-  const selectedDate = form.preferredDate ? dayjs(form.preferredDate).format("YYYY-MM-DD") : "";
-  const selection: Selection = { date: selectedDate, lines: selectedItems.map((item) => ({ productId: item.productId, variantId: item.variant.id, quantity: form.quantities[item.slug], addons: (form.lineAddons[item.slug] ?? []).map((id) => ({ id, message: form.lineMessages[item.slug]?.[id] ?? "" })) })), addons: form.selectedAddons.map((id) => ({ id, message: form.addonMessages[id] ?? "" })) };
+  const selectedContent: Omit<Selection, "date"> = { lines: selectedItems.map((item) => ({ productId: item.productId, variantId: item.variant.id, quantity: form.quantities[item.slug], addons: (form.lineAddons[item.slug] ?? []).map((id) => ({ id, message: form.lineMessages[item.slug]?.[id] ?? "" })) })), addons: form.selectedAddons.map((id) => ({ id, message: form.addonMessages[id] ?? "" })) };
   const clientCatalog: Catalog = { initialized: true, addons: catalogAddons, products: items.map((p) => ({ id: p.slug, slug: p.slug, name: p.name, blurb: p.blurb, description: p.description, category: p.kind, image: { url: p.image.src, alt: p.image.alt }, allergens: p.allergens ?? [], publicNotes: p.note ?? "", active: true, sortOrder: 0, version: 1, updatedAt: null, legacyPriceCentavos: null, variants: p.variants ?? [], availableWeekdays: p.availableWeekdays ?? [], unavailableDates: p.unavailableDates ?? [], allowedAddonIds: p.allowedAddonIds ?? [] })) };
-  const quote = quoteSelection(clientCatalog, { ...selection, date: selectedDate || manilaDate() });
+  const modeCatalog = branchCatalog(clientCatalog, branches, branch, mode);
+  const scheduledDates = availableOrderDates(scheduleState.settings, branch, modeCatalog, selectedContent, scheduleState.now);
+  const chosenFlavorIds = [...new Set(selectedItems.map((item) => item.productId))];
+  const modeFlavorIds = new Set(modeCatalog.products.map((product) => product.id));
+  const availableDates = intakeEnabled ? scheduledDates.filter((date) => {
+    const open = new Set(scheduleState.openProducts[branch]?.[date.date] ?? []);
+    return chosenFlavorIds.length === 0 ? [...modeFlavorIds].some((id) => open.has(id)) : chosenFlavorIds.every((id) => open.has(id));
+  }) : scheduledDates;
+  const selectedDate = form.preferredDate ? dayjs(form.preferredDate).format("YYYY-MM-DD") : availableDates[0]?.date ?? "";
+  const dateValue = selectedDate ? new Date(`${selectedDate}T12:00:00`) : undefined;
+  const slots = availableDates.find((d) => d.date === selectedDate)?.slots ?? [];
+  const selectedSlot = slots.find((slot) => slot.id === form.preferredTime);
+  const dateInvalid = Boolean(selectedDate && !availableDates.some((d) => d.date === selectedDate));
+  const selection: Selection = { ...selectedContent, date: selectedDate };
+  const quote = quoteSelection(clientCatalog, { ...selection, date: selectedDate || manilaDate(scheduleState.now) }, manilaDate(scheduleState.now));
   const subtotal = quote.knownSubtotalCentavos / 100;
   const hasUnpriced = quote.quoteRequired;
-  const today = useMemo(() => new Date(`${manilaDate()}T00:00:00`), []);
+  const today = new Date(`${manilaDate(scheduleState.now)}T12:00:00`);
+  const lastDate = new Date(`${addCalendarDays(manilaDate(scheduleState.now), scheduleState.settings.bookingHorizonDays)}T12:00:00`);
   function row(item: OrderItem) {
     const quantity = form.quantities[item.slug] ?? 0;
     const product = clientCatalog.products.find((p) => p.id === item.productId)!;
-    const reason = selectedDate ? availabilityReason(product, item.variant, selectedDate) : null;
+    const reason = !availableHere(item) ? `Not available at ${shop.name}. Remove this item or switch back.` : form.preferredDate && selectedDate ? availabilityReason(product, item.variant, selectedDate, 0, manilaDate(scheduleState.now)) : null;
     const extras = catalogAddons.filter((a) => a.scope === "per_item" && (product.allowedAddonIds.includes(a.id) || form.lineAddons[item.slug]?.includes(a.id)));
-    return <div key={item.slug} className="space-y-2"><FlavorRow item={item} quantity={quantity} onQuantityChange={(n) => setQuantity(item.slug, n)} reason={reason} /><p className="px-3 text-xs text-charcoal/65">{availabilityText(product)}{item.variant.minLeadDays > 0 ? ` · ${item.variant.minLeadDays} days preparation` : ""}</p>{quantity > 0 && extras.length > 0 && <div className="ml-3 border-l border-charcoal/15 pl-3"><p className="mb-2 text-xs font-semibold">Extras for {item.name}</p><CatalogAddonOptions addons={extras} quantity={quantity} prefix={item.slug} selected={form.lineAddons[item.slug] ?? []} messages={form.lineMessages[item.slug] ?? {}} toggle={(id) => { const current = form.lineAddons[item.slug] ?? []; update("lineAddons", { ...form.lineAddons, [item.slug]: current.includes(id) ? current.filter((x) => x !== id) : [...current, id] }); }} message={(id, value) => update("lineMessages", { ...form.lineMessages, [item.slug]: { ...form.lineMessages[item.slug], [id]: value } })} /></div>}</div>;
+    return <div key={item.slug} className="space-y-2"><FlavorRow item={item} quantity={quantity} onQuantityChange={(n) => setQuantity(item.slug, n)} reason={reason} /><p className="px-3 text-xs text-charcoal/65">{availabilityText(product)}{item.variant.minLeadDays > 0 ? ` · ${item.variant.minLeadDays} ${item.variant.minLeadDays === 1 ? "day" : "days"} of preparation` : mode === "preorder" ? " · No extra preparation days." : ""}</p>{quantity > 0 && extras.length > 0 && <div className="ml-3 border-l border-charcoal/15 pl-3"><p className="mb-2 text-xs font-semibold">Extras for {item.name}</p><CatalogAddonOptions addons={extras} quantity={quantity} prefix={item.slug} selected={form.lineAddons[item.slug] ?? []} messages={form.lineMessages[item.slug] ?? {}} toggle={(id) => { const current = form.lineAddons[item.slug] ?? []; update("lineAddons", { ...form.lineAddons, [item.slug]: current.includes(id) ? current.filter((x) => x !== id) : [...current, id] }); }} message={(id, value) => update("lineMessages", { ...form.lineMessages, [item.slug]: { ...form.lineMessages[item.slug], [id]: value } })} /></div>}</div>;
   }
-  const dateLabel = form.preferredDate
-    ? dayjs(form.preferredDate).format("ddd, MMM D")
+  const dateLabel = dateValue
+    ? dayjs(dateValue).format("ddd, MMM D")
     : "Pick a date";
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
-    setStatus("idle");
     setError(null);
   }
 
@@ -230,7 +281,6 @@ export function OrderForm({ items, catalogAddons }: { items: MenuItem[]; catalog
       ...current,
       quantities: { ...current.quantities, [slug]: next },
     }));
-    setStatus("idle");
     setError(null);
   }
 
@@ -241,7 +291,6 @@ export function OrderForm({ items, catalogAddons }: { items: MenuItem[]; catalog
         : [...current.selectedAddons, id];
       return { ...current, selectedAddons: selected };
     });
-    setStatus("idle");
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -249,12 +298,14 @@ export function OrderForm({ items, catalogAddons }: { items: MenuItem[]; catalog
     setError(null);
     if (checking) return;
 
+    if (unavailableItems.length || pendingUnavailable.length) { setError("Remove unavailable items or switch branches before continuing."); return; }
+
     if (!form.name.trim() || !form.contact.trim()) {
       setError("Please fill in your name and contact number.");
       return;
     }
 
-    if (!form.preferredDate || !form.preferredTime) {
+    if (!selectedDate || !selectedSlot || scheduleState.error) {
       setError("Please pick a preferred date and time.");
       return;
     }
@@ -264,30 +315,46 @@ export function OrderForm({ items, catalogAddons }: { items: MenuItem[]; catalog
       return;
     }
 
+    if (needsAddress && !shop.deliveryEnabled) {
+      setError("Delivery is not available from this branch. Pickup is still available.");
+      return;
+    }
     if (needsAddress && !form.address.trim()) {
-      setError("Please add a delivery address for Lalamove.");
+      setError("Add a delivery address.");
       return;
     }
 
-    let summary: string;
     setChecking(true);
     try {
-      const response = await fetch("/api/catalog/preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(selection) });
+      if (!idempotencyKey.current) idempotencyKey.current = crypto.randomUUID();
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idempotencyKey: idempotencyKey.current,
+          branchId: branch,
+          slotId: selectedSlot.id,
+          name: form.name.trim(),
+          contact: form.contact.trim(),
+          notes: form.notes.trim(),
+          delivery: form.delivery,
+          address: form.address.trim(),
+          payment: form.payment,
+          catalogMode: mode,
+          ...(recoveryToken.current ? { recoveryToken: recoveryToken.current } : {}),
+          selection,
+        }),
+      });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Please check your selections.");
-      summary = buildOrderSummary(form, result);
-    } catch(e) { setError(e instanceof Error ? e.message : "Could not check the current menu. Please retry."); setChecking(false); return; }
-    setChecking(false);
-
-    try {
-      await navigator.clipboard.writeText(summary);
-      setStatus("copied");
-      setFallbackSummary("");
-      window.open(site.instagramDmUrl, "_blank", "noopener,noreferrer");
-    } catch {
-      setFallbackSummary(summary);
-      setStatus("fallback");
-      window.open(site.instagramDmUrl, "_blank", "noopener,noreferrer");
+      if (!response.ok) {
+        if (result.schedule && result.serverNow) scheduleState.acceptFreshSettings(result.schedule, result.serverNow, result.openDates, result.openProducts);
+        throw new Error(result.error || "Could not place your request.");
+      }
+      sessionStorage.setItem("makalipie-request-token", result.token);
+      router.push(`/order/status#${result.token}`);
+    } catch(e) {
+      setError(e instanceof Error ? e.message : "Could not place your request. Please retry.");
+      setChecking(false);
     }
   }
 
@@ -314,6 +381,45 @@ export function OrderForm({ items, catalogAddons }: { items: MenuItem[]; catalog
           height={145}
         />
       </header>
+      <section className="mb-6 max-w-xl space-y-2" aria-label="Main branch">
+        {publicBranches.length > 1 ? (
+          <>
+            <Label htmlFor="order-branch">Ordering from</Label>
+            <NativeSelect
+              id="order-branch"
+              className="h-12 rounded-xl border-charcoal/20 bg-cream text-base"
+              disabled={checking}
+              value={branch}
+              onChange={(e) => changeBranch(e.target.value as BranchId)}
+            >
+              {publicBranches.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </NativeSelect>
+            <p className="text-sm text-charcoal/65">{mode === "preorder" ? "Pre-order pies available from your selected main branch." : "Regular pies available from your selected main branch."} <Link href={mode === "preorder" ? "/order" : "/order/preorder"} className="underline">{mode === "preorder" ? "Order pies without extra preparation." : "Order pies that need preparation."}</Link></p>
+          </>
+        ) : (
+          <>
+            <p className="text-sm font-medium">Ordering from</p>
+            <p className="text-base">{shop.name}</p>
+            <p className="text-sm text-charcoal/65">{mode === "preorder" ? "Pre-order pies available from this main branch." : "Regular pies available from this main branch."} <Link href={mode === "preorder" ? "/order" : "/order/preorder"} className="underline">{mode === "preorder" ? "Order pies without extra preparation." : "Order pies that need preparation."}</Link></p>
+          </>
+        )}
+      </section>
+      {recovery ? (
+        <section className="mb-6 max-w-xl space-y-2" aria-label={`Reorder ${recovery.orderNumber}`}>
+          <p className="text-sm font-medium">Reordering {recovery.orderNumber}</p>
+          {recovery.priceChanges.map((change) => <p key={change.from} className="text-sm text-charcoal/70">{change.from} is now {change.to}</p>)}
+          {pendingUnavailable.map((line) => (
+            <div key={`${line.productId}:${line.variantId}`} className="flex flex-wrap items-center gap-2">
+              <p className="text-sm">{line.label} is no longer on the menu.</p>
+              <Button type="button" variant="link" className="h-11 px-0" onClick={() => setDismissedLines((current) => [...current, `${line.productId}:${line.variantId}`])}>Remove</Button>
+            </div>
+          ))}
+        </section>
+      ) : null}
       <div className="order-layout">
         <div>
           <form id="pie-order" onSubmit={handleSubmit} className="order-form">
@@ -324,25 +430,51 @@ export function OrderForm({ items, catalogAddons }: { items: MenuItem[]; catalog
               <p className="text-xs text-charcoal/55">
                 A few for you, a few to share. Use + to add your favourites.
               </p>
+              {visibleItems.length === 0 && (
+                <Alert role="status" className="border-transparent bg-butter/60 text-charcoal">
+                  <AlertDescription className="text-charcoal">
+                    No {mode === "preorder" ? "pre-order" : "regular"} pies are currently available at {shop.name}. {publicBranches.length > 1 ? "Choose another main branch or contact us." : "Contact us."}
+                  </AlertDescription>
+                </Alert>
+              )}
+              {unavailableItems.length > 0 && (
+                <section aria-label="Unavailable cart items" className="space-y-3">
+                  <Alert className="border-berry/40 bg-transparent text-berry">
+                    <AlertDescription className="text-berry">
+                      Some selected items are unavailable at this branch. Matching items remain in your order.
+                    </AlertDescription>
+                  </Alert>
+                  {unavailableItems.map((item) => (
+                    <div key={item.slug}>
+                      {row(item)}
+                      <Button type="button" variant="link" className="h-11 px-3 text-charcoal" onClick={() => setQuantity(item.slug, 0)}>
+                        Remove {item.name}
+                      </Button>
+                    </div>
+                  ))}
+                </section>
+              )}
               <div className="space-y-2">
                 {sweetItems.map(row)}
               </div>
-              <p className="pt-2 text-xs font-semibold tracking-wide text-charcoal/50 uppercase">
-                Savoury
-              </p>
+              {savoryItems.length > 0 && <p className="pt-2 text-xs font-semibold tracking-wide text-charcoal/50 uppercase">Savoury</p>}
               <div className="space-y-2">
                 {savoryItems.map(row)}
               </div>
-              {!!selectedDate && quote.errors.length > 0 && <p role="status" className="text-sm text-berry">{quote.errors.join(" ")}</p>}
+              {!!selectedDate && quote.errors.length > 0 && (
+                <Alert role="status" className="border-berry/40 bg-transparent text-berry">
+                  <AlertDescription className="text-berry">{quote.errors.join(" ")}</AlertDescription>
+                </Alert>
+              )}
               <div className="space-y-2 pt-1">
                 <Label htmlFor="notes">Notes (optional)</Label>
-                <textarea
+                <Textarea
                   id="notes"
                   name="notes"
                   rows={2}
                   value={form.notes}
                   onChange={(event) => update("notes", event.target.value)}
-                  className="w-full rounded-xl border border-input bg-cream px-3 py-2.5 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
+                  className="min-h-0 rounded-xl bg-cream"
                   placeholder="Allergies, packing notes, or anything else"
                 />
               </div>
@@ -382,6 +514,39 @@ export function OrderForm({ items, catalogAddons }: { items: MenuItem[]; catalog
               </div>
 
               <div className="space-y-3">
+                <p className="text-sm text-charcoal/65">Choose up to {scheduleState.settings.bookingHorizonDays} days ahead. All times are in Manila time.</p>
+                {quote.preparationDays > 0 ? <p className="text-sm text-charcoal/65">This box needs {quote.preparationDays} {quote.preparationDays === 1 ? "day" : "days"} of preparation. Earlier dates stay closed.</p> : null}
+                {scheduleState.error && (
+                  <Alert className="border-berry/40 bg-transparent text-berry">
+                    <AlertDescription className="text-berry">{scheduleState.error}</AlertDescription>
+                  </Alert>
+                )}
+                <Button type="button" variant="link" className="h-11 px-0 text-charcoal" onClick={scheduleState.refresh}>
+                  Refresh available dates
+                </Button>
+                {!availableDates.length && (
+                  <Alert role="status" className="border-transparent bg-butter/60 text-charcoal">
+                    <AlertDescription className="text-charcoal">
+                      {intakeEnabled
+                        ? "No online dates are currently available. Your items are still here."
+                        : "No online dates are currently available for this branch and selection. Your items are still here; try another branch or adjust your selection."}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {availableDates.length > 0 && !availableDates.some((d) => d.date === manilaDate(scheduleState.now)) && (
+                  <Alert role="status" className="border-transparent bg-transparent text-charcoal">
+                    <AlertDescription className="text-charcoal">
+                      Today is unavailable for this selection. Earliest available: {dayjs(`${availableDates[0].date}T12:00:00`).format("ddd, MMM D")}.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {dateInvalid && (
+                  <Alert className="border-berry/40 bg-transparent text-berry">
+                    <AlertDescription className="text-berry">
+                      Your selected date is no longer available. Please choose another date; your items have been kept.
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <Label htmlFor="preferred-date">Preferred date</Label>
                 <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                   <PopoverTrigger
@@ -395,7 +560,7 @@ export function OrderForm({ items, catalogAddons }: { items: MenuItem[]; catalog
                     <CalendarDays className="size-4 text-charcoal/60" />
                     <span
                       className={
-                        form.preferredDate
+                        dateValue
                           ? "text-charcoal"
                           : "text-charcoal/45"
                       }
@@ -409,38 +574,48 @@ export function OrderForm({ items, catalogAddons }: { items: MenuItem[]; catalog
                   >
                     <Calendar
                       mode="single"
-                      selected={form.preferredDate}
+                      selected={dateValue}
                       onSelect={(date) => {
-                        update("preferredDate", date);
+                        setForm((current) => ({ ...current, preferredDate: date, preferredTime: "" }));
+                        setError(null);
                         if (date) setCalendarOpen(false);
                       }}
-                      disabled={{ before: today }}
-                      defaultMonth={form.preferredDate ?? today}
+                      disabled={(date) => !availableDates.some((d) => d.date === dayjs(date).format("YYYY-MM-DD"))}
+                      startMonth={today}
+                      endMonth={lastDate}
+                      defaultMonth={dateValue ?? today}
                     />
                   </PopoverContent>
                 </Popover>
               </div>
 
               <div className="space-y-3">
-                <Label>Preferred time</Label>
-                <div className="flex flex-wrap gap-2">
-                  {pickupTimes.map((time) => {
-                    const active = form.preferredTime === time;
+                <p className="text-sm font-medium" id="time-slots-label">Preferred time slot</p>
+                {form.preferredTime && !selectedSlot && (
+                  <Alert className="border-berry/40 bg-transparent text-berry">
+                    <AlertDescription className="text-berry">Your selected time is no longer available. Please choose a new slot.</AlertDescription>
+                  </Alert>
+                )}
+                {!slots.length && <p className="text-sm text-charcoal/65">Choose an available date to see one-hour slots.</p>}
+                <div className="flex flex-wrap gap-2" role="group" aria-labelledby="time-slots-label">
+                  {slots.map((slot) => {
+                    const active = form.preferredTime === slot.id;
                     return (
-                      <button
-                        key={time}
+                      <Button
+                        key={slot.id}
                         type="button"
-                        onClick={() => update("preferredTime", time)}
+                        variant="outline"
+                        onClick={() => { setForm((current) => ({ ...current, preferredDate: dateValue, preferredTime: slot.id })); setError(null); }}
                         className={cn(
-                          "pressable rounded-full px-3.5 py-2 text-sm font-semibold ring-1 transition-colors duration-150 ease-[var(--ease-out)]",
+                          "pressable h-11 rounded-full px-3.5 font-semibold ring-1",
                           active
-                            ? "bg-charcoal text-white ring-charcoal"
-                            : "bg-cream text-charcoal/80 ring-charcoal/10 hover:bg-butter",
+                            ? "border-charcoal bg-charcoal text-white ring-charcoal hover:bg-charcoal hover:text-white"
+                            : "border-transparent bg-cream text-charcoal/80 ring-charcoal/10 hover:bg-butter",
                         )}
                         aria-pressed={active}
                       >
-                        {time}
-                      </button>
+                        {slot.label}
+                      </Button>
                     );
                   })}
                 </div>
@@ -458,38 +633,39 @@ export function OrderForm({ items, catalogAddons }: { items: MenuItem[]; catalog
               <legend className="text-sm font-medium">
                 How shall we get it to you?
               </legend>
-              {deliveryOptions.map((option) => (
-                <label
-                  key={option.id}
-                  className="pressable flex cursor-pointer items-start gap-3 rounded-xl bg-butter/60 px-4 py-3"
-                >
-                  <input
-                    type="radio"
-                    name="delivery"
-                    value={option.id}
-                    checked={form.delivery === option.id}
-                    onChange={() => update("delivery", option.id)}
-                    className="mt-1 size-4 accent-crust"
-                  />
-                  <span className="text-sm">
-                    <span className="font-semibold">{option.label}</span>
-                    <span className="mt-0.5 block text-charcoal/60">
-                      {option.detail}
+              <RadioGroup
+                name="delivery"
+                value={form.delivery}
+                disabled={checking}
+                onValueChange={(value) => update("delivery", value)}
+                className="gap-3"
+              >
+                {deliveryOptions.filter((option) => option.id === "pickup" || shop.deliveryEnabled).map((option) => (
+                  <Label
+                    key={option.id}
+                    className="pressable h-auto cursor-pointer items-start gap-3 rounded-xl bg-butter/60 px-4 py-3 font-normal"
+                  >
+                    <RadioGroupItem value={option.id} className="mt-1" />
+                    <span className="text-sm">
+                      <span className="font-semibold">{option.label}</span>
+                      <span className="mt-0.5 block text-charcoal/60">
+                        {option.id === "pickup" ? (shop.address || shop.name) : option.detail}
+                      </span>
                     </span>
-                  </span>
-                </label>
-              ))}
+                  </Label>
+                ))}
+              </RadioGroup>
               {needsAddress ? (
                 <div className="space-y-2 pl-1">
                   <Label htmlFor="address">Delivery Address</Label>
-                  <textarea
+                  <Textarea
                     id="address"
                     name="address"
                     rows={3}
                     value={form.address}
                     onChange={(event) => update("address", event.target.value)}
-                    className="w-full rounded-xl border border-input bg-cream px-3 py-2.5 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
-                    placeholder="Full address for Lalamove"
+                    className="min-h-0 rounded-xl bg-cream"
+                    placeholder="Full delivery address"
                   />
                 </div>
               ) : null}
@@ -501,68 +677,45 @@ export function OrderForm({ items, catalogAddons }: { items: MenuItem[]; catalog
               </legend>
               <p className="text-xs text-charcoal/55">
                 Choose how you&apos;d like to pay after we confirm and send an
-                invoice. No payment yet.
+                invoice. Payment must be verified before preparation. No payment yet.
               </p>
-              {paymentMethods.map((method) => (
-                <label
-                  key={method.id}
-                  className="pressable flex cursor-pointer items-center gap-3 rounded-xl bg-butter/60 px-4 py-3"
-                >
-                  <input
-                    type="radio"
-                    name="payment"
-                    value={method.id}
-                    checked={form.payment === method.id}
-                    onChange={() => update("payment", method.id)}
-                    className="size-4 accent-crust"
-                  />
-                  <span className="text-sm font-semibold">{method.label}</span>
-                </label>
-              ))}
+              <RadioGroup
+                name="payment"
+                value={form.payment}
+                disabled={checking}
+                onValueChange={(value) => update("payment", value)}
+                className="gap-3"
+              >
+                {paymentMethods.filter((method) => method.id !== "cash").map((method) => (
+                  <Label
+                    key={method.id}
+                    className="pressable h-auto cursor-pointer gap-3 rounded-xl bg-butter/60 px-4 py-3 font-normal"
+                  >
+                    <RadioGroupItem value={method.id} />
+                    <span className="text-sm font-semibold">{method.label}</span>
+                  </Label>
+                ))}
+              </RadioGroup>
             </fieldset>
 
             {error ? (
-              <p className="text-sm font-medium text-berry" role="alert">
-                {error}
-              </p>
+              <Alert className="border-berry/40 bg-transparent text-berry">
+                <AlertDescription className="font-medium text-berry">{error}</AlertDescription>
+              </Alert>
             ) : null}
 
-            {status === "copied" ? (
-              <p className="text-sm font-medium text-charcoal" role="status">
-                Order copied. Paste it into the Instagram DM that just opened.
-              </p>
-            ) : null}
-
-            {status === "fallback" ? (
-              <div className="space-y-2" role="status">
-                <p className="text-sm font-medium text-charcoal">
-                  Couldn&apos;t copy automatically. Select and copy the summary
-                  below, then paste into Instagram.
-                </p>
-                <textarea
-                  readOnly
-                  value={fallbackSummary}
-                  rows={12}
-                  className="w-full rounded-xl border border-charcoal/15 bg-cream px-3 py-2.5 font-mono text-xs"
-                  onFocus={(event) => event.currentTarget.select()}
-                />
-              </div>
-            ) : null}
-
-            <button
+            <Button
               type="submit"
-              disabled={checking}
-              className={cn(
-                buttonVariants({ variant: "default" }),
-                "order-submit brand-button",
-              )}
+              disabled={checking || unavailableItems.length > 0 || pendingUnavailable.length > 0 || visibleItems.length === 0 || !selectedSlot || dateInvalid || Boolean(scheduleState.error)}
+              className="order-submit brand-button"
             >
-              {checking ? "Checking the latest menu…" : "Copy order & open Instagram"}{" "}
+              {checking ? "Placing your order…" : "Place order"}{" "}
               <ArrowUpRight size={18} aria-hidden />
-            </button>
+            </Button>
             <p className="order-submit-note">
-              Your order is placed once we confirm it in our conversation. No
-              payment is taken here.
+              Placing this request reserves the pies and opens your order page. Staff still need to confirm it. No payment is taken here.{" "}
+              <Link href="/terms">Terms</Link>, <Link href="/privacy">Privacy</Link>, and{" "}
+              <Link href="/refund">Refund policy</Link>.
             </p>
             </fieldset>
           </form>
@@ -626,25 +779,23 @@ export function OrderForm({ items, catalogAddons }: { items: MenuItem[]; catalog
             {hasUnpriced
               ? "Quoted sizes will be priced after confirmation. "
               : ""}
-            {needsAddress ? "Delivery fee is not included. " : ""}We’ll confirm
-            the final total in Instagram.
+            {needsAddress ? "Staff confirm the address and the fee. This request does not confirm delivery. " : ""}Staff confirm the final total on your order page.
           </p>
           <div className="order-summary-logistics">
             <span>
               {needsAddress
-                ? "Lalamove delivery"
-                : "Pickup at Streetscape, Banilad"}
+                ? "Delivery"
+                : `Pickup at ${shop.name}${shop.address ? ` · ${shop.address}` : ""}`}
             </span>
             <span>
-              {formatPreferredWhen(form.preferredDate, form.preferredTime) ||
+              {formatPreferredWhen(dateValue, selectedSlot?.label ?? "") ||
                 "Choose your preferred date and time."}
             </span>
           </div>
           <div className="order-next">
             <p className="eyebrow">WHAT HAPPENS NEXT</p>
             <p>
-              Copy your order and paste it into our Instagram conversation.
-              We’ll confirm your pies and send payment details.
+              Place the order to open your order page. Copy the order number there when you want to continue on Instagram.
             </p>
             <a href={site.instagramDmUrl} target="_blank" rel="noreferrer">
               Have a question? Talk to us <ArrowUpRight size={15} aria-hidden />

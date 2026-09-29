@@ -6,12 +6,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, ImagePlus, Upload } from "lucide-react";
+import { ArrowLeft, Check, Eye, EyeOff, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { NativeSelect } from "@/components/ui/native-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/card";
 import { adminKeys } from "@/lib/admin/query";
 import { productFieldsSchema, slugify, type Product, type ProductFields } from "@/lib/products/schema";
+import { CatalogTabActions } from "./catalog-tab-actions";
 
 const blank: ProductFields = { slug: "", name: "", blurb: "", description: "", category: "sweet", image: { url: "/brand/seal.png", alt: "Makalipie product" }, allergens: [], publicNotes: "", active: false, sortOrder: 0 };
 function editable(product: Product): ProductFields {
@@ -143,20 +144,27 @@ export function ProductEditor({ initial, embedded = false, onSaved, onBack }: { 
     {!embedded && <><Link href="/admin/catalog" className="product-back"><ArrowLeft size={16} aria-hidden="true" /> All products</Link>
     <div className="products-heading"><div className="admin-page-heading"><p className="admin-eyebrow">A LITTLE DETAIL GOES A LONG WAY</p><h1>{version ? "Edit product" : "Add a product"}</h1><p>{version ? form.name : "Make room for something delicious."}</p></div><Badge variant="outline" className={form.active ? "product-visible" : "product-hidden"}>{form.active ? "Visible" : "Hidden"}</Badge></div>
     </>}
-    <form ref={formRef} onSubmit={save} className="product-editor" noValidate aria-busy={pending || uploading}>
+    <form ref={formRef} id={embedded ? "catalog-product-form" : undefined} onSubmit={save} className="product-editor" noValidate aria-busy={pending || uploading}>
       <fieldset disabled={pending || uploading} className="product-editor-fields">
         <legend className="sr-only">Product details</legend>
-        <section className="product-editor-section" aria-labelledby="product-details-title"><h2 id="product-details-title">The essentials</h2>
+        <section className="product-editor-section" aria-labelledby="product-details-title">
+          <div className="catalog-section-head">
+            <h2 id="product-details-title">The essentials</h2>
+            <div className="catalog-visibility" role="radiogroup" aria-label="Visibility">
+              <button type="button" role="radio" aria-checked={form.active} data-on={form.active} disabled={pending || uploading} onClick={() => update("active", true)}><Eye aria-hidden="true" />Visible</button>
+              <button type="button" role="radio" aria-checked={!form.active} data-on={!form.active} data-tone="hidden" disabled={pending || uploading} onClick={() => update("active", false)}><EyeOff aria-hidden="true" />Hidden</button>
+            </div>
+          </div>
           <div className="admin-field"><Label htmlFor="product-name">Product name</Label><Input id="product-name" value={form.name} maxLength={100} onChange={(e) => { update("name", e.target.value); if (!slugEdited) update("slug", slugify(e.target.value)); }} {...fieldProps("name")} />{fieldError("name")}</div>
-          <div className="product-field-pair"><div className="admin-field"><Label htmlFor="product-category">Category</Label><NativeSelect id="product-category" value={form.category} onChange={(e) => update("category", e.target.value as "sweet" | "savory")}><option value="sweet">Sweet</option><option value="savory">Savoury</option></NativeSelect></div><div className="admin-field"><Label htmlFor="product-sort">Display order</Label><Input id="product-sort" type="number" min={0} max={9999} value={Number.isNaN(form.sortOrder) ? "" : form.sortOrder} onChange={(e) => update("sortOrder", e.target.valueAsNumber)} {...fieldProps("sortOrder")} /><p className="product-help">Lower numbers appear first in each category.</p>{fieldError("sortOrder")}</div></div>
+          <div className="admin-field"><Label htmlFor="product-category">Category</Label><Select value={form.category} items={{ sweet: "Sweet", savory: "Savoury" }} onValueChange={(value) => { if (value != null) update("category", value as "sweet" | "savory"); }}><SelectTrigger id="product-category" aria-label="Category"><SelectValue /></SelectTrigger><SelectContent alignItemWithTrigger={false} align="start"><SelectItem value="sweet">Sweet</SelectItem><SelectItem value="savory">Savoury</SelectItem></SelectContent></Select>{fieldError("category")}</div>
           <div className="admin-field"><Label htmlFor="product-blurb">Short description</Label><Textarea id="product-blurb" rows={2} maxLength={180} value={form.blurb} onChange={(e) => update("blurb", e.target.value)} {...fieldProps("blurb")} /><p className="product-help">A short introduction for the home page. {form.blurb.length}/180</p>{fieldError("blurb")}</div>
           <div className="admin-field"><Label htmlFor="product-description">Full description</Label><Textarea id="product-description" rows={5} maxLength={2000} value={form.description} onChange={(e) => update("description", e.target.value)} {...fieldProps("description")} />{fieldError("description")}</div>
         </section>
         <section className="product-editor-section" aria-labelledby="product-extra-title"><h2 id="product-extra-title">Good to know</h2><div className="admin-field"><Label htmlFor="product-allergens">Allergens</Label><Input id="product-allergens" value={allergens} onChange={(e) => { setAllergens(e.target.value); setNotice(""); }} placeholder="e.g. dairy, gluten, nuts" {...fieldProps("allergens")} /><p className="product-help">Separate with commas. List only allergens confirmed by the bakery.</p>{fieldError("allergens")}</div><div className="admin-field"><Label htmlFor="product-notes">Customer notes</Label><Textarea id="product-notes" rows={3} maxLength={300} value={form.publicNotes} onChange={(e) => update("publicNotes", e.target.value)} placeholder="Storage advice, serving suggestions, or availability notes" {...fieldProps("publicNotes")} />{fieldError("publicNotes")}</div><div className="admin-field"><Label htmlFor="product-slug">Product link</Label><Input id="product-slug" value={form.slug} readOnly={Boolean(version)} maxLength={80} onChange={(e) => { setSlugEdited(true); update("slug", e.target.value); }} {...fieldProps("slug")} /><p className="product-help">/menu#{form.slug || "product-name"}{version ? " · Kept fixed so existing links continue to work." : " · Use lowercase letters, numbers, and hyphens."}</p>{fieldError("slug")}</div></section>
       </fieldset>
       <aside className="product-editor-side">
-        <section className="product-editor-section" aria-labelledby="product-photo-title"><h2 id="product-photo-title">Product photo</h2><div className="product-photo-preview"><Image src={form.image.url} alt={form.image.alt || "Product photo preview"} unoptimized width={480} height={480} /></div><input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" tabIndex={-1} aria-label="Choose a product photo" disabled={pending || uploading} onChange={(e) => void upload(e.target.files?.[0])} /><Button type="button" variant="outline" onClick={() => fileInput.current?.click()} disabled={pending || uploading}><Upload aria-hidden="true" />{uploading ? "Uploading photo…" : "Upload photo"}</Button><p className="product-help">JPG, PNG, or WebP. Up to 3 MB. Photos are resized for the website.</p>{form.image.url !== "/brand/seal.png" && <Button type="button" variant="ghost" disabled={pending || uploading} onClick={() => { update("image", { url: "/brand/seal.png", alt: "Makalipie seal" }); }}><ImagePlus aria-hidden="true" /> Use brand image</Button>}{fieldError("image.url")}<div className="admin-field"><Label htmlFor="product-image-alt">Photo description</Label><Input id="product-image-alt" disabled={pending || uploading} value={form.image.alt} maxLength={200} onChange={(e) => update("image", { ...form.image, alt: e.target.value })} {...fieldProps("image.alt")} />{fieldError("image.alt")}</div></section>
-        <section className="product-editor-section"><h2>On the menu</h2>{version && !embedded && <Link href="/admin/catalog" className="text-link">Manage sizes, prices & availability</Link>}<div className="admin-field"><Label htmlFor="product-visibility">Visibility</Label><NativeSelect id="product-visibility" disabled={pending || uploading} value={form.active ? "visible" : "hidden"} onChange={(e) => update("active", e.target.value === "visible")}><option value="hidden">Hidden</option><option value="visible">Visible</option></NativeSelect><p className="product-help">Hidden products stay here for editing and disappear from the public menu and order form when saved.</p></div><p className="product-price-note">Prices belong to sizes. Use Catalog to manage fixed prices, quotes, preparation time, and availability.</p></section>
+        <section className="product-editor-section" aria-labelledby="product-photo-title"><h2 id="product-photo-title">Product photo</h2><div className="product-photo-preview"><Image src={form.image.url} alt={form.image.alt || "Product photo preview"} unoptimized width={480} height={480} /></div><input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" tabIndex={-1} aria-label="Choose a product photo" disabled={pending || uploading} onChange={(e) => void upload(e.target.files?.[0])} /><div className="product-photo-actions"><Button type="button" variant="outline" onClick={() => fileInput.current?.click()} disabled={pending || uploading}><Upload aria-hidden="true" />{uploading ? "Uploading photo…" : "Upload photo"}</Button><Button type="button" variant="outline" disabled={pending || uploading || form.image.url === "/brand/seal.png"} onClick={() => update("image", { url: "/brand/seal.png", alt: "Makalipie seal" })}>Remove</Button></div><p className="product-help">JPG, PNG, or WebP. Up to 3 MB. Photos are resized for the website.</p>{fieldError("image.url")}<div className="admin-field"><Label htmlFor="product-image-alt">Photo description</Label><Textarea id="product-image-alt" rows={3} disabled={pending || uploading} value={form.image.alt} maxLength={200} onChange={(e) => update("image", { ...form.image, alt: e.target.value })} {...fieldProps("image.alt")} />{fieldError("image.alt")}</div></section>
+        {!embedded && <section className="product-editor-section"><h2>On the menu</h2>{version && <Link href="/admin/catalog" className="text-link">Manage sizes, prices & availability</Link>}<p className="product-price-note">Prices belong to sizes. Use Catalog to manage fixed prices, quotes, preparation time, and availability.</p></section>}
       </aside>
       <div className="product-savebar">
         <div className="product-save-feedback">
@@ -194,7 +202,7 @@ export function ProductEditor({ initial, embedded = false, onSaved, onBack }: { 
             <p className="product-help">{dirty ? "You have unsaved changes." : "Changes appear on the website after saving."}</p>
           )}
         </div>
-        <div className="product-save-actions">
+        <CatalogTabActions active={embedded}>
           <Button
             type="button"
             variant="outline"
@@ -207,10 +215,10 @@ export function ProductEditor({ initial, embedded = false, onSaved, onBack }: { 
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={pending || uploading}>
+          <Button type="submit" form={embedded ? "catalog-product-form" : undefined} disabled={pending || uploading}>
             {pending ? "Saving…" : "Save product details"}
           </Button>
-        </div>
+        </CatalogTabActions>
       </div>
       {leaving && (
         <Card className="product-discard" size="sm" role="alert">

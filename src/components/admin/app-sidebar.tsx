@@ -12,7 +12,9 @@ import {
   CookingPot,
   LayoutDashboard,
   Layers,
+  MapPin,
   Settings2,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   Sidebar,
@@ -30,15 +32,22 @@ import {
 import { SessionControls } from "@/components/admin/session-controls";
 import { adminKeys, fetchAdminCatalog, fetchAdminProducts } from "@/lib/admin/query";
 
-const workspaceNav = [
+const ownerNav = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/catalog", label: "Catalog", icon: Layers, prefetch: true },
+  { href: "/admin/branches", label: "Branches", icon: Settings2 },
+  { href: "/admin/popups", label: "Pop-ups", icon: MapPin },
+  { href: "/admin/schedule", label: "Bakery schedule", icon: CalendarDays },
+  { href: "/admin/allocation", label: "Daily allocation", icon: SlidersHorizontal },
+  { href: "/admin/orders", label: "Orders", icon: ClipboardList },
+] as const;
+
+const staffNav = [
+  { href: "/admin/orders", label: "Orders", icon: ClipboardList },
 ] as const;
 
 const plannedNav = [
-  { label: "Orders", icon: ClipboardList },
   { label: "Kitchen", icon: CookingPot },
-  { label: "Bakery schedule", icon: CalendarDays },
   { label: "Settings", icon: Settings2 },
 ] as const;
 
@@ -46,9 +55,10 @@ function isActivePath(pathname: string, href: string) {
   return href === "/admin" ? pathname === href : pathname.startsWith(href);
 }
 
-export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
+export function AppSidebar({ role = "owner", ...props }: ComponentProps<typeof Sidebar> & { role?: "owner" | "staff" }) {
   const pathname = usePathname();
   const queryClient = useQueryClient();
+  const workspaceNav = role === "staff" ? staffNav : ownerNav;
 
   function prefetch(enabled?: boolean) {
     if (!enabled) return;
@@ -57,21 +67,26 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
   }
 
   return (
-    <Sidebar variant="inset" collapsible="icon" {...props}>
-      <SidebarHeader>
+    <Sidebar collapsible="icon" {...props}>
+      <SidebarHeader className="border-b border-white/10 px-3.5 pt-5 pb-4 group-data-[collapsible=icon]:p-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" tooltip="makalipie" render={<Link href="/admin" />}>
+            <SidebarMenuButton
+              size="lg"
+              tooltip="makalipie"
+              className="group-data-[collapsible=icon]:overflow-visible!"
+              render={<Link href="/admin" />}
+            >
               <Image
                 src="/brand/seal.png"
                 alt=""
                 width={32}
                 height={32}
-                className="size-8 rounded-md"
+                className="size-8 shrink-0"
               />
               <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
-                <span className="truncate font-semibold">makalipie</span>
-                <span className="truncate text-xs text-muted-foreground">BAKERY WORKSPACE</span>
+                <span className="truncate font-semibold text-cream">makalipie</span>
+                <span className="truncate text-[10px] tracking-[0.14em] text-cream/45">BAKERY WORKSPACE</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -103,7 +118,7 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        <SidebarGroup>
+        {role === "owner" ? <SidebarGroup>
           <SidebarGroupLabel>Coming soon</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -117,9 +132,9 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
-        </SidebarGroup>
+        </SidebarGroup> : null}
       </SidebarContent>
-      <SidebarFooter className="overflow-hidden">
+      <SidebarFooter className="overflow-hidden border-t border-white/10">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton tooltip="Visit website" render={<Link href="/" />}>
@@ -129,7 +144,7 @@ export function AppSidebar(props: ComponentProps<typeof Sidebar>) {
           </SidebarMenuItem>
           <SessionControls appearance="sidebar" />
         </SidebarMenu>
-        <p className="px-2 pb-2 text-[11px] leading-relaxed text-muted-foreground group-data-[collapsible=icon]:hidden">
+        <p className="px-2 pb-2 text-[11px] leading-relaxed text-cream/40 group-data-[collapsible=icon]:hidden">
           A little more organized.
           <br />
           Just as homemade.

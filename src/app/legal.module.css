@@ -1,0 +1,86 @@
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+  color: var(--color-charcoal);
+}
+
+.header h1 {
+  margin: 12px 0 0;
+  font-size: clamp(32px, 4vw, 42px);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.04em;
+}
+
+.updated {
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: var(--color-charcoal);
+  opacity: 0.65;
+}
+
+.intro {
+  margin: 20px 0 0;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.body {
+  margin-top: 40px;
+  display: grid;
+  gap: 28px;
+}
+
+.section h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.section p {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.section p:last-child {
+  margin-bottom: 0;
+}
+
+.section ul {
+  margin: 8px 0 0;
+  padding-left: 1.2em;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.pending {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-butter) 55%, white);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.pending span {
+  font-weight: 650;
+}
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid color-mix(in srgb, var(--color-charcoal) 12%, transparent);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.nav a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

@@ -7,6 +7,14 @@ export class AdminAccessError extends Error {
   }
 }
 
+export function authorizeAdmin(uid: string, profile: unknown): AdminIdentity {
+  const parsed = adminProfileSchema.safeParse(profile);
+  if (!parsed.success || !parsed.data.active || (parsed.data.role !== "owner" && parsed.data.role !== "staff")) {
+    throw new AdminAccessError(403, "This account does not have active access.");
+  }
+  return { uid, ...parsed.data };
+}
+
 export function authorizeOwner(uid: string, profile: unknown): AdminIdentity {
   const parsed = adminProfileSchema.safeParse(profile);
   if (!parsed.success || !parsed.data.active || parsed.data.role !== "owner") {
@@ -31,4 +39,15 @@ export function isAllowedMutationOrigin(request: Request, configuredOrigin: stri
   } catch {
     return false;
   }
+}
+
+// Future order endpoints must enforce this against the saved order branch.
+// Catalog and branch configuration continue to require owner access.
+export function authorizeBranch(uid: string, profile: unknown, branchId: string): AdminIdentity {
+  const parsed = adminProfileSchema.safeParse(profile);
+  if (!parsed.success || !parsed.data.active ||
+      (parsed.data.role !== "owner" && !parsed.data.branchIds.includes(branchId))) {
+    throw new AdminAccessError(403, "This account cannot access this branch.");
+  }
+  return { uid, ...parsed.data };
 }

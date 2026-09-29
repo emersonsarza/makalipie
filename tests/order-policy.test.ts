@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { flavorCapacityKey } from "../src/lib/orders/allocation";
 import {
   assertPaymentBeforePreparation,
   dailyCapacityKey,
@@ -19,7 +20,11 @@ test("all catalog/fulfillment combinations use one branch-day pool", () => {
   assert.equal(new Set(keys).size, 1);
   assert.notEqual(keys[0], dailyCapacityKey("manila", "2026-10-01"));
   assert.notEqual(keys[0], dailyCapacityKey("cebu", "2026-10-02"));
-  assert.throws(() => dailyCapacityKey("popup", "2026-10-01"));
+  assert.equal(dailyCapacityKey("popup", "2026-10-01"), "popup_2026-10-01");
+  assert.equal(flavorCapacityKey("cebu", "2026-10-01", "keylime"), "cebu_2026-10-01_keylime");
+  assert.notEqual(flavorCapacityKey("cebu", "2026-10-01", "keylime"), flavorCapacityKey("cebu", "2026-10-01", "pecan"));
+  assert.throws(() => dailyCapacityKey("Not A Branch", "2026-10-01"));
+  assert.throws(() => dailyCapacityKey("../cebu", "2026-10-01"));
   assert.throws(() => dailyCapacityKey("cebu", "2026-02-30"));
 });
 
@@ -36,7 +41,9 @@ test("default hold lasts 30 minutes across Manila midnight", () => {
 
 test("configuration cannot restore separate pools or payment on collection", () => {
   assert.equal(defaultOrderingPolicy.reservationMinutes, 30);
+  assert.equal(defaultOrderingPolicy.capacityPool, "per_flavor_daily");
   assert.equal(orderingPolicySchema.safeParse({ capacityPool: "per_slot" }).success, false);
+  assert.equal(orderingPolicySchema.safeParse({ capacityPool: "shared_daily_orders" }).success, false);
   assert.equal(orderingPolicySchema.safeParse({ paymentBeforePreparation: false }).success, false);
 });
 

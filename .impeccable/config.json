@@ -1,0 +1,16 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "src/app/order/status/status.module.css"
+        ],
+        "createdAt": "2026-09-29T18:08:49.286Z"
+      }
+    ]
+  }
+}

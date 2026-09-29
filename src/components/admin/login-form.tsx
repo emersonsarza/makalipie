@@ -79,7 +79,7 @@ export function LoginForm({ configured, notice }: { configured: boolean; notice?
       <Button type="submit" className="admin-primary" disabled={pending || !configured}>
         {pending ? <><LoaderCircle className="admin-spinner" aria-hidden="true" /> Signing in…</> : <>Sign in <ArrowRight aria-hidden="true" /></>}
       </Button>
-      <p className="admin-form-note">Owner access only. Need help signing in? Contact the person who manages your account.</p>
+      <p className="admin-form-note">Owners and assigned branch staff. Need help signing in? Contact the person who manages your account.</p>
     </form>
   );
 }

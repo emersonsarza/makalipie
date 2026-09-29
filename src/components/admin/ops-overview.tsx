@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, CircleAlert } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import {
   formatPesos,
   isOverviewEmpty,
   type OpsOverview,
   type OverviewOrder,
 } from "@/lib/admin/overview-fixtures";
+import { OrderStatusBadge } from "@/components/order-status-badge";
 import "./ops-overview.css";
 
 const EMPTY_METRICS = [
@@ -29,13 +28,13 @@ function OverviewEmptyShell({ snapshot }: { snapshot: OpsOverview }) {
           </p>
         </div>
         <div className="ov-empty-cta-actions">
-          <Link href="/admin/catalog" className={cn(buttonVariants(), "ov-empty-btn")}>
+          <Link href="/admin/catalog" className="ov-empty-btn">
             Open catalog
-            <ArrowRight size={16} aria-hidden />
+            <ArrowRight size={14} aria-hidden />
           </Link>
-          <Link href="/" className={cn(buttonVariants({ variant: "outline" }), "ov-empty-btn")}>
+          <Link href="/" className="ov-empty-btn ov-empty-btn-quiet">
             Visit website
-            <ArrowUpRight size={16} aria-hidden />
+            <ArrowUpRight size={14} aria-hidden />
           </Link>
         </div>
       </aside>
@@ -89,11 +88,6 @@ function OverviewEmptyShell({ snapshot }: { snapshot: OpsOverview }) {
       </div>
     </div>
   );
-}
-
-function statusBadge(status: OverviewOrder["status"]) {
-  const cls = status === "ready" ? "ov-badge ov-badge-ready" : "ov-badge ov-badge-status";
-  return <span className={cls}>{status}</span>;
 }
 
 function payBadge(order: OverviewOrder) {
@@ -347,7 +341,7 @@ export function OpsOverview({
                   <small>{order.orderNumber}</small>
                 </div>
                 <div className="ov-order-state">
-                  {statusBadge(order.status)}
+                  <OrderStatusBadge status={order.status} delivery={order.fulfillmentType === "delivery" ? "lalamove" : "pickup"} size="sm" />
                   {payBadge(order)}
                 </div>
               </Link>

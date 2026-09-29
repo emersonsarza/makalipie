@@ -929,6 +929,54 @@ summary:focus-visible {
   font-size: 10px;
   margin-top: 24px;
 }
+.visit-popups {
+  list-style: none;
+  margin: 22px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.visit-popup {
+  border: 1px solid var(--brand-line);
+  border-radius: 16px;
+  padding: 16px 18px;
+  background: #fffaf3;
+}
+.visit-popup-name {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin-bottom: 4px;
+}
+.visit-popup p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.visit-popup-items {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+}
+.visit-popup-items li {
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f3ebce;
+}
+.visit-popup a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
 .faq-section {
   padding-top: 0;
   display: grid;

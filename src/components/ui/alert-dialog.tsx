@@ -1,8 +1,90 @@
-"use client";
-import { AlertDialog as Primitive } from "@base-ui/react/alert-dialog";
-import { cn } from "@/lib/utils";
-export const AlertDialog = Primitive.Root;
-export const AlertDialogTitle = Primitive.Title;
-export const AlertDialogDescription = Primitive.Description;
-export const AlertDialogCancel = Primitive.Close;
-export function AlertDialogContent({ className, ...props }: Primitive.Popup.Props) { return <Primitive.Portal><Primitive.Backdrop className="fixed inset-0 z-50 bg-black/40" /><Primitive.Popup data-slot="alert-dialog-content" className={cn("fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-background p-6 text-foreground shadow-lg outline-none", className)} {...props} /></Primitive.Portal>; }
+"use client"
+
+import * as React from "react"
+import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
+
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+
+function AlertDialog({ ...props }: AlertDialogPrimitive.Root.Props) {
+  return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
+}
+
+function AlertDialogTrigger({ ...props }: AlertDialogPrimitive.Trigger.Props) {
+  return <AlertDialogPrimitive.Trigger data-slot="alert-dialog-trigger" {...props} />
+}
+
+function AlertDialogPortal({ ...props }: AlertDialogPrimitive.Portal.Props) {
+  return <AlertDialogPrimitive.Portal data-slot="alert-dialog-portal" {...props} />
+}
+
+function AlertDialogOverlay({ className, ...props }: AlertDialogPrimitive.Backdrop.Props) {
+  return (
+    <AlertDialogPrimitive.Backdrop
+      data-slot="alert-dialog-overlay"
+      className={cn("fixed inset-0 z-50 bg-[rgb(44_42_40/45%)] data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0", className)}
+      {...props}
+    />
+  )
+}
+
+function AlertDialogContent({ className, ...props }: AlertDialogPrimitive.Popup.Props) {
+  return (
+    <AlertDialogPortal>
+      <AlertDialogOverlay />
+      <AlertDialogPrimitive.Popup
+        data-slot="alert-dialog-content"
+        className={cn(
+          "fixed top-1/2 left-1/2 z-50 grid w-[min(440px,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 gap-0 rounded-xl bg-popover p-6 text-popover-foreground ring-1 ring-foreground/10 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          className
+        )}
+        {...props}
+      />
+    </AlertDialogPortal>
+  )
+}
+
+function AlertDialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+  return <div data-slot="alert-dialog-header" className={cn("flex flex-col gap-2 text-left", className)} {...props} />
+}
+
+function AlertDialogFooter({ className, ...props }: React.ComponentProps<"div">) {
+  return <div data-slot="alert-dialog-footer" className={cn("mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)} {...props} />
+}
+
+function AlertDialogTitle({ className, ...props }: AlertDialogPrimitive.Title.Props) {
+  return <AlertDialogPrimitive.Title data-slot="alert-dialog-title" className={cn("font-heading text-base font-medium", className)} {...props} />
+}
+
+function AlertDialogDescription({ className, ...props }: AlertDialogPrimitive.Description.Props) {
+  return <AlertDialogPrimitive.Description data-slot="alert-dialog-description" className={cn("text-sm text-muted-foreground", className)} {...props} />
+}
+
+function AlertDialogAction({ className, ...props }: React.ComponentProps<typeof Button>) {
+  return <Button data-slot="alert-dialog-action" className={className} {...props} />
+}
+
+function AlertDialogCancel({ className, ...props }: AlertDialogPrimitive.Close.Props) {
+  return (
+    <AlertDialogPrimitive.Close
+      data-slot="alert-dialog-cancel"
+      className={className}
+      render={<Button variant="outline" />}
+      {...props}
+    />
+  )
+}
+
+export {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogOverlay,
+  AlertDialogPortal,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+}

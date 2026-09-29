@@ -157,10 +157,26 @@ The Catalog screen manages:
 - Product availability: allowed weekdays, blocked dates, and compatible add-ons. No selected weekdays means daily availability; no compatible add-ons means none. Dates and preparation days use Manila calendar dates, not rolling 24-hour periods.
 - Add-ons: names, images, allergens, prices, preparation days, per-pie or per-order charges, active state, sorting, and optional/required messages with length limits. Choose compatible products from each product’s catalog options. Per-pie extras multiply by line quantity; their message applies to each pie in that line. Per-order extras require at least one compatible selected product.
 
-The storefront reads current active variants and add-ons. Existing product-level prices remain only as migration data; after setup, variants are the price source. The order form shows each available size, checks the chosen date, calculates known subtotals, and checks a fresh server catalog before producing the copy-to-chat summary. Quoted items remain unpriced, never presented as free. The preview endpoint does not create orders, reserve capacity, charge payment, or send messages. Global bakery closures, cutoff times, capacity, and order intake belong to subsequent implementation parts.
+The storefront reads current active variants and add-ons. Existing product-level prices remain only as migration data; after setup, variants are the price source. The order form shows each available size, checks the chosen date, calculates known subtotals, and checks a fresh server catalog before producing the copy-to-chat summary. Quoted items remain unpriced, never presented as free. The preview endpoint does not create orders, reserve capacity, charge payment, or send messages. Branch schedules, closures, and same-day cutoff are now managed in Bakery schedule. Capacity and durable order intake arrive in Phase 3.
 
 Run `npm run test:catalog` for deterministic validation, money, Manila date/weekday/lead-time, compatibility, and customization tests. With emulators and `npm run dev:emulators` running, run `npm run test:catalog:integration` for migration, editing/conflicts, permissions, storefront output, and authoritative preview tests. Integration tests use only the `demo-makalipie` emulator project and reset its catalog fixtures. Run integration suites sequentially, because they share those fixtures.
 
 ### Unified catalog workspace
 
 `/admin/catalog` combines the product finder and editor. Search/filter products on the left; use Selling options or Product details on the right, with separate saves. Shared extras live under Manage add-ons. Product, tab, and add-on selections are shareable query parameters; the old product URLs redirect to this workspace. On phones, Back to products restores the finder and its search. Unsaved edits require a discard decision before switching sections, and saves/uploads disable switching. Blocked dates use the shared Day.js helper and remain calendar-date strings in storage.
+
+## Branch-aware ordering (Phase 1)
+
+Owner settings are at `/admin/branches`. Regular customer ordering uses the selected main branch at `/order?branch=cebu` or `/order?branch=manila`; missing or invalid branch parameters use the saved default. Product-size assignments and Regular/Pre-order classification are managed on the Branches page. Existing variants initially default to Cebu only.
+
+See `MAKALIPIE_ORDERING_FOUNDATIONS.md` for ordering decisions and `MAKALIPIE_ORDERING_PHASE_PROGRESS.md` for the verification record. Scheduling is implemented in Phase 2; durable order submission follows in Phase 3.
+
+Run `npm run test:branches` for pure branch rules. With the local demo Auth/Firestore emulators and initialized demo catalog running, `npm run test:branches:integration` targets `http://localhost:3002` by default; override `BRANCH_TEST_ORIGIN` for another local preview port. The preview's `ADMIN_APP_ORIGIN` must match. This integration test temporarily changes demo branch settings, restores its own changes, and preserves existing catalog data. Use a Node version satisfying `package.json` (verified here with Node 24).
+
+## Cart and scheduling (Phase 2)
+
+Open `/admin/schedule` to enable dates for each branch, set start/cutoff times, open weekdays, closed dates, and the shared booking horizon (initially 30 days). Missing schedules stay closed until saved and enabled. Times use Asia/Manila; only complete one-hour slots are offered, and cutoff stops same-day requests only.
+
+The customer form picks the earliest valid date until the customer selects a date or slot. Later schedule changes preserve that selection and cart, explain invalid dates/slots, and block continuing until corrected. Dates refresh every minute, on focus, or using Refresh available dates. The server rechecks schedule and catalog before returning a chat summary. No allocation or durable order is created yet.
+
+Run `npm run test:scheduling` for date/slot rules. Run `npm run test:scheduling:integration` with the local demo emulators and initialized catalog; it defaults to port 3002 (override `SCHEDULE_TEST_ORIGIN`). Run it sequentially with branch integration tests because they temporarily modify and restore the same settings. The older catalog integration suite resets demo catalog data; use it only in a disposable fixture environment.

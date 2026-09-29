@@ -1,4 +1,4 @@
-import { requireOwnerPage } from "@/lib/admin/session";
+import { requireAdminPage } from "@/lib/admin/session";
 import { AppSidebar } from "@/components/admin/app-sidebar";
 import { AdminQueryProvider } from "@/components/admin/query-provider";
 import { WorkspaceChromeProvider, WorkspaceTopbar } from "@/components/admin/workspace-topbar";
@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
-  const owner = await requireOwnerPage();
+  const admin = await requireAdminPage();
   return (
     <AdminQueryProvider>
       <WorkspaceChromeProvider>
@@ -18,15 +18,12 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
             <a className="admin-skip" href="#admin-main">
               Skip to content
             </a>
-            <AppSidebar />
-            <SidebarInset className="admin-workspace overflow-auto">
-              <WorkspaceTopbar ownerLabel={owner.displayName || owner.email} />
+            <AppSidebar role={admin.role} />
+            <SidebarInset className="admin-workspace">
+              <WorkspaceTopbar ownerLabel={admin.displayName || admin.email} />
               <main id="admin-main" className="admin-main" tabIndex={-1}>
                 {children}
               </main>
-              <footer className="admin-workspace-footer">
-                Makalipie · Streetscape, Banilad <span>Asia/Manila</span>
-              </footer>
             </SidebarInset>
           </SidebarProvider>
         </TooltipProvider>

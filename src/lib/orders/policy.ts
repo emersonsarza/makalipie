@@ -1,12 +1,13 @@
 import { z } from "zod";
 import { businessDateSchema, moneySchema } from "../admin/schemas";
+import { branchIdSchema } from "../branches/schema";
 
 export const DEFAULT_RESERVATION_MINUTES = 30;
 export const DEFAULT_BOOKING_HORIZON_DAYS = 30;
 
-// One pool per branch and fulfillment day, independent of catalog or method.
+// One flavor pool per branch and fulfillment day, shared by pickup and delivery.
 export const capacityScopeSchema = z.object({
-  branchId: z.enum(["cebu", "manila"]),
+  branchId: branchIdSchema,
   fulfillmentDate: businessDateSchema,
 }).strict();
 
@@ -16,7 +17,7 @@ export const orderingPolicySchema = z.object({
   bookingHorizonDays: z.number().int().positive().max(Number.MAX_SAFE_INTEGER)
     .default(DEFAULT_BOOKING_HORIZON_DAYS),
   cutoffScope: z.literal("same_day_only").default("same_day_only"),
-  capacityPool: z.literal("shared_daily_orders").default("shared_daily_orders"),
+  capacityPool: z.literal("per_flavor_daily").default("per_flavor_daily"),
   paymentBeforePreparation: z.literal(true).default(true),
 }).strict();
 

@@ -1,4 +1,7 @@
 import { readPublicMenu } from "@/lib/products/public";
+import { manilaDate } from "@/lib/catalog/rules";
+import { openPopups, popupDateRange } from "@/lib/popups/schema";
+import { readPopupSettings } from "@/lib/popups/store";
 export const dynamic = "force-dynamic";
 import Image from "next/image";
 import Link from "next/link";
@@ -10,7 +13,10 @@ import { SiteShell } from "@/components/site-shell";
 import { getSiteUrl, site } from "@/lib/site";
 
 export default async function Home() {
-  const { items } = await readPublicMenu();
+  const [{ items }, popups] = await Promise.all([
+    readPublicMenu(),
+    readPopupSettings().then((settings) => openPopups(settings.listings, manilaDate())),
+  ]);
   return (
     <SiteShell>
       <script
@@ -97,14 +103,19 @@ export default async function Home() {
               To make you happy.
             </h2>
             <p>
-              Back home in Cebu after working in Sydney, chef Dominika Miranda
-              started with a craving for mango pie. Her brother suggested a name
-              inspired by makalipay, the Bisaya word for making someone happy.
+              Back home in Cebu after working in Sydney, chef Dominika Miranda started with a simple craving for mango pie. What began as baking for herself soon became something she wanted to share.
             </p>
             <p>
-              Today, that same idea lives in our small-batch tarts and pies.
-              Hand-rolled, pressed one by one, and made for the little moments
-              worth sharing.
+              When it came time to give it a name, her brother suggested Makalipie—a playful take on makalipay, the Cebuano word for “to make someone happy.” It captured exactly what she wanted the brand to be about: good food, made with care, that brings a little happiness to someone’s day.
+            </p>
+            <p>
+              What started with one pie has since grown into a collection of handcrafted tarts, flaky pies, and familiar flavors made the Makalipie way.
+            </p>
+            <p>
+              Everything is still made in small batches—hand-rolled, pressed one by one, and shared at tables, celebrations, coffee dates, or simply because you felt like having pie.
+            </p>
+            <p>
+              Because at the heart of Makalipie is still that same simple idea: to make you happy.
             </p>
             <div className="story-signoff">
               <Image
@@ -213,6 +224,26 @@ export default async function Home() {
                 Catch us at local pop-ups, too. Check Instagram for the next
                 market, seasonal pie, or special drop.
               </p>
+              {popups.length > 0 ? (
+                <ul className="visit-popups">
+                  {popups.map((popup) => (
+                    <li key={popup.id} className="visit-popup">
+                      <p className="visit-popup-name">{popup.name}</p>
+                      <p>{popup.address}</p>
+                      <p>{popupDateRange(popup.startDate, popup.endDate)}</p>
+                      <p>{popup.hours}</p>
+                      <ul className="visit-popup-items">
+                        {popup.items.map((item) => <li key={item}>{item}</li>)}
+                      </ul>
+                      {popup.mapUrl ? (
+                        <a href={popup.mapUrl} target="_blank" rel="noreferrer">
+                          Directions <ArrowUpRight size={14} aria-hidden />
+                        </a>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
           </div>
         </div>
@@ -238,10 +269,8 @@ export default async function Home() {
           <details>
             <summary>Can I have my pies delivered?</summary>
             <p>
-              Yes. Select Lalamove delivery in the order form and add your
-              address. We’ll coordinate the booking and confirm the delivery fee
-              with you. You can also pick up at Streetscape, or open our store
-              on Grab or Foodpanda. Platform prices and availability may differ.
+              Yes! We can arrange delivery within Cebu City. Delivery fees are
+              shouldered by the buyer.
             </p>
             <div className="delivery-app-actions">
               <a
@@ -263,41 +292,27 @@ export default async function Home() {
             </div>
           </details>
           <details>
-            <summary>When can I get Buko pie?</summary>
+            <summary>When is Buko Makalipie available?</summary>
             <p>
-              Our Buko pie is available Friday to Sunday.{" "}
-              <a href={site.instagramDmUrl} target="_blank" rel="noreferrer">
-                Message us on Instagram
-              </a>{" "}
-              to check the weekend batch and reserve yours.
+              Our famous Buko Makalipie is part of our flaky crust lineup, freshly baked every Friday, Saturday, and Sunday. Pre-orders are always welcome!
             </p>
           </details>
           <details>
             <summary>Do you deliver to Manila?</summary>
             <p>
-              We arrange occasional Manila drops. Follow our{" "}
-              <a href={site.instagramUrl} target="_blank" rel="noreferrer">
-                Instagram posts and stories
-              </a>{" "}
-              for the next announcement, then message us for details. Manila
-              drops are separate from our regular Cebu pickup and delivery
-              orders.
+              We do occasional Makalipie drops in Manila! We announce upcoming dates and open pre-order slots through our Instagram, so stay tuned.
             </p>
           </details>
           <details>
-            <summary>When are the pies best enjoyed?</summary>
+            <summary>How long do the pies last?</summary>
             <p>
-              We bake daily and recommend enjoying your pies soon after you
-              receive them. For storage, travel, or serving instructions for a
-              particular filling, message us when ordering.
+              Our pies are best enjoyed on the day they’re baked—they’re pastries, after all! For later enjoyment, keep them chilled and consume within 5 days.
             </p>
           </details>
           <details>
-            <summary>What about gifts and bigger gatherings?</summary>
+            <summary>Do you offer bigger pies for gatherings?</summary>
             <p>
-              Add a note card or birthday topper in the order form. For
-              corporate gifts, dessert tables, and custom requests, send us a
-              message on Instagram and we’ll talk through the details.
+              Coming soon! We’ll be launching a menu for our 10-inch pie selection. And for even bigger gatherings, stay tuned for our future catering packages. 🥧
             </p>
           </details>
         </div>
