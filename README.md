@@ -37,15 +37,31 @@ Uses the same secrets as TBott:
 sudo mkdir -p /srv/apps
 sudo git clone git@github.com:emersonsarza/makalipie.git /srv/apps/makalipie
 cd /srv/apps/makalipie
-# optional: echo 'NEXT_PUBLIC_SITE_URL=https://your-domain' > .env
+cp .env.example .env   # first time only; then edit with production values
 docker compose up -d --build
 ```
 
 App listens on host port **3006** (`3006:3000`). Point your reverse proxy at it.
 
+Production `.env` on the server (same names as `.env.example`):
+
 | Name | Purpose |
 | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | Canonical URL for SEO / OG / sitemap (defaults to `https://makalipie.by1002.com`) |
+| `NEXT_PUBLIC_SITE_URL` | Canonical URL (e.g. `https://makalipie.by1002.com`) |
+| `NEXT_PUBLIC_FIREBASE_*` | Firebase web app config (embedded at **build** time) |
+| `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | Service account (runtime only; not baked into the image) |
+| `ADMIN_APP_ORIGIN` | Exact admin URL origin, e.g. `https://makalipie.by1002.com` (no path) |
+| `NEXT_PUBLIC_USE_FIREBASE_EMULATORS` | Must stay `false` in production |
+| `ORDER_INTAKE_ENABLED` | Set to `true` only when public ordering should be open |
+
+After any `.env` change on the VPS:
+
+```bash
+cd /srv/apps/makalipie
+docker compose up -d --build
+```
+
+Changing `NEXT_PUBLIC_*` requires a rebuild. Server-only vars (`FIREBASE_*`, `ADMIN_APP_ORIGIN`) still need a container recreate; `docker compose up -d --build` covers both.
 
 ## What’s on the site
 
