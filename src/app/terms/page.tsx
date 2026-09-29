@@ -11,6 +11,7 @@ export const metadata: Metadata = {
 export default function TermsPage() {
   return (
     <LegalPage
+      policy="terms"
       title="Terms and Conditions"
       intro="These terms explain how online requests work, what we ask of you, and what you can expect from Makalipie."
     >

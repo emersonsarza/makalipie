@@ -11,6 +11,7 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
   return (
     <LegalPage
+      policy="privacy"
       title="Privacy Policy"
       intro="This policy describes the personal information we collect through ordering and how we handle it."
     >

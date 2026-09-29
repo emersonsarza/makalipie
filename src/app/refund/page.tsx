@@ -11,6 +11,7 @@ export const metadata: Metadata = {
 export default function RefundPage() {
   return (
     <LegalPage
+      policy="refund"
       title="Refund Policy"
       intro="This policy explains when we return payment and how to ask for a refund."
     >
