@@ -6,7 +6,15 @@ export const BUSINESS_DATE_LABEL = "Thursday, 24 Sep 2026";
 export const TIMEZONE = "Asia/Manila";
 export const LAST_REFRESH_LABEL = "Refreshed 4:12 PM";
 
-export type FulfillmentStatus = "requested" | "confirmed" | "preparing" | "ready" | "completed" | "cancelled" | "expired";
+export type FulfillmentStatus =
+  | "requested"
+  | "processing"
+  | "confirmed"
+  | "preparing"
+  | "ready"
+  | "completed"
+  | "cancelled"
+  | "expired";
 export type PaymentStatus = "unpaid" | "partially_paid" | "paid" | "refunded";
 export type QuoteStatus = "pending" | "finalized";
 export type FulfillmentType = "pickup" | "delivery";
@@ -37,6 +45,8 @@ export type OverviewOrder = {
   amountReceivedCentavos: number;
   reservationExpiresAtLabel?: string;
   minutesToExpiry?: number;
+  /** ISO deadline for live countdown on Overview. */
+  reservationExpiresAt?: string;
 };
 
 export type AttentionItem = {
@@ -49,6 +59,8 @@ export type AttentionItem = {
   detail: string;
   href: string;
   urgencyMinutes: number;
+  /** ISO hold deadline when the item is hold-related. */
+  expiresAt?: string;
 };
 
 export type BakeLine = {

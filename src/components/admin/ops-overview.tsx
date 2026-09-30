@@ -1,8 +1,13 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowRight, ArrowUpRight, CircleAlert } from "lucide-react";
 import {
   formatPesos,
   isOverviewEmpty,
+  type AttentionItem,
   type OpsOverview,
   type OverviewOrder,
 } from "@/lib/admin/overview-fixtures";
@@ -16,7 +21,55 @@ const EMPTY_METRICS = [
   "Money received today",
 ] as const;
 
+function minutesUntil(expiresAt: string | undefined, now: number, fallback: number) {
+  if (!expiresAt) return fallback;
+  const at = Date.parse(expiresAt);
+  if (!Number.isFinite(at)) return fallback;
+  return Math.max(0, Math.round((at - now) / 60_000));
+}
+
+function attentionLabel(item: AttentionItem, now: number) {
+  const expired = item.reasons.includes("reservation_expiring");
+  const late = item.reasons.includes("past_fulfillment_window");
+  const quote = item.reasons.includes("quote_pending");
+  if (expired) return `Expires in ${minutesUntil(item.expiresAt, now, item.urgencyMinutes)} min`;
+  if (late) return "Fulfillment overdue";
+  if (quote) return "Quote needed";
+  return item.primaryLabel;
+}
+
+function attentionDetail(item: AttentionItem, now: number) {
+  if (!item.expiresAt || !item.reasons.includes("reservation_expiring")) return item.detail;
+  const mins = minutesUntil(item.expiresAt, now, item.urgencyMinutes);
+  return item.detail.replace(/· \d+ min left/, `· ${mins} min left`);
+}
+
 function OverviewEmptyShell({ snapshot }: { snapshot: OpsOverview }) {
+  const router = useRouter();
+  useEffect(() => {
+    let timer: number | undefined;
+    const refresh = () => {
+      if (document.visibilityState === "visible") router.refresh();
+    };
+    const arm = () => {
+      window.clearInterval(timer);
+      if (document.visibilityState !== "visible") return;
+      timer = window.setInterval(refresh, 15_000);
+    };
+    const onShow = () => {
+      if (document.visibilityState === "visible") refresh();
+      arm();
+    };
+    arm();
+    document.addEventListener("visibilitychange", onShow);
+    window.addEventListener("focus", onShow);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onShow);
+      window.removeEventListener("focus", onShow);
+    };
+  }, [router]);
+
   return (
     <div className="admin-overview ov-ops-grid ov-empty-shell">
       <aside className="ov-empty-cta" role="status">
@@ -284,6 +337,40 @@ export function OpsOverview({
   snapshot: OpsOverview;
   fixturePreview?: boolean;
 }) {
+  const router = useRouter();
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (fixturePreview) return;
+    let timer: number | undefined;
+    const refresh = () => {
+      if (document.visibilityState === "visible") router.refresh();
+    };
+    const arm = () => {
+      window.clearInterval(timer);
+      if (document.visibilityState !== "visible") return;
+      timer = window.setInterval(refresh, 15_000);
+    };
+    const onShow = () => {
+      if (document.visibilityState === "visible") refresh();
+      arm();
+    };
+    arm();
+    document.addEventListener("visibilitychange", onShow);
+    window.addEventListener("focus", onShow);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onShow);
+      window.removeEventListener("focus", onShow);
+    };
+  }, [fixturePreview, router]);
+
+  useEffect(() => {
+    if (fixturePreview) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, [fixturePreview]);
+
   if (isOverviewEmpty(snapshot) && !fixturePreview) {
     return <OverviewEmptyShell snapshot={snapshot} />;
   }
@@ -297,8 +384,8 @@ export function OpsOverview({
     <div className="admin-overview ov-ops-grid">
       {fixturePreview && (
         <aside className="ov-fixture-notice" role="status">
-          <strong>Sample day preview.</strong> Order intake isn’t connected yet — figures below are fixtures so the
-          finished Overview layout can be reviewed. Chat-based ordering remains in use.
+          <strong>Sample day preview.</strong> Figures below are fixtures for layout review. Live Overview uses real
+          orders from the inbox.
         </aside>
       )}
 
@@ -330,7 +417,7 @@ export function OpsOverview({
           <p className="ov-section-lead">Pickup and delivery schedule</p>
           <div className="ov-order-schedule">
             {snapshot.todayOrders.map((order) => (
-              <Link key={order.id} href={`/admin/orders/${order.id}`} className="ov-scheduled-order">
+              <Link key={order.id} href={`/admin/orders?q=${encodeURIComponent(order.orderNumber)}`} className="ov-scheduled-order">
                 <div className="ov-order-time">
                   <strong>{order.slotLabel}</strong>
                   <span>{order.fulfillmentType}</span>
@@ -350,7 +437,7 @@ export function OpsOverview({
           <p className="ov-completed">
             {snapshot.completedToday.length} completed today{" "}
             {snapshot.completedToday.map((order) => (
-              <Link key={order.id} href={`/admin/orders/${order.id}`} className="ov-link">
+              <Link key={order.id} href={`/admin/orders?q=${encodeURIComponent(order.orderNumber)}`} className="ov-link">
                 {order.orderNumber}
               </Link>
             ))}
@@ -386,13 +473,7 @@ export function OpsOverview({
             const late = item.reasons.includes("past_fulfillment_window");
             const quote = item.reasons.includes("quote_pending");
             const balance = item.reasons.includes("outstanding_balance");
-            const label = expired
-              ? `Expires in ${item.urgencyMinutes} min`
-              : late
-                ? "Fulfillment overdue"
-                : quote
-                  ? "Quote needed"
-                  : item.primaryLabel;
+            const label = attentionLabel(item, now);
             const action = late
               ? "Review fulfillment"
               : quote
@@ -409,7 +490,7 @@ export function OpsOverview({
                 <strong>
                   {item.customerName} <small>{item.orderNumber}</small>
                 </strong>
-                <span className="ov-attention-detail">{item.detail}</span>
+                <span className="ov-attention-detail">{attentionDetail(item, now)}</span>
                 <span className="ov-attention-action">
                   {action}
                   <ArrowUpRight size={14} aria-hidden="true" />

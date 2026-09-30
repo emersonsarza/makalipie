@@ -2,6 +2,7 @@
 
 import { PickupAddress } from "@/components/pickup-address";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ArrowDownWideNarrow, ArrowLeft, CalendarDays, Clock3, MapPin, MessageSquareText, Search, ShoppingBag, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -180,18 +181,44 @@ function mergeOrders(current: InboxOrder[], next: InboxOrder[]) {
 }
 
 export function OrderInbox({ initialOrders, branches, schedule, role }: { initialOrders: InboxOrder[]; branches: BranchSettings; schedule: ScheduleSettings; role: "owner" | "staff" }) {
+  const searchParams = useSearchParams();
+  const initialQuery = searchParams.get("q")?.trim() ?? "";
   const [orders, setOrders] = useState(initialOrders);
-  const [selectedId, setSelectedId] = useState(initialOrders[0]?.id ?? "");
-  const [query, setQuery] = useState("");
+  const [selectedId, setSelectedId] = useState(() => {
+    if (!initialQuery) return initialOrders[0]?.id ?? "";
+    const match = initialOrders.find((order) =>
+      `${order.orderNumber} ${order.customerName}`.toLowerCase().includes(initialQuery.toLowerCase()),
+    );
+    return match?.id ?? initialOrders[0]?.id ?? "";
+  });
+  const [query, setQuery] = useState(initialQuery);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["value"]>("all");
   const [branchFilter, setBranchFilter] = useState("all");
-  const [stage, setStage] = useState<Stage>("awaiting");
+  const [stage, setStage] = useState<Stage>(initialQuery ? "all" : "awaiting");
   const [listMode, setListMode] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [acting, setActing] = useState(false);
   const pageRef = useRef<HTMLDivElement>(null);
   const statusBarRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const next = searchParams.get("q")?.trim() ?? "";
+    setQuery(next);
+    if (!next) return;
+    setStage("all");
+    setFilter("all");
+    setBranchFilter("all");
+    setOrders((current) => {
+      const match = current.find((order) =>
+        `${order.orderNumber} ${order.customerName}`.toLowerCase().includes(next.toLowerCase()),
+      );
+      if (match) {
+        setSelectedId(match.id);
+        setListMode(false);
+      }
+      return current;
+    });
+  }, [searchParams]);
   useEffect(() => {
     const header = document.querySelector<HTMLElement>(".admin-topbar");
     if (!header) return;
