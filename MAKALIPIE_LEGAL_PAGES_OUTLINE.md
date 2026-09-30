@@ -30,6 +30,9 @@ Makalipie · makalipie@gmail.com · Unit C2, Cedar Place, 12 Dagohoy St, Baranga
 16. **Changes** — we may update these Terms; dated version on the site  
 
 ---
+> **Hold note (2026-09-30):** Reserved slot must respect **business hours**. Overnight orders stay reserved until the **next staff morning**, not expire in 30 min overnight. See `MAKALIPIE_PRODUCT_UX_NOTES.md` + pending #1.
+
+
 
 ## 2. Privacy Policy (`/privacy`)
 

@@ -28,6 +28,7 @@ import {
   site,
   type MenuItem,
 } from "@/lib/site";
+import { MobileLineup } from "@/components/mobile-lineup";
 import { CatalogAddonOptions } from "@/components/catalog-addon-options";
 import { availabilityReason, availabilityText, manilaDate, quoteSelection } from "@/lib/catalog/rules";
 import type { Addon, Catalog, Selection, Variant } from "@/lib/catalog/schema";
@@ -725,7 +726,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
           <div className="order-summary-heading">
             <p className="eyebrow">A BOX TO LOOK FORWARD TO</p>
             <h2>Your little lineup.</h2>
-            <p aria-live="polite">
+            <p>
               {selectedCount === 0
                 ? "Your favourites will appear here."
                 : `${selectedCount} ${selectedCount === 1 ? "pie" : "pies"} picked. Good choices.`}
@@ -806,6 +807,29 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
           </Link>
         </aside>
       </div>
+      <MobileLineup count={selectedCount} subtotal={subtotal} hasUnpriced={hasUnpriced}>
+        <ul className="mobile-lineup-items">
+          {selectedItems.map((item) => {
+            const quantity = form.quantities[item.slug];
+            const product = clientCatalog.products.find((p) => p.id === item.productId)!;
+            const reason = !availableHere(item) ? `Not available at ${shop.name}. Remove this item or switch back.` : form.preferredDate && selectedDate ? availabilityReason(product, item.variant, selectedDate, 0, manilaDate(scheduleState.now)) : null;
+            const extras = catalogAddons.filter((addon) => form.lineAddons[item.slug]?.includes(addon.id));
+            return <li key={item.slug}>
+              <div className="mobile-lineup-item">
+                <Image src={item.image.src} alt="" width={56} height={56} unoptimized />
+                <div><strong>{item.name}</strong><p>{quantity} {quantity === 1 ? "pc" : "pcs"}{item.price == null ? " · Price to confirm" : ` · ${formatPrice(item.price)} each`}</p></div>
+                <strong>{item.price == null ? "To confirm" : formatPrice(item.price * quantity)}</strong>
+              </div>
+              {reason ? <p className="mobile-lineup-warning">{reason}</p> : null}
+              {extras.map((addon) => <p className="mobile-lineup-extra" key={addon.id}>{addon.name}{form.lineMessages[item.slug]?.[addon.id] ? `: ${form.lineMessages[item.slug][addon.id]}` : ""} · {formatPrice(addon.priceCentavos * quantity / 100)}</p>)}
+              <div className="mobile-lineup-controls"><QtyStepper label={item.name} value={quantity} onChange={(next) => setQuantity(item.slug, next)} unavailable={Boolean(reason)} /><Button type="button" variant="ghost" className="h-11" onClick={() => setQuantity(item.slug, 0)} aria-label={`Remove ${item.name}`}>Remove</Button></div>
+            </li>;
+          })}
+        </ul>
+        {chosenAddons.length ? <section className="mobile-lineup-extras"><h3>Order extras</h3>{chosenAddons.map((addon) => <p key={addon.id}><span>{addon.name}{form.addonMessages[addon.id] ? `: ${form.addonMessages[addon.id]}` : ""}</span><strong>{formatPrice(addon.priceCentavos / 100)}</strong></p>)}</section> : null}
+        <p className="mobile-lineup-note">{hasUnpriced ? "Some prices are to confirm. " : ""}Priced extras are included in the subtotal. {needsAddress ? "Delivery fees are confirmed by staff. " : ""}Staff confirm the final total on your order page.</p>
+        <section className="mobile-lineup-logistics"><h3>Your schedule</h3><p>{needsAddress ? `Delivery from ${shop.name}` : `Pickup at ${shop.name}`}</p><p>{formatPreferredWhen(dateValue, selectedSlot?.label ?? "") || "Choose your date and time in the form."}</p>{dateInvalid ? <p className="mobile-lineup-warning">Choose an available date in the form.</p> : null}</section>
+      </MobileLineup>
     </div>
   );
 }

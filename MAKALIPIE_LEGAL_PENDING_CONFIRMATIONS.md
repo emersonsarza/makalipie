@@ -9,7 +9,7 @@ Waiting on Nika. When she answers, update this file **and** the matching section
 
 | # | Topic | What we asked / proposed | Affects page | Nika’s answer | Date resolved |
 |---|--------|---------------------------|--------------|---------------|---------------|
-| 1 | **Order hold** | Slot held **30 minutes** after submit; if no IG message, slot opens again. OK / longer / shorter? | Terms | _pending_ | |
+| 1 | **Order hold** | **Reframe (Emerson 2026-09-30):** Blind 30 min fails overnight (no staff). Hold must respect **business hours**; if order is after hours, reserved slot waits until **morning of next staff/business day**, then customer has a window to message/confirm. During open hours, short hold still TBD (e.g. 30 min). Ask Nika: OK? What window during open hours? | Terms | _pending_ | |
 | 2 | **Site photos** | Photos are a **guide** (product may look a bit different). OK? | Terms | _pending_ | |
 | 3 | **Shared kitchen** | Bake in one kitchen → possible cross-contact (nuts/dairy/gluten)? Add one line if yes. Allergens stay **per product**. | Terms | _pending_ | |
 | 4 | **Keep records 1 month** | ~**30 days** after drop, then remove personal details (name/contact); can keep sales counts (anonymize). OK? | Privacy | _pending_ | |
@@ -42,3 +42,10 @@ Waiting on Nika. When she answers, update this file **and** the matching section
 ---
 
 *Message already framed for Nika in chat; this file is the tracker.*
+
+
+---
+
+## Product note on hold (from Emerson, 2026-09-30)
+
+Night orders currently only get ~30 minutes while staff are offline. **Fix:** reserved time should fall **within business hours**; after-hours submits stay reserved until the **next morning staff can approve**. Details in `MAKALIPIE_PRODUCT_UX_NOTES.md`. Update Terms when Nika answers the reframed question.
