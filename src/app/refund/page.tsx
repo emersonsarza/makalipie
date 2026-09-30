@@ -27,7 +27,7 @@ export default function RefundPage() {
       </LegalSection>
       <LegalSection n={2} title="Courier issues and missed pickup">
         <p>
-          Refunds are generally not available for damage, delays, or mishandling by an independently booked courier after the order has been handed over. If you miss your scheduled pickup window and we are unable to reach you, your order may be offered to customers on the waiting list.
+          Customers are responsible for their own courier arrangements. Courier problems, including incorrect collection or destination details, an unreachable courier, and damage, delays, or mishandling after handover, do not qualify for a refund from Makalipie. If you miss your scheduled pickup window and we are unable to reach you, your order may be offered to customers on the waiting list.
         </p>
         <LegalPending>The treatment of payments when an uncollected order is offered to the waiting list has not yet been finalized. We will clarify whether payment is refunded or transferred once the policy is confirmed.</LegalPending>
       </LegalSection>
@@ -40,7 +40,7 @@ export default function RefundPage() {
         </p>
       </LegalSection>
       <LegalSection n={5} title="Schedule changes initiated by Makalipie">
-        <p>If Makalipie must change your scheduled pickup or delivery date, you may choose a new date or a refund.</p>
+        <p>If Makalipie must change your scheduled pickup date, you may choose a new date or a refund.</p>
       </LegalSection>
       <LegalSection n={6} title="Requesting a refund">
         <p>To request a refund, contact us on Instagram or email <a href="mailto:makalipie@gmail.com">makalipie@gmail.com</a>. Provide your order number and a description of the issue so our team can review your request. Information provided with your request is handled as described in our <Link href="/privacy">Privacy Policy</Link>.</p>

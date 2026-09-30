@@ -25,7 +25,6 @@ export default function PrivacyPage() {
         <p>When you submit an order request or communicate with us about an order, we may collect:</p>
         <ul>
           <li>Your name and contact details</li>
-          <li>Your delivery address, if you request delivery</li>
           <li>Your order items, fulfillment date, time slot, and notes</li>
           <li>Order number, status, and timestamps</li>
           <li>Your selected payment preference and payment records entered by authorized staff, such as amounts, payment methods, and payment or refund dates</li>
@@ -38,7 +37,7 @@ export default function PrivacyPage() {
       </LegalSection>
       <LegalSection n={4} title="How we use your information">
         <p>
-          We use this information to receive and manage order requests, plan baking capacity, review delivery requests, coordinate pickup or delivery, communicate with you, and handle payments, refunds, or complaints. See our <Link href="/terms">Terms and Conditions</Link> and <Link href="/refund">Refund Policy</Link> for details of the ordering process.
+          We use this information to receive and manage order requests, plan baking capacity, coordinate pickup, communicate with you, and handle payments, refunds, or complaints. See our <Link href="/terms">Terms and Conditions</Link> and <Link href="/refund">Refund Policy</Link> for details of the ordering process.
         </p>
       </LegalSection>
       <LegalSection n={5} title="Marketing">
@@ -49,7 +48,7 @@ export default function PrivacyPage() {
       </LegalSection>
       <LegalSection n={7} title="Third parties">
         <p>
-          We use hosting and infrastructure providers, including Firebase and our web host, to operate the website. Conversations on Instagram are subject to Meta’s applicable terms and privacy policies. If you independently book a courier, information you provide directly to that courier is handled under its own policies.
+          We use hosting and infrastructure providers, including Firebase and our web host, to operate the website. Conversations on Instagram are subject to Meta’s applicable terms and privacy policies. We do not collect a drop-off address for new order requests. If you book your own courier, provide your destination details directly to that courier; information you provide to it is handled under its own policies.
         </p>
       </LegalSection>
       <LegalSection n={8} title="Retention">

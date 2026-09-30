@@ -13,17 +13,14 @@ export const orderRequestSchema = z.object({
   name: z.string().trim().min(1).max(100),
   contact: z.string().trim().min(1).max(40),
   notes: z.string().trim().max(500).default(""),
-  delivery: z.enum(["pickup", "lalamove"]),
-  address: z.string().trim().max(300).default(""),
+  delivery: z.literal("pickup", { error: "Orders are now pickup-only. Please reload the page to continue." }),
+  // Accept only the empty field sent by older pickup forms; never store it.
+  address: z.literal("").optional(),
   payment: z.enum(["bank", "gcash", "cash"]),
   catalogMode: z.enum(["regular", "preorder"]).optional(),
   recoveryToken: z.string().trim().min(20).max(200).optional(),
   selection: selectionSchema,
-}).strict().superRefine((input, ctx) => {
-  if (input.delivery === "lalamove" && !input.address) {
-    ctx.addIssue({ code: "custom", message: "Add a delivery address.", path: ["address"] });
-  }
-});
+}).strict();
 export type OrderRequest = z.infer<typeof orderRequestSchema>;
 
 export const guestStatusRequestSchema = z.object({

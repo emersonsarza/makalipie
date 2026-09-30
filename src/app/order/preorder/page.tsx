@@ -6,11 +6,11 @@ import { OrderScreen } from "@/components/order-screen";
 export const metadata: Metadata = {
   title: "Pre-order Tarts & Pies in Cebu",
   description:
-    "Pre-order Makalipie tarts and pies that need preparation time. Pickup and delivery use the same request, and the earliest date follows the longest preparation.",
+    "Pre-order Makalipie tarts and pies that need preparation time. Collect from the bakery or book your own courier; the earliest pickup date follows the longest preparation.",
   openGraph: {
     title: "Pre-order Tarts & Pies in Cebu · Makalipie",
     description:
-      "Pre-order Makalipie tarts and pies that need preparation time. Pickup and delivery use the same request, and the earliest date follows the longest preparation.",
+      "Pre-order Makalipie tarts and pies that need preparation time. Collect from the bakery or book your own courier; the earliest pickup date follows the longest preparation.",
     url: "/order/preorder",
     type: "website",
     locale: "en_PH",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Pre-order Tarts & Pies in Cebu · Makalipie",
     description:
-      "Pre-order Makalipie tarts and pies that need preparation time. Pickup and delivery use the same request, and the earliest date follows the longest preparation.",
+      "Pre-order Makalipie tarts and pies that need preparation time. Collect from the bakery or book your own courier; the earliest pickup date follows the longest preparation.",
   },
   alternates: {
     canonical: "/order/preorder",

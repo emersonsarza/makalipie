@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       return json({ error: error.message, schedule: error.schedule, openDates: error.openDates, openProducts: error.openProducts, serverNow: error.serverNow }, 409);
     }
     if (error instanceof ProductError) return json({ error: error.message }, error.status);
-    if (error instanceof ZodError) return json({ error: "Please check your name, contact, and selections." }, 400);
+    if (error instanceof ZodError) return json({ error: error.issues.some((issue) => issue.path[0] === "delivery") ? "Orders are now pickup-only. Please reload the page to continue." : "Please check your name, contact, and selections." }, 400);
     return json({ error: "Could not submit your request. Please try again." }, 503);
   }
 }

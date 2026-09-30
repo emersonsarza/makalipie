@@ -1,5 +1,6 @@
 "use client";
 
+import { PickupAddress } from "@/components/pickup-address";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownWideNarrow, ArrowLeft, CalendarDays, Clock3, MapPin, MessageSquareText, Search, ShoppingBag, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -550,8 +551,8 @@ function OrderSheet({ order, shop, branches, schedule, role, acting, onAct }: {
           <div className="orders-overview-location">
             <MapPin size={16} aria-hidden="true" />
             <div>
-              <strong>{order.delivery === "pickup" ? shop : order.address || shop}</strong>
-              <p>{order.delivery === "pickup" ? "Customer picks up at the branch" : `Dispatch from ${shop}`}</p>
+              <PickupAddress name={shop} address={branches.branches.find((branch) => branch.id === order.branchId)?.address} legacy={order.delivery === "lalamove"} />
+              {order.delivery === "lalamove" ? <p>Legacy delivery destination: {order.address || "Not recorded"}</p> : null}
               {order.delivery === "lalamove" && order.deliveryFeeCentavos !== null && order.deliveryFeeCentavos !== undefined ? <p>Delivery fee · {pesos(order.deliveryFeeCentavos)}</p> : null}
               {order.delivery === "lalamove" && areas.length ? <p>Areas for reference: {areas.join(", ")}</p> : null}
             </div>

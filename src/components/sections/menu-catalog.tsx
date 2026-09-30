@@ -171,7 +171,7 @@ export function MenuCatalog({ items: menuItems, unavailable = false }: { items: 
           <h2>Picked your favourites?</h2>
           <p>
             Fill in your order, then send the summary through Instagram. We’ll
-            confirm availability, payment, and pickup or delivery with you.
+            confirm availability, payment, and pickup with you.
           </p>
           <Link href="/order" className="brand-button">
             Put together your order <ArrowUpRight size={18} aria-hidden />
@@ -214,9 +214,9 @@ export function MenuCatalog({ items: menuItems, unavailable = false }: { items: 
           <div>
             <span>Sending a little happiness</span>
             <p>
-              Choose Lalamove delivery in the order form.
+              Book your own courier after confirmation.
               <br />
-              We’ll confirm the fee and details in our reply.
+              Use the pickup address shown on your order page.
             </p>
           </div>
           <div>

@@ -21,13 +21,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { dayjs } from "@/lib/dayjs";
 import {
-  deliveryOptions,
   formatPrice,
   itemPriceText,
   paymentMethods,
   site,
   type MenuItem,
 } from "@/lib/site";
+import { PickupAddress } from "@/components/pickup-address";
 import { MobileLineup } from "@/components/mobile-lineup";
 import { CatalogAddonOptions } from "@/components/catalog-addon-options";
 import { availabilityReason, availabilityText, manilaDate, quoteSelection } from "@/lib/catalog/rules";
@@ -49,8 +49,6 @@ type FormState = {
   addonMessages: Record<string, string>;
   lineAddons: Record<string, string[]>;
   lineMessages: Record<string, Record<string, string>>;
-  delivery: string;
-  address: string;
   payment: string;
 };
 
@@ -63,8 +61,6 @@ const initialState: FormState = {
   notes: "",
   selectedAddons: [],
   addonMessages: {}, lineAddons: {}, lineMessages: {},
-  delivery: "pickup",
-  address: "",
   payment: "bank",
 };
 
@@ -202,8 +198,6 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
           name: draft.name,
           contact: draft.contact,
           notes: draft.notes,
-          delivery: draft.delivery,
-          address: draft.address,
           payment: draft.payment,
           preferredDate: new Date(`${draft.selection.date}T12:00:00`),
           preferredTime: draft.slotId,
@@ -225,7 +219,6 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const needsAddress = form.delivery === "lalamove";
   const [checking, setChecking] = useState(false);
   const selectedCount = menuItems.reduce((sum, item) => sum + (form.quantities[item.slug] ?? 0), 0);
   const selectedItems = menuItems.filter(
@@ -235,7 +228,6 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
   const pendingUnavailable = (recovery?.unavailableLines ?? []).filter((line) => !dismissedLines.includes(`${line.productId}:${line.variantId}`));
   function changeBranch(next: BranchId) {
     setBranch(next);
-    if (!branchById(branches, next).deliveryEnabled) setForm((current) => ({ ...current, delivery: "pickup" }));
     setError(null);
     const url = new URL(window.location.href); url.searchParams.set("branch", next);
     window.history.replaceState(null, "", url.toString());
@@ -316,15 +308,6 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
       return;
     }
 
-    if (needsAddress && !shop.deliveryEnabled) {
-      setError("Delivery is not available from this branch. Pickup is still available.");
-      return;
-    }
-    if (needsAddress && !form.address.trim()) {
-      setError("Add a delivery address.");
-      return;
-    }
-
     setChecking(true);
     try {
       if (!idempotencyKey.current) idempotencyKey.current = crypto.randomUUID();
@@ -338,8 +321,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
           name: form.name.trim(),
           contact: form.contact.trim(),
           notes: form.notes.trim(),
-          delivery: form.delivery,
-          address: form.address.trim(),
+          delivery: "pickup",
           payment: form.payment,
           catalogMode: mode,
           ...(recoveryToken.current ? { recoveryToken: recoveryToken.current } : {}),
@@ -630,47 +612,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
               <CatalogAddonOptions addons={catalogAddons.filter((a) => a.scope === "per_order" && (selectedItems.some((item) => item.allowedAddonIds?.includes(a.id)) || form.selectedAddons.includes(a.id)))} selected={form.selectedAddons} messages={form.addonMessages} prefix="order-extra" toggle={toggleAddon} message={(id, value) => update("addonMessages", { ...form.addonMessages, [id]: value })} />
             </fieldset>
 
-            <fieldset className="space-y-3">
-              <legend className="text-sm font-medium">
-                How shall we get it to you?
-              </legend>
-              <RadioGroup
-                name="delivery"
-                value={form.delivery}
-                disabled={checking}
-                onValueChange={(value) => update("delivery", value)}
-                className="gap-3"
-              >
-                {deliveryOptions.filter((option) => option.id === "pickup" || shop.deliveryEnabled).map((option) => (
-                  <Label
-                    key={option.id}
-                    className="pressable h-auto cursor-pointer items-start gap-3 rounded-xl bg-butter/60 px-4 py-3 font-normal"
-                  >
-                    <RadioGroupItem value={option.id} className="mt-1" />
-                    <span className="text-sm">
-                      <span className="font-semibold">{option.label}</span>
-                      <span className="mt-0.5 block text-charcoal/60">
-                        {option.id === "pickup" ? (shop.address || shop.name) : option.detail}
-                      </span>
-                    </span>
-                  </Label>
-                ))}
-              </RadioGroup>
-              {needsAddress ? (
-                <div className="space-y-2 pl-1">
-                  <Label htmlFor="address">Delivery Address</Label>
-                  <Textarea
-                    id="address"
-                    name="address"
-                    rows={3}
-                    value={form.address}
-                    onChange={(event) => update("address", event.target.value)}
-                    className="min-h-0 rounded-xl bg-cream"
-                    placeholder="Full delivery address"
-                  />
-                </div>
-              ) : null}
-            </fieldset>
+            <PickupAddress name={shop.name} address={shop.address} />
 
             <fieldset className="space-y-3">
               <legend className="text-sm font-medium">
@@ -780,13 +722,11 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
             {hasUnpriced
               ? "Quoted sizes will be priced after confirmation. "
               : ""}
-            {needsAddress ? "Staff confirm the address and the fee. This request does not confirm delivery. " : ""}Staff confirm the final total on your order page.
+            Staff confirm the final total on your order page.
           </p>
           <div className="order-summary-logistics">
             <span>
-              {needsAddress
-                ? "Delivery"
-                : `Pickup at ${shop.name}${shop.address ? ` · ${shop.address}` : ""}`}
+              {`Pickup at ${shop.name}${shop.address ? ` · ${shop.address}` : ""}`}
             </span>
             <span>
               {formatPreferredWhen(dateValue, selectedSlot?.label ?? "") ||
@@ -827,8 +767,8 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
           })}
         </ul>
         {chosenAddons.length ? <section className="mobile-lineup-extras"><h3>Order extras</h3>{chosenAddons.map((addon) => <p key={addon.id}><span>{addon.name}{form.addonMessages[addon.id] ? `: ${form.addonMessages[addon.id]}` : ""}</span><strong>{formatPrice(addon.priceCentavos / 100)}</strong></p>)}</section> : null}
-        <p className="mobile-lineup-note">{hasUnpriced ? "Some prices are to confirm. " : ""}Priced extras are included in the subtotal. {needsAddress ? "Delivery fees are confirmed by staff. " : ""}Staff confirm the final total on your order page.</p>
-        <section className="mobile-lineup-logistics"><h3>Your schedule</h3><p>{needsAddress ? `Delivery from ${shop.name}` : `Pickup at ${shop.name}`}</p><p>{formatPreferredWhen(dateValue, selectedSlot?.label ?? "") || "Choose your date and time in the form."}</p>{dateInvalid ? <p className="mobile-lineup-warning">Choose an available date in the form.</p> : null}</section>
+        <p className="mobile-lineup-note">{hasUnpriced ? "Some prices are to confirm. " : ""}Priced extras are included in the subtotal. Staff confirm the final total on your order page.</p>
+        <section className="mobile-lineup-logistics"><h3>Your schedule</h3><p>{`Pickup at ${shop.name}`}</p><p>{formatPreferredWhen(dateValue, selectedSlot?.label ?? "") || "Choose your date and time in the form."}</p>{dateInvalid ? <p className="mobile-lineup-warning">Choose an available date in the form.</p> : null}</section>
       </MobileLineup>
     </div>
   );

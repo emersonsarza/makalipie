@@ -89,6 +89,11 @@ test("allocation hold, retry, and guest access", async (t) => {
     assert.equal((await db.doc(`allocations/${key}`).get()).data()?.held, 1);
     const winnerOrderId = String((await db.doc(`orderIdempotency/${winnerKey}`).get()).data()?.orderId);
     assert.deepEqual((await db.doc(`orders/${winnerOrderId}`).get()).data()?.heldFlavors, [{ productId: product.id, quantity: 1 }]);
+    const pickupRecord = (await db.doc(`orders/${winnerOrderId}`).get()).data()!;
+    assert.equal(pickupRecord.delivery, "pickup");
+    assert.equal("address" in pickupRecord, false);
+    assert.equal("deliveryEligibility" in pickupRecord, false);
+    assert.equal("deliveryFeeCentavos" in pickupRecord, false);
     assert.equal(await readGuestOrder("not-a-real-token-value-here"), null);
     assert.equal((await readGuestOrder(winner.token))?.orderNumber, winner.orderNumber);
     if (other && otherVariant) {
@@ -383,13 +388,16 @@ test("pickup payment, preparation, and completion", async (t) => {
       name: "Phase Five",
       contact: "09170000003",
       notes: "",
-      delivery,
-      address: delivery === "lalamove" ? "Banilad, Cebu City" : "",
+      delivery: "pickup",
       payment: "gcash",
       selection: { date, lines: [{ productId: product!.id, variantId: variant.id, quantity: 1, addons: [] }], addons: [] },
     });
     const orderId = String((await db.doc(`orderIdempotency/${idempotencyKey}`).get()).data()?.orderId);
     created.push(orderId);
+    // Seed a historical delivery record; public intake remains pickup-only.
+    if (delivery === "lalamove") {
+      await db.doc(`orders/${orderId}`).update({ delivery, address: "Banilad, Cebu City", deliveryEligibility: "pending", deliveryFeeCentavos: null, quoteStatus: "pending", finalTotalCentavos: null });
+    }
     return { ...saved, orderId };
   }
   async function stored(orderId: string) {
@@ -757,7 +765,6 @@ test("delivery review, shared capacity, and delivered wording", async (t) => {
   const { getServerFirebase } = await import("../src/lib/firebase/server");
   const { db } = getServerFirebase();
   const { submitOrder, readGuestOrder, saveBranchAllocations, transitionOrder } = await import("../src/lib/orders/store");
-  const { ProductError } = await import("../src/lib/products/store");
   const { readPublicMenu } = await import("../src/lib/products/public");
   const { addCalendarDays, slotsForDate } = await import("../src/lib/scheduling/rules");
   const { readScheduleSettings } = await import("../src/lib/scheduling/store");
@@ -799,13 +806,16 @@ test("delivery review, shared capacity, and delivered wording", async (t) => {
       name: "Phase Seven",
       contact: "09170000007",
       notes: "",
-      delivery,
-      address: delivery === "lalamove" ? address : "",
+      delivery: "pickup",
       payment: "gcash",
       selection: { date: day, lines: [{ productId: product!.id, variantId: variant.id, quantity: 1, addons: [] }], addons: [] },
     });
     const orderId = String((await db.doc(`orderIdempotency/${idempotencyKey}`).get()).data()?.orderId);
     created.push(orderId);
+    // Seed a historical delivery record; public intake remains pickup-only.
+    if (delivery === "lalamove") {
+      await db.doc(`orders/${orderId}`).update({ delivery, address, deliveryEligibility: "pending", deliveryFeeCentavos: null, quoteStatus: "pending", finalTotalCentavos: null });
+    }
     return { ...saved, orderId };
   }
   try {
@@ -849,8 +859,8 @@ test("delivery review, shared capacity, and delivered wording", async (t) => {
     const branches = settingsBefore.data()?.branches ?? [];
     await settingsRef.update({ branches: branches.map((branch: { id: string }) => branch.id === "cebu" ? { ...branch, deliveryEnabled: false } : branch) });
     await assert.rejects(
-      () => place(date, slot.id, "lalamove"),
-      (error: unknown) => error instanceof ProductError && error.status === 409,
+      () => submitOrder({ delivery: "lalamove" }),
+      (error: unknown) => error instanceof ZodError,
     );
     await settingsRef.set(settingsBefore.data()!);
     const earlyApprove = await transitionOrder({ orderId: courier.orderId, action: "processing", expectedStatus: "requested" }, owner);

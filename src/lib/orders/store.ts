@@ -757,8 +757,7 @@ export type RecoveryDraft = {
   catalogMode: "regular" | "preorder";
   branchId: InboxOrder["branchId"];
   slotId: string;
-  delivery: InboxOrder["delivery"];
-  address: string;
+  delivery: "pickup";
   name: string;
   contact: string;
   payment: InboxOrder["payment"];
@@ -914,8 +913,7 @@ export async function readRecoveryDraft(token: string, now = new Date()): Promis
     catalogMode: order.catalogMode,
     branchId: order.branchId,
     slotId: order.slotId,
-    delivery: order.delivery,
-    address: order.address,
+    delivery: "pickup",
     name: order.customerName,
     contact: order.contact,
     payment: order.payment,
@@ -1054,8 +1052,7 @@ async function commitReservedOrder(input: {
   name: string;
   contact: string;
   notes: string;
-  delivery: "pickup" | "lalamove";
-  address: string;
+  delivery: "pickup";
   payment: "bank" | "gcash" | "cash";
   catalogMode: "regular" | "preorder";
   selection: Selection;
@@ -1123,7 +1120,6 @@ async function commitReservedOrder(input: {
         slotLabel: input.slot.label,
         customerName: input.name,
         contact: input.contact,
-        address: input.delivery === "lalamove" ? input.address : "",
         delivery: input.delivery,
         payment: input.payment,
         catalogMode: input.catalogMode,
@@ -1135,9 +1131,8 @@ async function commitReservedOrder(input: {
         heldFlavors: input.heldFlavors,
         knownSubtotalCentavos: input.quote.knownSubtotalCentavos,
         itemQuotePending: input.quote.quoteRequired,
-        ...(input.delivery === "lalamove" ? { deliveryEligibility: "pending" as const, deliveryFeeCentavos: null } : {}),
-        quoteStatus: input.delivery === "lalamove" || input.quote.quoteRequired ? "pending" as const : "finalized" as const,
-        finalTotalCentavos: input.delivery === "lalamove" || input.quote.quoteRequired ? null : input.quote.knownSubtotalCentavos,
+        quoteStatus: input.quote.quoteRequired ? "pending" as const : "finalized" as const,
+        finalTotalCentavos: input.quote.quoteRequired ? null : input.quote.knownSubtotalCentavos,
         paymentStatus: "unpaid" as const,
         netReceivedCentavos: 0,
         payments: [],
@@ -1316,7 +1311,6 @@ export async function submitOrder(raw: unknown, now = new Date()) {
     contact: input.contact,
     notes: input.notes,
     delivery: input.delivery,
-    address: input.address,
     payment: input.payment,
     catalogMode: prepared.catalogMode,
     selection: input.selection,
@@ -1368,7 +1362,7 @@ async function reorderClosedOrder(input: OrderAction, admin: AdminIdentity, now:
   const prepared = await preparedReservation({
     branchId: input.branchId,
     slotId: input.slotId,
-    delivery: order.delivery,
+    delivery: "pickup",
     catalogMode: order.catalogMode,
     selection: nextSelection,
   }, now);
@@ -1379,8 +1373,7 @@ async function reorderClosedOrder(input: OrderAction, admin: AdminIdentity, now:
     name: order.customerName,
     contact: order.contact,
     notes: order.notes,
-    delivery: order.delivery,
-    address: order.address,
+    delivery: "pickup",
     payment: order.payment,
     catalogMode: prepared.catalogMode,
     selection: nextSelection,

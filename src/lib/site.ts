@@ -185,25 +185,10 @@ export const addons = [
   },
 ] as const;
 
-export const deliveryOptions = [
-  {
-    id: "pickup",
-    label: "Pickup",
-    detail: "2nd Floor, Streetscape, Banilad",
-    needsAddress: false,
-  },
-  {
-    id: "lalamove",
-    label: "Delivery",
-    detail: "Staff confirm the address and fee in chat. This request does not confirm delivery.",
-    needsAddress: true,
-  },
-] as const;
-
 export const paymentMethods = [
   { id: "bank", label: "Bank Transfer" },
   { id: "gcash", label: "GCash" },
-  { id: "cash", label: "Cash upon Pickup/Delivery" },
+  { id: "cash", label: "Cash upon Pickup" },
 ] as const;
 
 export const bankDetails = {
@@ -244,8 +229,8 @@ export const orderSteps = [
   },
   {
     step: 4,
-    title: "Delivery",
-    body: "Wait for your goodies to arrive! We'll update you on the day of delivery.",
+    title: "Pickup",
+    body: "Collect your order from the bakery after confirmation, or book your own courier for pickup.",
   },
 ] as const;
 

@@ -269,8 +269,9 @@ export default async function Home() {
           <details>
             <summary>Can I have my pies delivered?</summary>
             <p>
-              Yes! We can arrange delivery within Cebu City. Delivery fees are
-              shouldered by the buyer.
+              You can book your own courier to collect your confirmed order from
+              the pickup address on your order page. Makalipie does not provide
+              delivery or collect a drop-off address.
             </p>
             <div className="delivery-app-actions">
               <a

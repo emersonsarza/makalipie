@@ -1,5 +1,6 @@
 "use client";
 
+import { PickupAddress } from "@/components/pickup-address";
 import Image from "next/image";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowUpRight, Check, Clock3, Copy, CircleAlert, Store, Truck } from "lucide-react";
@@ -216,10 +217,11 @@ export default function OrderStatusPage() {
                 <section className={styles.schedule} aria-labelledby="schedule-heading">
                   <h2 id="schedule-heading">Your schedule</h2>
                   <dl>
-                    <div><dt>Branch</dt><dd>{receipt.branchName}{receipt.branchAddress ? <span className={styles.address}>{receipt.branchAddress}</span> : null}</dd></div>
+                    <div><dt>Branch</dt><dd>{receipt.branchName}</dd></div>
                     <div><dt>Date</dt><dd>{when}</dd></div>
                     <div><dt>Time slot</dt><dd>{receipt.slotLabel}</dd></div>
                   </dl>
+                  <PickupAddress name={receipt.branchName} address={receipt.branchAddress} legacy={receipt.delivery === "lalamove"} />
                   {receipt.preparationDays ? <p className={styles.note}>Needs {receipt.preparationDays} {receipt.preparationDays === 1 ? "day" : "days"} of preparation.</p> : null}
                   {receipt.status === "ready" ? <p className={styles.note}>Pick up at {receipt.branchName}{receipt.branchAddress ? `, ${receipt.branchAddress}` : ""} on {when}, {receipt.slotLabel}.</p> : null}
                 </section>

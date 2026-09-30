@@ -14,7 +14,7 @@ export default function TermsPage() {
     <LegalPage
       policy="terms"
       title="Terms and Conditions"
-      intro="These Terms and Conditions explain how Makalipie manages order requests, confirmation, payment, pickup, delivery, and cancellations."
+      intro="These Terms and Conditions explain how Makalipie manages order requests, confirmation, payment, pickup, customer-booked couriers, and cancellations."
     >
       <LegalSection n={1} title="About Makalipie">
         <p>
@@ -23,12 +23,12 @@ export default function TermsPage() {
       </LegalSection>
       <LegalSection n={2} title="Placing an order request">
         <p>
-          Select your items and submit an order request through our website. Your order page will display an order number and the status of your request. When contacting us on Instagram, include your order number so our team can assist with availability, payment, and pickup or delivery arrangements.
+          Select your items and submit an order request through our website. Your order page will display an order number and the status of your request. When contacting us on Instagram, include your order number so our team can assist with availability, payment, and pickup arrangements.
         </p>
       </LegalSection>
       <LegalSection n={3} title="Order confirmation">
         <p>
-          Submitting an order request does not confirm your order. Our team must review and approve the request, including availability and, for delivery requests, the address and delivery fee. Your order page shows the current status. Payment and fulfillment arrangements are communicated separately, including through Instagram.
+          Submitting an order request does not confirm your order. Our team must review and approve the request, including availability and pickup arrangements. Your order page shows the current status. Payment and fulfillment arrangements are communicated separately, including through Instagram.
         </p>
       </LegalSection>
       <LegalSection n={4} title="Temporary holds and availability">
@@ -41,25 +41,25 @@ export default function TermsPage() {
           The final order total must be confirmed and full payment verified by our team before preparation begins. We accept GCash and bank transfer. Payments are arranged separately; this website does not process payment transactions. You are responsible for checking that the payment amount and recipient account match the instructions provided by Makalipie before sending payment. Official receipts are available upon request.
         </p>
       </LegalSection>
-      <LegalSection n={6} title="Pickup and delivery">
+      <LegalSection n={6} title="Pickup and customer-booked couriers">
         <p>
-          Pickup locations and available time slots are displayed on the website and your order page. If you request delivery, we collect your delivery address through the order form. Our team must confirm whether the address can be served and the applicable delivery fee before approving the delivery request. Submitting an address does not guarantee delivery. Any independently booked courier arrangements should be coordinated with our team.
+          The pickup address and available time slots for your selected bakery or outlet are displayed on the order form and your order page. After confirmation, you may collect your order or book your own courier to collect it from that address. Makalipie does not provide delivery or collect a drop-off address. Please coordinate courier collection with our team.
         </p>
       </LegalSection>
       <LegalSection n={7} title="Courier responsibility">
         <p>
-          If you independently book a courier, damage, delays, or mishandling after the order is handed over to that courier are outside our control. We recommend using an insulated bag during transport. Please refer to our <Link href="/refund">Refund Policy</Link> for information about refund eligibility.
+          You are responsible for arranging your own courier and providing accurate collection and destination details directly to that courier. Courier problems, including incorrect details, an unreachable courier, and damage, delays, or mishandling after handover, do not qualify for a refund from Makalipie. We recommend using an insulated bag during transport. Please refer to our <Link href="/refund">Refund Policy</Link> for information about refund eligibility.
         </p>
       </LegalSection>
       <LegalSection n={8} title="Cancellation">
         <p>
-          You may cancel an order request before confirmation, after confirmation, or after payment, subject to any cancellation cutoff published for your scheduled pickup or delivery. Refund eligibility is described in our <Link href="/refund">Refund Policy</Link>.
+          You may cancel an order request before confirmation, after confirmation, or after payment, subject to any cancellation cutoff published for your scheduled pickup. Refund eligibility is described in our <Link href="/refund">Refund Policy</Link>.
         </p>
         <LegalPending>The cancellation cutoff has not yet been finalized. This policy will be updated when it is confirmed.</LegalPending>
       </LegalSection>
       <LegalSection n={9} title="Rescheduling">
         <p>
-          To request a change to your pickup or delivery schedule, contact our team on Instagram. If Makalipie must change the scheduled date due to capacity constraints, an emergency, or weather conditions, you may choose a new date or a refund.
+          To request a change to your pickup schedule, contact our team on Instagram. If Makalipie must change the scheduled date due to capacity constraints, an emergency, or weather conditions, you may choose a new date or a refund.
         </p>
       </LegalSection>
       <LegalSection n={10} title="No-shows and missed pickup">
