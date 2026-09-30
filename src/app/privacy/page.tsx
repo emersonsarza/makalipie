@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { LegalPage, LegalPending } from "@/components/legal-page";
 import { LegalSection } from "@/components/legal-section";
 
@@ -13,61 +14,62 @@ export default function PrivacyPage() {
     <LegalPage
       policy="privacy"
       title="Privacy Policy"
-      intro="This policy describes the personal information we collect through ordering and how we handle it."
+      intro="This Privacy Policy explains what personal information Makalipie collects in connection with order requests, how we use it, and how to contact us about your information."
     >
       <LegalSection n={1} title="Who we are">
         <p>
-          Makalipie · makalipie@gmail.com · Unit C2, Cedar Place, 12 Dagohoy St, Barangay Apas, Cebu City, Philippines.
+          Makalipie is based at Unit C2, Cedar Place, 12 Dagohoy St, Barangay Apas, Cebu City, Philippines. For privacy inquiries, email <a href="mailto:makalipie@gmail.com">makalipie@gmail.com</a>.
         </p>
       </LegalSection>
-      <LegalSection n={2} title="What we collect">
-        <p>When you place a request on our site, we may collect:</p>
+      <LegalSection n={2} title="Information we collect">
+        <p>When you submit an order request or communicate with us about an order, we may collect:</p>
         <ul>
           <li>Your name and contact details</li>
+          <li>Your delivery address, if you request delivery</li>
           <li>Your order items, fulfillment date, time slot, and notes</li>
           <li>Order number, status, and timestamps</li>
-          <li>Payment preference you select on the form (not payment credentials)</li>
+          <li>Your selected payment preference and payment records entered by authorized staff, such as amounts, payment methods, and payment or refund dates</li>
         </ul>
       </LegalSection>
-      <LegalSection n={3} title="What we do not collect">
+      <LegalSection n={3} title="Payment credentials">
         <p>
-          We do not collect your delivery street address on the website. We do not collect card numbers, GCash passwords, or other payment credentials on the site. Payment is arranged off-site in chat.
+          This website does not collect card numbers, GCash passwords, or other payment credentials. Payment is arranged separately, including through instructions shared on Instagram. Staff-recorded payment details are used to track payment and refund status; they are not payment credentials.
         </p>
       </LegalSection>
-      <LegalSection n={4} title="Why we use it">
+      <LegalSection n={4} title="How we use your information">
         <p>
-          To receive and manage orders, plan baking and capacity, communicate about your request, and handle refunds or complaints when needed.
+          We use this information to receive and manage order requests, plan baking capacity, review delivery requests, coordinate pickup or delivery, communicate with you, and handle payments, refunds, or complaints. See our <Link href="/terms">Terms and Conditions</Link> and <Link href="/refund">Refund Policy</Link> for details of the ordering process.
         </p>
       </LegalSection>
       <LegalSection n={5} title="Marketing">
-        <p>We do not send promotional or “we miss you” messages based on your order data.</p>
+        <p>We do not use your order information to send promotional or re-engagement messages.</p>
       </LegalSection>
-      <LegalSection n={6} title="Who can see your data">
-        <p>Makalipie owners and authorized staff through our admin tools. Developers may access systems only as needed to operate and improve the service.</p>
+      <LegalSection n={6} title="Access to your information">
+        <p>Makalipie owners and authorized staff can access order information through our administration tools. Developers may access systems only as needed to operate and improve the service.</p>
       </LegalSection>
       <LegalSection n={7} title="Third parties">
         <p>
-          We use hosting and infrastructure providers (including Firebase and our web host) to run the site. When you message us on Instagram, Meta’s terms apply to that conversation. If you book your own courier, we do not share your home address with them through this site beyond the public pickup location we show you.
+          We use hosting and infrastructure providers, including Firebase and our web host, to operate the website. Conversations on Instagram are subject to Meta’s applicable terms and privacy policies. If you independently book a courier, information you provide directly to that courier is handled under its own policies.
         </p>
       </LegalSection>
       <LegalSection n={8} title="Retention">
-        <LegalPending>We will publish how long we keep personal details after your pickup or drop, and when we anonymize them, once this is confirmed.</LegalPending>
+        <LegalPending>The retention period for personal information and the timing of anonymization have not yet been finalized. This section will be updated when those arrangements are confirmed.</LegalPending>
       </LegalSection>
       <LegalSection n={9} title="Your rights">
         <p>
-          You may ask us to delete or anonymize your personal information by messaging us on Instagram or emailing makalipie@gmail.com.
+          You may request deletion or anonymization of your personal information by contacting us on Instagram or emailing <a href="mailto:makalipie@gmail.com">makalipie@gmail.com</a>.
         </p>
       </LegalSection>
       <LegalSection n={10} title="Security">
         <p>
-          We use reasonable technical measures such as HTTPS, access controls for staff, and secured admin access to protect order data.
+          We use reasonable technical measures to protect order information, including HTTPS, staff access controls, and authenticated administration tools.
         </p>
       </LegalSection>
       <LegalSection n={11} title="Governing law">
         <p>This policy is governed by the laws of the Philippines.</p>
       </LegalSection>
       <LegalSection n={12} title="Updates">
-        <p>We may update this policy. The “last updated” date at the top of this page shows the current version.</p>
+        <p>We may update this Privacy Policy. The “Last updated” date at the top of this page identifies the current version.</p>
       </LegalSection>
     </LegalPage>
   );

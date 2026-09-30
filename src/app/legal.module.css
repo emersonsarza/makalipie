@@ -50,3 +50,5 @@
   .section h2 { font-size: 19px; gap: 10px; }
   .section { scroll-margin-top: 104px; }
 }
+
+.section a { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
