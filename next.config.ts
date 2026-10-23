@@ -6,7 +6,8 @@ const privateWorkspaceHeaders = [
   { key: "Referrer-Policy", value: "same-origin" },
 ];
 
-const legacyWorkspaceSections = ["catalog", "branches", "popups", "schedule", "allocation", "orders", "settings", "products"];
+// Redirect only admin sections that have not yet moved to v2.
+const legacyWorkspaceSections = ["products"];
 
 const nextConfig: NextConfig = {
   distDir: process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true" ? ".next-emulator" : ".next",

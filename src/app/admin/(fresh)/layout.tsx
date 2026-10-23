@@ -1,3 +1,4 @@
+import { DecisionDraftProvider } from "@/components/admin/decisions/decision-controls";
 import type { Metadata } from "next";
 import { requireAdminPage } from "@/lib/admin/session";
 import { readBranchSettings } from "@/lib/branches/store";
@@ -9,5 +10,5 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const admin = await requireAdminPage();
   const settings = await readBranchSettings();
   const branches = settings.branches.filter((branch) => admin.role === "owner" || admin.branchIds.includes(branch.id)).map(({ id, name }) => ({ id, name }));
-  return <AdminShell name={admin.displayName || admin.email} role={admin.role} branches={branches}>{children}</AdminShell>;
+  return <DecisionDraftProvider><AdminShell name={admin.displayName || admin.email} role={admin.role} branches={branches}>{children}</AdminShell></DecisionDraftProvider>;
 }

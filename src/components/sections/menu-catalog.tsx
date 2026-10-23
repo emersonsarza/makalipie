@@ -1,4 +1,5 @@
 "use client";
+import { VisibleBranches } from "@/components/customer-policy";
 import { usePublicShop, ChatLinks } from "@/components/public-shop-provider";
 import { CatalogDetails } from "@/components/catalog-details";
 import Image from "next/image";
@@ -154,9 +155,7 @@ export function MenuCatalog({ items: menuItems, unavailable = false }: { items: 
           <p className="eyebrow">THERE’S MORE IN THE KITCHEN</p>
           <h2>Keep an eye on the next batch.</h2>
           <p>
-            Apple Makalipie joined our recent Manila drop. Seasonal flavours and
-            special drops are announced on Instagram; ask us what’s baking
-            before you order.
+            {shop.experience?.seasonalNote ?? "Seasonal flavours and special drops are announced on Instagram. Check the branch’s ordering dates before choosing your pies."}
           </p>
         </div>
         <a
@@ -207,11 +206,7 @@ export function MenuCatalog({ items: menuItems, unavailable = false }: { items: 
           </div>
           <div>
             <span>Taking it home</span>
-            <p>
-              {shop.address}
-              <br />
-              {shop.hoursLabel}
-            </p>
+            <VisibleBranches />
           </div>
           <div>
             <span>Sending a little happiness</span>

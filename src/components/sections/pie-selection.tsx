@@ -1,5 +1,6 @@
 "use client";
 
+import { usePublicShop } from "@/components/public-shop-provider";
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -8,11 +9,13 @@ import { itemPriceText, type MenuItem } from "@/lib/site";
 
 const filters = ["House favourites", "Sweet", "Savoury"] as const;
 export function PieSelection({ items: menuItems }: { items: MenuItem[] }) {
+  const shop = usePublicShop();
+  const featuredIds = shop.experience?.featuredProductIds;
   const [filter, setFilter] =
     useState<(typeof filters)[number]>("House favourites");
   const items =
     filter === "House favourites"
-      ? menuItems.slice(0, 4)
+      ? featuredIds ? featuredIds.flatMap(id => menuItems.filter(item => item.slug === id)) : menuItems.slice(0, 4)
       : menuItems.filter(
           (item) => item.kind === (filter === "Sweet" ? "sweet" : "savory"),
         );

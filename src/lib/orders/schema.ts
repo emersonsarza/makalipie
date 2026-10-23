@@ -21,7 +21,10 @@ export const orderRequestSchema = z.object({
   recoveryToken: z.string().trim().min(20).max(200).optional(),
   selection: selectionSchema,
 }).strict().superRefine((input, ctx) => {
+  if (input.delivery === "lalamove" && !input.deliveryFeePayment) ctx.addIssue({ code: "custom", path: ["delivery"], message: "This delivery choice is out of date. Please reload and choose how the delivery fee is paid." });
   if (input.delivery === "lalamove" && (!input.address || input.address.length < 5)) ctx.addIssue({ code: "custom", path: ["address"], message: "Add your delivery address." });
+  if (input.delivery === "pickup" && input.address) ctx.addIssue({ code: "custom", path: ["address"], message: "Pickup does not use a delivery address." });
+  if (input.payment === "cash") ctx.addIssue({ code: "custom", path: ["payment"], message: "Cash at pickup is not available." });
 });
 export type OrderRequest = z.infer<typeof orderRequestSchema>;
 
@@ -58,11 +61,17 @@ export type OrderEvent = z.infer<typeof orderEventSchema>;
 
 export const paymentMethodSchema = z.enum(["bank", "gcash", "cash"]);
 export const paymentRecordSchema = z.object({
+  id: z.string().min(1).max(80).optional(),
   at: z.string().min(10),
   actorUid: z.string().min(1),
   method: paymentMethodSchema,
   amountCentavos: z.number().int().positive(),
   kind: z.enum(["payment", "refund"]).optional(),
+  reference: z.string().max(80).optional(),
+  note: z.string().max(300).optional(),
+  voidedAt: z.string().optional(),
+  voidReason: z.string().max(300).optional(),
+  voidedBy: z.string().max(200).optional(),
 }).strict();
 export type PaymentRecord = z.infer<typeof paymentRecordSchema>;
 

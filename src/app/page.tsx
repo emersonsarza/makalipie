@@ -1,3 +1,4 @@
+import { VisibleBranches } from "@/components/customer-policy";
 import { readPublicShop } from "@/lib/settings/store";
 import { ChatLinks } from "@/components/public-shop-provider";
 import { readPublicMenu } from "@/lib/products/public";
@@ -179,7 +180,7 @@ export default async function Home() {
           <div className="section-heading">
             <div>
               <p className="eyebrow">YOUR LITTLE PIE STOP</p>
-              <h2>See you at {shop.branchName}.</h2>
+              <h2>Find your nearest branch.</h2>
             </div>
             <a
               className="text-link"
@@ -206,12 +207,10 @@ export default async function Home() {
                 <br />
                 Stay for a little while.
               </h3>
-              <p>
-                {shop.address}
-              </p>
+              <VisibleBranches />
               <div className="opening-hours">
                 <span>Opening hours</span>
-                <strong>{shop.hoursLabel}</strong>
+                <span>Branch details above follow the shop’s visibility settings.</span>
               </div>
               <a
                 href={shop.mapUrl}

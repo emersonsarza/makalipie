@@ -1,0 +1,7 @@
+export type KitchenStatus='approved'|'preparing'|'ready_pickup'|'out_delivery'|'pending'|'processing';
+export type KitchenLine={id:string;productId:string;variantId:string;name:string;size:string;quantity:number;category:'sweet'|'savory';allergens:string[];extras:string[]};
+export type KitchenOrder={id:string;number:string;version:string;status:KitchenStatus;fulfillment:'pickup'|'delivery';slotStart:string;slotLabel:string;lines:KitchenLine[];contentsComplete:boolean;notes:string[];extras:string[];boxes:{label:string;contents:string}[]|null;boxingNote:string|null;requireFullPayment:boolean;fullyPaid:boolean|null;riderRecorded:boolean;canAdvance:boolean;blockReason:string|null};
+export type KitchenSnapshot={branchId:string;date:string;revision:string;updatedAt:string;orders:KitchenOrder[];unconfirmedPolicy:'undecided'|'hidden'|'separate';canAdvance:boolean};
+export type KitchenResource={status:'unconnected'|'loading'|'error'|'forbidden';message?:string}|{status:'ready';snapshot:KitchenSnapshot;freshness:'current'|'refreshing'|'stale'|'offline'};
+export type KitchenResult={ok:true;snapshot:KitchenSnapshot}|{ok:false;kind:'conflict'|'permission'|'validation'|'network';message:string};
+export type KitchenAdapter={onRefresh?:()=>void;onAdvance?:(command:{branchId:string;date:string;orderId:string;expectedVersion:string;expectedRevision:string;target:'preparing'|'ready_pickup'|'out_delivery';acknowledgeMissingRider:boolean})=>Promise<KitchenResult>};

@@ -181,10 +181,14 @@ function commercialFields(data: FirebaseFirestore.DocumentData) {
     const parsed = paymentRecordSchema.safeParse(payment);
     return parsed.success ? [parsed.data] : [];
   }) : [];
-  const signed = payments.reduce((total, payment) => total + (payment.kind === "refund" ? -payment.amountCentavos : payment.amountCentavos), 0);
-  const netReceivedCentavos = Number.isInteger(data.netReceivedCentavos) && data.netReceivedCentavos >= 0
-    ? data.netReceivedCentavos
-    : Math.max(0, signed);
+  const activePayments = payments.filter((payment) => !payment.voidedAt);
+  const signed = activePayments.reduce((total, payment) => total + (payment.kind === "refund" ? -payment.amountCentavos : payment.amountCentavos), 0);
+  const voided = payments.some((payment) => payment.voidedAt);
+  const netReceivedCentavos = voided
+    ? Math.max(0, signed)
+    : Number.isInteger(data.netReceivedCentavos) && data.netReceivedCentavos >= 0
+      ? data.netReceivedCentavos
+      : Math.max(0, signed);
   const paymentStatus = data.paymentStatus === "unpaid" || data.paymentStatus === "partially_paid" || data.paymentStatus === "paid" || data.paymentStatus === "refunded"
     ? data.paymentStatus
     : "unpaid";
@@ -363,7 +367,7 @@ function advanceFulfillment(
   if (action === "complete" && data.status !== "ready") {
     return { conflict: "This request changed. Reload it and try again.", order: decodeInboxOrder(id, data) };
   }
-  if (action === "preparing" && data.requireFullPayment === true) {
+  if (action === "preparing" || action === "complete") {
     const commercial = commercialFields(data);
     try {
       assertPaymentBeforePreparation({
@@ -373,7 +377,8 @@ function advanceFulfillment(
         netReceivedCentavos: commercial.netReceivedCentavos,
       });
     } catch (error) {
-      return { conflict: error instanceof Error ? error.message : "Finalize the total and verify full payment before preparation.", order: decodeInboxOrder(id, data) };
+      const fallback = action === "complete" ? "Finalize the total and verify full payment before completing this order." : "Finalize the total and verify full payment before preparation.";
+      return { conflict: error instanceof Error && action === "preparing" ? error.message : fallback, order: decodeInboxOrder(id, data) };
     }
   }
   const nextStatus = action === "preparing" ? "preparing" : action === "ready" ? "ready" : "completed";
@@ -432,11 +437,93 @@ async function recordOrderPayment(input: OrderAction, actorUid: string, now: Dat
 }
 
 export async function expireDueHolds(now = new Date()) {
-  const snap = await getServerFirebase().db.collection("orders").where("status", "==", "requested").limit(100).get();
-  for (const doc of snap.docs) {
-    if (!orderIsDue(doc.data(), now)) continue;
-    await settleOrder(doc.id, now, "system", "expire", "requested");
+  const { db } = getServerFirebase();
+  let cursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+  let scanned = 0;
+  for (;;) {
+    let query = db.collection("orders").where("status", "==", "requested").orderBy(FieldPath.documentId()).limit(100);
+    if (cursor) query = query.startAfter(cursor);
+    const snap = await query.get();
+    for (const doc of snap.docs) {
+      if (!orderIsDue(doc.data(), now)) continue;
+      await settleOrder(doc.id, now, "system", "expire", "requested");
+    }
+    scanned += snap.size;
+    if (snap.size < 100 || scanned >= 2000) return;
+    const next = snap.docs.at(-1);
+    if (!next) return;
+    cursor = next;
   }
+}
+
+const PERSONAL_RETENTION_MS = 30 * 86400000;
+
+function scrubPersonalLine(line: string) {
+  return line.replace(/:\s*“[^”]*”/g, "");
+}
+
+/** Removes personal fields from closed orders 30 days after fulfillment. Active orders are left unchanged. Safe to run more than once. */
+export async function anonymizeDueOrders(now = new Date()) {
+  const { db } = getServerFirebase();
+  for (const status of ["completed", "cancelled", "expired"] as const) {
+    const snap = await db.collection("orders").where("status", "==", status).limit(200).get();
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      if (data.anonymizedAt || data.anonymized === true) continue;
+      if (typeof data.fulfillmentDate !== "string") continue;
+      const start = Date.parse(`${data.fulfillmentDate}T00:00:00+08:00`);
+      if (!Number.isFinite(start) || now.getTime() < start + PERSONAL_RETENTION_MS) continue;
+      const events = Array.isArray(data.events) ? data.events.flatMap((event) => {
+        const parsed = orderEventSchema.safeParse(event);
+        if (!parsed.success) return [];
+        const { reason: _reason, changes: _changes, ...rest } = parsed.data;
+        void _reason;
+        void _changes;
+        return [rest];
+      }) : [];
+      const selection = selectionSchema.safeParse(data.selection);
+      const payments = Array.isArray(data.payments) ? data.payments.flatMap((payment) => {
+        const parsed = paymentRecordSchema.safeParse(payment);
+        if (!parsed.success) return [];
+        const { reference: _reference, note: _note, ...rest } = parsed.data;
+        void _reference;
+        void _note;
+        return [rest];
+      }) : [];
+      await doc.ref.update({
+        customerName: "",
+        contact: "",
+        address: "",
+        notes: "",
+        cancelReason: null,
+        staffNotes: [],
+        rider: null,
+        anonymized: true,
+        anonymizedAt: now.toISOString(),
+        accessTokenHash: FieldValue.delete(),
+        events,
+        payments,
+        lines: Array.isArray(data.lines) ? data.lines.map((line) => typeof line === "string" ? scrubPersonalLine(line) : line) : [],
+        addonLines: Array.isArray(data.addonLines) ? data.addonLines.map((line) => typeof line === "string" ? scrubPersonalLine(line) : line) : [],
+        ...(selection.success ? {
+          selection: {
+            ...selection.data,
+            lines: selection.data.lines.map((line) => ({ ...line, addons: line.addons.map((addon) => ({ ...addon, message: "" })) })),
+            addons: selection.data.addons.map((addon) => ({ ...addon, message: "" })),
+          },
+        } : {}),
+      });
+    }
+  }
+}
+
+export async function readOrderForAdmin(id: string) {
+  const snap = await getServerFirebase().db.doc(`orders/${id}`).get();
+  if (!snap.exists) return null;
+  const data = snap.data() ?? {};
+  const order = decodeInboxOrder(snap.id, data);
+  if (!order) return null;
+  return { order, data };
 }
 
 const revisableStatuses = new Set(["requested", "processing", "confirmed", "preparing", "ready"]);
@@ -705,6 +792,17 @@ async function markDelivered(input: OrderAction, actorUid: string, now: Date) {
     const order = decodeInboxOrder(input.orderId, data);
     if (!order || data.delivery !== "lalamove" || data.status !== "ready" || data.status !== input.expectedStatus) {
       return { conflict: data.delivery === "lalamove" ? "This request changed. Reload it and try again." : "Pickup progress is for pickup requests.", order };
+    }
+    const commercial = commercialFields(data);
+    try {
+      assertPaymentBeforePreparation({
+        quoteStatus: commercial.quoteStatus,
+        paymentStatus: commercial.paymentStatus,
+        finalTotalCentavos: commercial.finalTotalCentavos,
+        netReceivedCentavos: commercial.netReceivedCentavos,
+      });
+    } catch {
+      return { conflict: "Finalize the total and verify full payment before completing this order.", order };
     }
     const next = {
       status: "completed" as const,
@@ -1518,6 +1616,7 @@ async function updateCustomerPreferences(input: OrderAction, actorUid: string, n
     const order = decodeInboxOrder(ref.id, data);
     if (!order || order.status !== input.expectedStatus || orderIsDue(data, now)) throw new ProductError(409, "This order changed. Refresh it before changing permissions.");
     if (input.customerEditable !== undefined && !["requested", "processing"].includes(order.status)) throw new ProductError(409, "Customer edits are only available before approval.");
+    if (input.requireFullPayment === false) throw new ProductError(400, "Full payment is required before preparation.");
     if (input.requireFullPayment !== undefined && !["requested", "processing", "confirmed"].includes(order.status)) throw new ProductError(409, "Payment requirements cannot change once preparation starts.");
     const flags = { ...(input.customerEditable !== undefined ? { customerEditable: input.customerEditable } : {}), ...(input.requireFullPayment !== undefined ? { requireFullPayment: input.requireFullPayment } : {}) };
     const changes = Object.entries(flags).filter(([key,value]) => Boolean(data[key]) !== value).map(([key,value]) => ({ field: key === "customerEditable" ? "Customer editing" : "Full payment required", from: data[key] ? "On" : "Off", to: value ? "On" : "Off" }));

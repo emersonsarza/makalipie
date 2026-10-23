@@ -162,17 +162,17 @@ test("attention is current, deduped, and ordered without treating every future r
       allocation("pecan", 4, 4),
     ],
   });
-  assert.deepEqual(result.attention?.items.map((item) => item.id), ["soon", "later", "old-night", "new-night", "fee-rider", "paid-flag", "over", "rider"]);
-  assert.equal(result.attention?.totalDistinctOrders, 8);
+  assert.deepEqual(result.attention?.items.map((item) => item.id), ["soon", "later", "old-night", "new-night", "fee-rider", "paid-flag", "over", "full", "quote", "unpaid", "rider"]);
+  assert.equal(result.attention?.totalDistinctOrders, 11);
   assert.equal(result.attention?.overnightCount, 2);
   assert.deepEqual(result.attention?.items.find((item) => item.id === "fee-rider")?.reasons, ["fee", "rider"]);
   assert.equal(result.attention?.items.find((item) => item.id === "fee-rider")?.nextAction, "Confirm the delivery fee.");
-  assert.equal(result.attention?.items.find((item) => item.id === "old-night")?.nextAction, "Waiting since last night. The first morning slot is still undecided.");
+  assert.equal(result.attention?.items.find((item) => item.id === "old-night")?.nextAction, "Waiting since last night. Confirm this first morning slot when the branch opens.");
   assert.equal(result.attention?.items.find((item) => item.id === "new-night")?.fulfillmentDate, "2026-10-24");
   assert.equal(result.attention?.items.find((item) => item.id === "processing"), undefined);
   assert.equal(result.attention?.items.find((item) => item.id === "future"), undefined);
-  assert.equal(result.attention?.items.find((item) => item.id === "unpaid"), undefined);
-  assert.equal(result.attention?.items.find((item) => item.id === "full"), undefined);
+  assert.equal(result.attention?.items.find((item) => item.id === "unpaid")?.reasons.includes("payment"), true);
+  assert.equal(result.attention?.items.find((item) => item.id === "full")?.reasons.includes("payment"), true);
 });
 
 test("branch intake stays separate from sold-out allocation and from a paused day", () => {

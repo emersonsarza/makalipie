@@ -12,7 +12,7 @@ import styles from "./admin-shell.module.css";
 type Branch = { id: string; name: string };
 const BranchContext = createContext<string>("all");
 export const useAdminBranch = () => useContext(BranchContext);
-const WorkspaceContext = createContext<{ role: "owner" | "staff"; branches: Branch[] }>({ role: "staff", branches: [] });
+const WorkspaceContext = createContext<{ role: "owner" | "staff"; branches: Branch[]; selectBranch: (value: string, query?: string) => void }>({ role: "staff", branches: [], selectBranch: () => {} });
 export const useAdminWorkspace = () => useContext(WorkspaceContext);
 const groups = [
   { label: "Today", items: [{ slug: "", label: "Dashboard", icon: LayoutDashboard }, { slug: "orders", label: "Orders", icon: ClipboardList }, { slug: "kitchen", label: "Kitchen", icon: ChefHat }] },
@@ -45,10 +45,10 @@ export function AdminShell({ name, role, branches, children }: { name: string; r
     return () => window.removeEventListener("popstate", restore);
   }, [branches, role]);
 
-  function selectBranch(value: string) {
+  function selectBranch(value: string, query?: string) {
     setBranch(value);
     try { sessionStorage.setItem("makalipie-admin-branch", value); } catch { /* Selection still carries in links. */ }
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(query ?? window.location.search);
     params.set("branch", value);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
@@ -81,7 +81,7 @@ export function AdminShell({ name, role, branches, children }: { name: string; r
     </div>
   </>;
 
-  return <WorkspaceContext.Provider value={{ role, branches }}><BranchContext.Provider value={branch}><div className={styles.shell}>
+  return <WorkspaceContext.Provider value={{ role, branches, selectBranch }}><BranchContext.Provider value={branch}><div className={styles.shell}>
     <a className={styles.skip} href="#admin-content">Skip to page content</a>
     <aside className={styles.sidebar}>{navigation(false)}</aside>
     <div className={styles.workspace}>

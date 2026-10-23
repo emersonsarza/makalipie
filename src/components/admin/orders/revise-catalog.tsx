@@ -1,0 +1,4 @@
+"use client";
+import { useAdminResource } from '@/components/admin/live';
+import type { CatalogSnapshot } from '@/components/admin/catalog/types';
+export function ReviseCatalog({branchId}:{branchId:string}){const {resource}=useAdminResource<CatalogSnapshot>('/api/admin/v2/catalog');return <label>Add a catalog size<select name="addItem" disabled={resource.status!=='ready'}><option value="">Keep existing items</option>{resource.status==='ready'&&resource.snapshot.entries.filter(p=>p.kind==='product'&&p.active&&p.branchIds.includes(branchId)).flatMap(p=>p.sizes.filter(v=>v.active).map(v=><option key={`${p.id}:${v.key}`} value={JSON.stringify({productId:p.id,variantId:v.key})}>{p.name} · {v.name}{v.pricing==='fixed'?` · ₱${v.price}`:' · price confirmation required'}</option>))}</select>{resource.status!=='ready'&&<small>Catalog choices are {resource.status==='loading'?'loading':'unavailable'}. Existing lines can still be edited.</small>}</label>;}

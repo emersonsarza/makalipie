@@ -328,7 +328,7 @@ function reasonsFor(order: InboxOrder, now: Date, allocations: Map<string, Alloc
     const entry = allocations.get(flavorCapacityKey(order.branchId, order.fulfillmentDate, productId));
     return !!entry && entry.limit != null && entry.held > entry.limit;
   })) reasons.push("allocation");
-  if (order.requireFullPayment && order.quoteStatus === "finalized" && order.finalTotalCentavos != null && order.netReceivedCentavos < order.finalTotalCentavos) {
+  if ((order.status === "confirmed" || order.status === "preparing") && (order.quoteStatus !== "finalized" || order.finalTotalCentavos == null || order.netReceivedCentavos < order.finalTotalCentavos)) {
     reasons.push("payment");
   }
   if (order.status === "ready" && order.delivery === "lalamove") reasons.push("rider");
@@ -361,7 +361,7 @@ function headline(order: InboxOrder, reasons: Reason[], now: Date, schedule: Sch
   }
   if (reasons.includes("overnight")) {
     return firstMorningSlot(order, schedule)
-      ? "Waiting since last night. The first morning slot is still undecided."
+      ? "Waiting since last night. Confirm this first morning slot when the branch opens."
       : "Waiting since last night.";
   }
   if (reasons.includes("fee")) return "Confirm the delivery fee.";

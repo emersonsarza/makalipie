@@ -6,11 +6,44 @@ export const moneySchema = z.number().int().nonnegative().max(Number.MAX_SAFE_IN
 export const businessDateSchema = z.iso.date();
 export const adminRoleSchema = z.enum(["owner", "staff"]);
 /** Page access stored on the staff profile. Omitted keys are not grants. */
+export const orderActionGrantSchema = z.object({
+  processing: z.boolean().optional(),
+  approve: z.boolean().optional(),
+  preparing: z.boolean().optional(),
+  ready: z.boolean().optional(),
+  complete: z.boolean().optional(),
+  delivered: z.boolean().optional(),
+  cancel: z.boolean().optional(),
+  revise: z.boolean().optional(),
+  customerEdit: z.boolean().optional(),
+  requirePayment: z.boolean().optional(),
+  fee: z.boolean().optional(),
+  pickup: z.boolean().optional(),
+  rider: z.boolean().optional(),
+  payment: z.boolean().optional(),
+  refund: z.boolean().optional(),
+  void: z.boolean().optional(),
+  note: z.boolean().optional(),
+});
+/** Absent allocation action keys are not grants. Owners ignore this object. */
+export const allocationActionGrantSchema = z.object({
+  edit: z.boolean().optional(),
+  pause: z.boolean().optional(),
+  unlimited: z.boolean().optional(),
+  lowerBelowHeld: z.boolean().optional(),
+});
 export const adminPageGrantSchema = z.object({
   dashboard: z.boolean().optional(),
   orders: z.boolean().optional(),
   schedule: z.boolean().optional(),
   allocation: z.boolean().optional(),
+  catalog: z.boolean().optional(),
+  orderActions: orderActionGrantSchema.optional(),
+  allocationActions: allocationActionGrantSchema.optional(),
+  catalogActions: z.object({ edit: z.boolean().optional() }).optional(),
+  scheduleActions: z.object({ edit: z.boolean().optional(), bookingWindow: z.boolean().optional() }).optional(),
+  kitchen: z.boolean().optional(),
+  kitchenActions: z.object({ advance: z.boolean().optional() }).optional(),
 });
 export const adminProfileSchema = z.object({
   email: z.email(),

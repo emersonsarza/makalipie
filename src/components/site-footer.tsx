@@ -1,4 +1,5 @@
 "use client";
+import { VisibleBranches } from "@/components/customer-policy";
 import { usePublicShop } from "@/components/public-shop-provider";
 import { ArrowUpRight } from "lucide-react";
 import Image from "next/image";
@@ -34,14 +35,7 @@ export function SiteFooter() {
           </Link>
           <div>
             <p className="eyebrow">COME BY</p>
-            <p>
-              {shop.address}
-              <br />
-              {shop.hoursLabel}
-            </p>
-            <a href={shop.mapUrl} target="_blank" rel="noreferrer">
-              Get directions <ArrowUpRight size={14} aria-hidden />
-            </a>
+            <VisibleBranches />
           </div>
           <div>
             <p className="eyebrow">TAKE A LOOK</p>
@@ -54,7 +48,7 @@ export function SiteFooter() {
           </div>
           <div>
             <p className="eyebrow">SAY HELLO</p>
-            {shop.links.messenger && <a href={shop.links.messenger} target="_blank" rel="noreferrer">Messenger <ArrowUpRight size={14} aria-hidden /></a>}
+            {shop.links.messenger && <a href={shop.links.messenger} target="_blank" rel="noreferrer">{shop.links.messenger.includes("facebook.com")?"Facebook":"Messenger"} <ArrowUpRight size={14} aria-hidden /></a>}
             <a href={shop.links.instagram} target="_blank" rel="noreferrer">
               @makalipie <ArrowUpRight size={14} aria-hidden />
             </a>

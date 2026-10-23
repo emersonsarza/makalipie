@@ -49,7 +49,7 @@ export function LoginForm({ configured, notice }: { configured: boolean; notice?
         await signOut(auth);
       }
       // A full navigation discards any stale protected-page router cache.
-      window.location.replace("/v1");
+      window.location.replace("/admin");
     } catch (error) {
       setError(signInError(error));
       completed = false;

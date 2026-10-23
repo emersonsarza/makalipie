@@ -17,7 +17,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     let signedIn = false;
     try { await requireOwner(); signedIn = true; }
     catch (error) { if (!(error instanceof AdminAccessError)) throw error; }
-    if (signedIn) redirect("/v1");
+    if (signedIn) redirect("/admin");
   }
   const { reason } = await searchParams;
   const notice = reason === "session" ? "Please sign in to continue to your workspace."

@@ -212,7 +212,7 @@ export default function OrderStatusPage() {
                   <h1>{recoverable ? "A little update on your order." : receipt.status === "completed" ? "Thank you for choosing Makalipie." : receipt.status === "requested" ? "Order received — awaiting confirmation." : "A little update on your order."}</h1>
                   <p>{receipt.message}</p>
                   {receipt.cancelReason && <p className="whitespace-pre-wrap">{receipt.cancelReason}</p>}
-                  {receipt.requireFullPayment && receipt.paymentStatus !== "paid" && !recoverable && receipt.status !== "completed" && <p>Full payment is needed before we start baking.</p>}
+                  {receipt.paymentStatus !== "paid" && !recoverable && receipt.status !== "completed" && <p>Full payment is needed before we start baking.</p>}
                   {receipt.customerEditable && <a className={styles.reorder} href={`/order#edit=${encodeURIComponent(token)}`}>Edit your order <ArrowUpRight size={16} aria-hidden /></a>}
                 </div>
                 <section className={styles.next} aria-labelledby="next-heading">
@@ -288,7 +288,7 @@ export default function OrderStatusPage() {
                   return <li key={index} className={styles.addonLine}>{addon ? <><span>{addon.title}</span><strong>{addon.amount}</strong></> : line}</li>;
                 })}</ul></div> : null}
                 <div className={styles.totals}>
-                  {receipt.delivery === "lalamove" && receipt.deliveryFeeCentavos == null && <p>Delivery fee to be confirmed in chat.</p>}
+                  {receipt.delivery === "lalamove" && receipt.deliveryFeeCentavos == null && <p>Delivery fee pending. Staff will confirm the exact amount. If it is included in your bakery payment, wait for the final total before paying.</p>}
                   {receipt.delivery === "lalamove" && receipt.deliveryFeePayment === "to_driver" && <p>Pay the delivery fee directly to the rider. It is excluded from your bakery total.</p>}
                   {typeof receipt.deliveryFeeCentavos === "number" ? <div className={styles.fee}><span>Delivery fee</span><span>₱{(receipt.deliveryFeeCentavos / 100).toFixed(2)}</span></div> : null}
                   {receipt.totalLabel ? <div className={styles.total}><span>Total</span><strong>{receipt.totalLabel}</strong></div> : null}

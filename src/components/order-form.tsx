@@ -1,7 +1,9 @@
 "use client";
 
 import { ArrowUpRight, CalendarDays, Minus, Plus } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { PackageChoices } from "@/components/customer-packages";
+import { DropNotice, PackingExplanation, PackingBreakdown } from "@/components/customer-policy";
 import { useRouter } from "next/navigation";
 
 import Image from "next/image";
@@ -52,6 +54,7 @@ type FormState = {
   payment: string;
   delivery: "pickup" | "lalamove";
   address: string;
+  deliveryFeePayment: "with_total" | "to_driver";
 };
 
 const initialState: FormState = {
@@ -63,7 +66,7 @@ const initialState: FormState = {
   notes: "",
   selectedAddons: [],
   addonMessages: {}, lineAddons: {}, lineMessages: {},
-  payment: "bank", delivery: "pickup", address: "",
+  payment: "bank", delivery: "pickup", address: "", deliveryFeePayment: "with_total",
 };
 
 function formatPreferredWhen(date: Date | undefined, time: string) {
@@ -160,11 +163,18 @@ function FlavorRow({
 type OrderItem = MenuItem & { productId: string; variant: Variant };
 export function OrderForm({ items, catalogAddons, branches, initialBranch, schedule, serverNow, openDates = {}, openProducts = {}, intakeEnabled = false, mode = "regular" }: { items: MenuItem[]; catalogAddons: Addon[]; branches: BranchSettings; initialBranch: BranchId; schedule: ScheduleSettings; serverNow: string; openDates?: Record<string, string[]>; openProducts?: Record<string, Record<string, string[]>>; intakeEnabled?: boolean; mode?: CatalogMode }) {
   const publicShop = usePublicShop();
-  const channels = publicShop.links.messenger ? "Instagram or Messenger" : "Instagram";
+  const packages = publicShop.experience?.packages ?? [];
+  const [packageQuantities,setPackageQuantities] = useState<Record<string,number>>({});
+  const channels = publicShop.links.messenger ? (publicShop.links.messenger.includes("facebook.com")?"Instagram or Facebook":"Instagram or Messenger") : "Instagram";
   const scheduleState = useOrderSchedule(schedule, serverNow, openDates, openProducts);
   const router = useRouter();
+  const [refreshingCatalog, refreshCatalog] = useTransition();
+  const [priceNotice, setPriceNotice] = useState<string[]>([]);
+  const [priceAcknowledged, setPriceAcknowledged] = useState(true);
+  const previousPrices = useRef<Record<string, string>>({});
   const idempotencyKey = useRef("");
   const recoveryToken = useRef("");
+  const dateTouched = useRef(false);
   const [editing, setEditing] = useState<{ token: string; revision: string; keys: string[]; date: string; quantities: Record<string, number> } | null>(null);
   const [draftLoading, setDraftLoading] = useState(false);
   const [draftFailed, setDraftFailed] = useState(false);
@@ -173,6 +183,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
   const [branch, setBranch] = useState<BranchId>(initialBranch);
   const shop = branchById(branches, branch);
   const publicBranches = visibleBranches(branches);
+  const branchUnavailable = !publicBranches.some(item => item.id === branch);
   const menuItems: OrderItem[] = items.flatMap((item) => (item.variants ?? []).filter((v) => v.active).map((v) => ({ ...item, productId: item.slug, slug: `${item.slug}:${v.id}`, name: `${item.name} · ${v.label}`, price: v.pricingMode === "fixed" ? v.priceCentavos! / 100 : undefined, priceLabel: "DM for price", variant: v })));
   const availableHere = (item: OrderItem) => variantAvailable(branches, branch, item.productId, item.variant.id, item.variant.minLeadDays, mode);
   const visibleItems = menuItems.filter(availableHere);
@@ -227,7 +238,25 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
   const [error, setError] = useState<string | null>(null);
 
   const [checking, setChecking] = useState(false);
-  const selectedCount = menuItems.reduce((sum, item) => sum + (form.quantities[item.slug] ?? 0), 0);
+  useEffect(() => {
+    const focus = () => { if (!checking && document.visibilityState === "visible") refreshCatalog(() => router.refresh()); };
+    window.addEventListener("focus", focus);
+    return () => window.removeEventListener("focus", focus);
+  }, [router, checking]);
+  useEffect(() => {
+    const current = Object.fromEntries([
+      ...items.flatMap(p => (p.variants ?? []).map(v => [`${p.slug}:${v.id}`, `${v.pricingMode}:${v.priceCentavos}`])),
+      ...catalogAddons.map(a => [`addon:${a.id}`, String(a.priceCentavos)]),
+      ...packages.map(p => [`package:${p.id}`, String(p.priceCentavos)]),
+    ]);
+    const selectedKeys = [...Object.keys(packageQuantities).filter(id => packageQuantities[id] > 0).map(id => `package:${id}`), ...Object.keys(form.quantities).filter(key => form.quantities[key] > 0), ...form.selectedAddons.map(id => `addon:${id}`), ...Object.values(form.lineAddons).flat().map(id => `addon:${id}`)];
+    const changed = selectedKeys.filter(key => previousPrices.current[key] !== undefined && current[key] !== undefined && previousPrices.current[key] !== current[key]);
+    if (changed.length) { setPriceNotice(changed.map(key => key.startsWith("package:") ? packages.find(p => `package:${p.id}` === key)?.name || "Package" : key.startsWith("addon:") ? catalogAddons.find(a => `addon:${a.id}` === key)?.name || "Extra" : items.find(p => key.startsWith(`${p.slug}:`))?.name || "Pie")); setPriceAcknowledged(false); }
+    previousPrices.current = {...previousPrices.current,...current};
+  }, [items, catalogAddons, form.quantities, form.selectedAddons, form.lineAddons, publicShop.experience?.packages, packageQuantities]);
+  const removedSelections = Object.entries(form.quantities).filter(([key, quantity]) => quantity > 0 && !menuItems.some(item => item.slug === key));
+  const selectedPackageCount = Object.values(packageQuantities).reduce((sum, quantity) => sum + quantity, 0);
+  const selectedCount = menuItems.reduce((sum, item) => sum + (form.quantities[item.slug] ?? 0), 0) + selectedPackageCount * 4;
   const selectedItems = menuItems.filter(
     (item) => form.quantities[item.slug] > 0,
   );
@@ -248,14 +277,27 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
   const modeCatalog = branchCatalog(clientCatalog, branches, branch, mode);
   const scheduledDates = availableOrderDates(scheduleState.settings, branch, modeCatalog, { lines: [], addons: [] }, scheduleState.now);
   const availableDates = scheduledDates.filter((date) => (editing?.date === date.date) || modeCatalog.products.some((product) => product.variants.some((variant) => !availabilityReason(product, variant, date.date, 0, manilaDate(scheduleState.now))) && (!intakeEnabled || scheduleState.openProducts[branch]?.[date.date]?.includes(product.id))));
+  const drop = publicShop.experience?.drops?.find(item => item.branchId === branch);
+  const dropClosed = !!drop && drop.state !== "open";
+  const todayKey = manilaDate(scheduleState.now);
+  useEffect(() => {
+    if (dateTouched.current || editing || recovery || draftLoading) return;
+    if (typeof window !== "undefined" && /^#(edit|reorder)=/.test(window.location.hash)) return;
+    if (dropClosed || (drop && !drop.fulfillmentDates.includes(todayKey))) return;
+    if (!availableDates.some((date) => date.date === todayKey)) return;
+    setForm((current) => current.preferredDate ? current : { ...current, preferredDate: new Date(`${todayKey}T12:00:00`) });
+  }, [availableDates, todayKey, editing, recovery, draftLoading, dropClosed, drop]);
   const selectedDate = form.preferredDate ? dayjs(form.preferredDate).format("YYYY-MM-DD") : "";
   const dateValue = selectedDate ? new Date(`${selectedDate}T12:00:00`) : undefined;
-  const slots = availableDates.find((d) => d.date === selectedDate)?.slots ?? [];
+  const slots = dropClosed || drop && !drop.fulfillmentDates.includes(selectedDate) ? [] : availableDates.find((d) => d.date === selectedDate)?.slots ?? [];
   const selectedSlot = slots.find((slot) => slot.id === form.preferredTime);
   const dateInvalid = Boolean(selectedDate && !availableDates.some((d) => d.date === selectedDate));
   const selection: Selection = { ...selectedContent, date: selectedDate };
   const quote = quoteSelection(clientCatalog, { ...selection, date: selectedDate || manilaDate(scheduleState.now) }, manilaDate(scheduleState.now));
-  const subtotal = quote.knownSubtotalCentavos / 100;
+  const selectedPackages = packages.filter(p => p.branchId === branch && p.date === selectedDate && (packageQuantities[p.id]||0)>0);
+  const invalidPackages = Object.entries(packageQuantities).some(([id,quantity]) => { if(!quantity)return false; const p=selectedPackages.find(p=>p.id===id); return !publicShop.experience?.packageCheckoutEnabled||!p||p.unavailableReason||p.priceCentavos===null||p.availablePackages===null||quantity>p.availablePackages||p.maxPerOrder!==null&&quantity>p.maxPerOrder; });
+  const packageSubtotal = selectedPackages.reduce((sum,p)=>sum+(p.priceCentavos??0)*(packageQuantities[p.id]||0),0);
+  const subtotal = (quote.knownSubtotalCentavos + packageSubtotal) / 100;
   const hasUnpriced = quote.quoteRequired;
   const today = new Date(`${manilaDate(scheduleState.now)}T12:00:00`);
   const lastDate = new Date(`${addCalendarDays(manilaDate(scheduleState.now), scheduleState.settings.bookingHorizonDays)}T12:00:00`);
@@ -286,6 +328,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
   const soldOut = visibleItems.filter((item) => !otherDays.includes(item) && !needsTime.includes(item) && /Sold out/.test(itemReason(item) ?? ""));
   function addonReason(addon: Addon) { return !selectedDate ? "Choose a date first." : (Date.parse(selectedDate) - Date.parse(manilaDate(scheduleState.now))) / 86400000 < addon.minLeadDays ? `Needs ${addon.minLeadDays} days preparation. Choose a later date to add this extra.` : null; }
   function changeDate(date: Date | undefined) {
+    dateTouched.current = true;
     if (selectedCount && date && dayjs(date).format("YYYY-MM-DD") !== selectedDate && !window.confirm("Changing the date may affect availability. Your pies will stay in the lineup, with any unavailable items marked for removal. Continue?")) return;
     setForm((current) => ({ ...current, preferredDate: date, preferredTime: "" }));
     setError(null); if (date) setCalendarOpen(false);
@@ -320,7 +363,11 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    if (checking) return;
+    if (checking || refreshingCatalog) return;
+    if (!priceAcknowledged) { setError("Please acknowledge the updated prices before submitting."); return; }
+    if (removedSelections.length) { setError("Some selected sizes are no longer available. Remove them before continuing."); return; }
+    if (branchUnavailable) { setError("This branch is no longer available for new orders. Choose another visible branch; your selections are kept."); return; }
+    if (dropClosed) { setError("Ordering is not open for this branch drop. Your lineup is preserved."); return; }
 
     if (unavailableItems.length || pendingUnavailable.length) { setError("Remove unavailable items or switch branches before continuing."); return; }
 
@@ -339,6 +386,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
       return;
     }
 
+    if (invalidPackages) { setError("A selected package is unavailable for this branch/date or exceeds its limit. Adjust your package selection."); return; }
     if (unsupportedLimit) { setError("Please contact us to arrange an order for this branch’s limit."); return; }
     if (limit !== null && selectedCount > limit) { setError(`This branch allows up to ${limit} pies per order.`); return; }
     if (quote.errors.length || selectedItems.some(itemReason)) { setError([...quote.errors, ...selectedItems.map(itemReason).filter(Boolean)].join(" ")); return; }
@@ -359,7 +407,9 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
           delivery: form.delivery,
           address: form.delivery === "lalamove" ? form.address.trim() : "",
           payment: form.payment,
+          ...(form.delivery === "lalamove" ? { deliveryFeePayment: form.deliveryFeePayment } : {}),
           catalogMode: mode,
+          ...(selectedPackageCount > 0 ? { packages: selectedPackages.map(p => ({id:p.id,quantity:packageQuantities[p.id]})) } : {}),
           ...(recoveryToken.current ? { recoveryToken: recoveryToken.current } : {}),
           selection,
         }),
@@ -400,6 +450,13 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
           height={145}
         />
       </header>
+      <div className="mb-5 space-y-3">
+        {branchUnavailable&&<p role="alert">This branch is no longer available for new orders. Select another branch; your lineup is preserved.</p>}
+        <DropNotice branchId={branch}/>
+        {refreshingCatalog && <p role="status">Checking current prices and availability. Your selections are kept.</p>}
+        {!priceAcknowledged && <div role="alert" className="rounded-xl bg-butter p-4"><p>Prices changed for {Array.from(new Set(priceNotice)).join(", ")}. Your total now uses current prices.</p><label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={priceAcknowledged} onChange={e => setPriceAcknowledged(e.target.checked)}/>I acknowledge the updated prices.</label></div>}
+        {removedSelections.map(([key, quantity]) => <div key={key} role="alert" className="rounded-xl border p-4">A selected size ({key}) × {quantity} is no longer available. <button type="button" className="min-h-11 underline" onClick={() => update("quantities", {...form.quantities,[key]:0})}>Remove unavailable size</button></div>)}
+      </div>
       <section className="mb-6 max-w-xl space-y-2" aria-label="Main branch">
         {publicBranches.length > 1 ? (
           <>
@@ -448,7 +505,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
             <fieldset disabled={checking || draftLoading || draftFailed} className="contents">
             {draftLoading && <p role="status">Loading your order…</p>}
               <legend className="sr-only">Your order</legend>
-            {!scheduleState.settings.branches[branch]?.enabled && <Alert role="status" className="bg-butter/60"><AlertDescription>Online ordering is paused at {shop.name}. Message us on <ChatLinks />.</AlertDescription></Alert>}
+            {!scheduleState.settings.branches[branch]?.enabled && <Alert role="status" className="bg-butter/60"><AlertDescription>Orders are currently closed at {shop.name}. This branch remains available for future drops. <DropNotice branchId={branch} />{!drop && <span>Next drop to be announced. Follow us on <ChatLinks />.</span>}</AlertDescription></Alert>}
             <section aria-label="Choose fulfillment date">              <div className="space-y-3">
                 <p className="text-sm text-charcoal/65">Choose up to {scheduleState.settings.bookingHorizonDays} days ahead. All times are in Manila time.</p>
                 {quote.preparationDays > 0 ? <p className="text-sm text-charcoal/65">Selected extras or sizes need {quote.preparationDays} days of preparation. Choose an eligible date or remove the affected item.</p> : null}
@@ -644,6 +701,8 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
                 </div>
               </div>
             </fieldset>
+            <PackageChoices packages={packages} branchId={branch} date={selectedDate} quantities={packageQuantities} enabled={!!publicShop.experience?.packageCheckoutEnabled && !editing && !checking} remainingPies={limit===null?null:Math.max(0,limit-selectedCount)} onChange={(id,quantity)=>setPackageQuantities(current=>({...current,[id]:quantity}))}/>
+            {invalidPackages && <div role="alert" className="rounded-xl bg-butter p-4">A selected package needs attention. Your selection is preserved. {Object.entries(packageQuantities).filter(([,q])=>q>0).map(([id,q])=><p key={id}>{packages.find(p=>p.id===id)?.name||'Unavailable package'} × {q} <button type="button" className="min-h-11 underline" onClick={()=>setPackageQuantities(current=>({...current,[id]:0}))}>Remove</button></p>)}</div>}
             <fieldset disabled={Boolean(editing)} className="space-y-3">
               <legend className="text-sm font-medium">
                 Make it a little personal
@@ -657,15 +716,16 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
             </fieldset>
             <fieldset disabled={Boolean(editing)} className="space-y-3"><legend className="font-medium">Pickup or delivery</legend>
               {shop.pickupEnabled && shop.deliveryEnabled && <RadioGroup value={form.delivery} onValueChange={(value) => update("delivery", value as "pickup" | "lalamove")}><Label className="rounded-xl bg-butter/60 p-4"><RadioGroupItem value="pickup" />Pickup</Label><Label className="rounded-xl bg-butter/60 p-4"><RadioGroupItem value="lalamove" />Delivery</Label></RadioGroup>}
-              {form.delivery === "pickup" ? <PickupAddress name={shop.name} address={shop.address} hoursLabel={shop.hoursLabel} mapUrl={shop.mapUrl} /> : <div className="space-y-3 rounded-xl bg-butter/60 p-4"><Label htmlFor="delivery-address">Delivery address</Label><Textarea id="delivery-address" required minLength={5} maxLength={300} autoComplete="street-address" value={form.address} onChange={(e) => update("address", e.target.value)} /><p className="text-sm">We book the rider and confirm the delivery fee in chat. Pay it with your total or directly to the rider.</p></div>}
+              {form.delivery === "pickup" ? <PickupAddress name={shop.name} address={shop.address} hoursLabel={shop.hoursLabel} mapUrl={shop.mapUrl} /> : <div className="space-y-3 rounded-xl bg-butter/60 p-4"><Label htmlFor="delivery-address">Delivery address</Label><Textarea id="delivery-address" required minLength={5} maxLength={300} autoComplete="street-address" value={form.address} onChange={(e) => update("address", e.target.value)} /><p className="text-sm">We book the rider and confirm the delivery fee in chat. Pay it with your total or directly to the rider.</p><label className="block">Delivery fee payment<select className="mt-2 min-h-11 w-full rounded-lg border p-3" value={form.deliveryFeePayment} onChange={e => update("deliveryFeePayment", e.target.value as FormState["deliveryFeePayment"])}><option value="with_total">Include in my bakery payment</option><option value="to_driver">Pay the rider directly</option></select></label><p className="text-sm">{form.deliveryFeePayment === "with_total" ? "Delivery fee pending. Wait for staff to confirm the exact fee and final total before paying." : "Pay the pies in full before preparation. Pay the delivery fee directly to the rider."}</p></div>}
             </fieldset>
 
             <fieldset disabled={Boolean(editing)} className="space-y-3">
+              <PackingExplanation />
               <legend className="text-sm font-medium">
                 Your payment preference
               </legend>
               <p className="text-xs text-charcoal/55">
-                No payment yet. You’ll pay after we confirm your order.
+                Pay in full after staff confirm your order and total, before preparation begins.
               </p>
               <RadioGroup
                 name="payment"
@@ -696,7 +756,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
 
             <Button
               type="submit"
-              disabled={checking || selectedCount < 1 || selectedItems.some(itemReason) || quote.errors.length > 0 || unavailableItems.length > 0 || pendingUnavailable.length > 0 || visibleItems.length === 0 || !selectedSlot || dateInvalid || Boolean(scheduleState.error)}
+              disabled={branchUnavailable || invalidPackages || checking || refreshingCatalog || !priceAcknowledged || removedSelections.length > 0 || dropClosed || selectedCount < 1 || selectedItems.some(itemReason) || quote.errors.length > 0 || unavailableItems.length > 0 || pendingUnavailable.length > 0 || (visibleItems.length === 0 && selectedPackageCount === 0) || !selectedSlot || dateInvalid || Boolean(scheduleState.error)}
               className="order-submit brand-button"
             >
               {checking ? (editing ? "Saving changes…" : "Placing your order…") : editing ? "Save changes" : "Place order"}{" "}
@@ -761,6 +821,9 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
               ))}
             </ul>
           )}
+          {selectedPackages.map(p=><p key={p.id}>{packageQuantities[p.id]} × {p.name} · fixed box of 4 pies · {p.priceCentavos===null?'Price pending':formatPrice(p.priceCentavos/100*(packageQuantities[p.id]||0))}</p>)}
+          <PackingBreakdown lines={selectedItems.map(item=>({size:item.variant.label,category:item.kind,quantity:form.quantities[item.slug]}))} packageCount={selectedPackageCount}/>
+          <PackingExplanation/>
           <div className="order-subtotal">
             <span>Known subtotal</span>
             <strong>{formatPrice(subtotal)}</strong>

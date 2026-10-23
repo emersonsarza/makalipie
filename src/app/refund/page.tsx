@@ -29,7 +29,7 @@ export default function RefundPage() {
         <p>
           Customers may book their own courier for pickup, or choose bakery-booked delivery where available. Courier problems, including incorrect collection or destination details, an unreachable courier, and damage, delays, or mishandling after handover, do not qualify for a refund from Makalipie. If you miss your scheduled pickup window and we are unable to reach you, your order may be offered to customers on the waiting list.
         </p>
-        <LegalPending>The treatment of payments when an uncollected order is offered to the waiting list has not yet been finalized. We will clarify whether payment is refunded or transferred once the policy is confirmed.</LegalPending>
+        <p>Refunds for paid, uncollected orders are assessed case by case. Contact the team with your order number; a refund is not automatic.</p>
       </LegalSection>
       <LegalSection n={3} title="Partial refunds">
         <p>A partial refund may be available when an issue affects only part of an order, such as one incorrect item.</p>
