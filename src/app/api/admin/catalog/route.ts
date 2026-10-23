@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     if (input.action === "initialize") await initializeCatalog(owner.uid);
     if (input.action === "product") await saveProductCatalog(input.id, input.fields, owner.uid);
     if (input.action === "addon") await saveAddon(input.addon.id, input.addon.fields, input.addon.version);
-    for (const path of ["/", "/menu", "/order", "/admin/catalog"]) revalidatePath(path);
+    for (const path of ["/", "/menu", "/order", "/v1/catalog"]) revalidatePath(path);
     return adminJson(await readCatalog());
   } catch(e) { return adminFailure(e); }
 }

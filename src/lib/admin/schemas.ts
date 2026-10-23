@@ -5,12 +5,20 @@ export const businessTimezone = "Asia/Manila";
 export const moneySchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 export const businessDateSchema = z.iso.date();
 export const adminRoleSchema = z.enum(["owner", "staff"]);
+/** Page access stored on the staff profile. Omitted keys are not grants. */
+export const adminPageGrantSchema = z.object({
+  dashboard: z.boolean().optional(),
+  orders: z.boolean().optional(),
+  schedule: z.boolean().optional(),
+  allocation: z.boolean().optional(),
+});
 export const adminProfileSchema = z.object({
   email: z.email(),
   displayName: z.string().trim().max(100).optional(),
   role: adminRoleSchema,
   active: z.boolean(),
   branchIds: z.array(branchIdSchema).max(24).default([]),
+  pages: adminPageGrantSchema.optional(),
 });
 export type AdminProfile = z.infer<typeof adminProfileSchema>;
 export type AdminIdentity = AdminProfile & { uid: string };

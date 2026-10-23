@@ -78,6 +78,6 @@ export async function requireOwnerPage() {
     }
     throw error;
   }
-  if (admin.role !== "owner") redirect("/admin/orders");
+  if (admin.role !== "owner") redirect("/v1/orders");
   return admin;
 }

@@ -8,12 +8,13 @@ export function availabilityReason(product: Pick<CatalogProduct, "active" | "ava
   const lead = Math.max(variant.minLeadDays, leadDays);
   if (days < lead) return `Needs at least ${lead} day${lead === 1 ? "" : "s"} of preparation.`;
   if (product.unavailableDates.includes(date)) return "Not available on this date.";
-  if (product.availableWeekdays.length && !product.availableWeekdays.includes(new Date(`${date}T00:00:00Z`).getUTCDay())) return "Not baked on this weekday.";
+  if ((variant.availableWeekdays ?? product.availableWeekdays).length && !(variant.availableWeekdays ?? product.availableWeekdays).includes(new Date(`${date}T00:00:00Z`).getUTCDay())) return "Not baked on this weekday.";
   return null;
 }
-export function availabilityText(product: Pick<CatalogProduct, "availableWeekdays" | "unavailableDates">) {
+export function availabilityText(product: Pick<CatalogProduct, "availableWeekdays" | "unavailableDates">, variant?: Variant) {
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  return product.availableWeekdays.length ? `Available ${product.availableWeekdays.map((d) => days[d]).join(", ")}` : "Available daily";
+  const weekdays = variant?.availableWeekdays ?? product.availableWeekdays;
+  return weekdays.length ? `Available ${weekdays.map((d) => days[d]).join(", ")}` : "Available daily";
 }
 export function quoteSelection(catalog: Catalog, selection: Selection, today = manilaDate()) {
   const errors: string[] = []; const lines: string[] = []; let knownSubtotalCentavos = 0; let quoteRequired = false;
@@ -23,7 +24,7 @@ export function quoteSelection(catalog: Catalog, selection: Selection, today = m
     for (const chosen of selected) {
       const addon = catalog.addons.find((a) => a.id === chosen.id);
       if (seen.has(chosen.id)) { errors.push("An add-on was selected twice."); continue; } seen.add(chosen.id);
-      if (!addon?.active || addon.scope !== scope || !products.some((p) => p.allowedAddonIds.includes(chosen.id))) { errors.push("An add-on is unavailable or incompatible with your pies."); continue; }
+      if (!addon?.active || addon.scope !== scope) { errors.push("An add-on is no longer available."); continue; }
       if ((!addon.customization.enabled && chosen.message) || chosen.message.length > addon.customization.maxLength || (addon.customization.enabled && addon.customization.required && !chosen.message.trim())) errors.push(`Check the message for ${addon.name}.`);
       total += addon.priceCentavos * quantity; lead = Math.max(lead, addon.minLeadDays);
       labels.push(`${addon.name}${chosen.message ? `: “${chosen.message}”` : ""} (₱${(addon.priceCentavos * quantity / 100).toLocaleString("en-PH")}${scope === "per_item" ? ` for ${quantity}` : ""})`);

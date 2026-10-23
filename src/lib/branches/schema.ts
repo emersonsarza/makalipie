@@ -14,6 +14,10 @@ export const branchRecordSchema = z.object({
   address: z.string().trim().max(300),
   visible: z.boolean(),
   deliveryEnabled: z.boolean(),
+  pickupEnabled: z.boolean().optional().default(true),
+  mapUrl: z.union([z.literal(""), z.url().refine((url) => url.startsWith("https://"))]).optional().default(""),
+  hoursLabel: z.string().trim().max(150).optional().default(""),
+  customerLimit: z.object({ quantity: z.number().int().positive().nullable(), unit: z.enum(["pies", "boxes"]), per: z.enum(["order", "day"]) }).nullable().optional().default(null),
   areas: z.array(z.string().trim().min(1).max(80)).max(30).refine((areas) => new Set(areas.map((area) => area.toLowerCase())).size === areas.length, "Do not repeat an area."),
 }).strict();
 export type BranchRecord = z.infer<typeof branchRecordSchema>;
@@ -31,6 +35,7 @@ export const branchSettingsSchema = z.object({
   branches: z.array(branchRecordSchema).min(1).max(24),
   assignments: z.array(assignmentSchema).max(3000),
 }).strict().superRefine((settings, ctx) => {
+  settings.branches.forEach((b, index) => { if (!b.pickupEnabled && !b.deliveryEnabled) ctx.addIssue({ code: "custom", message: "Enable pickup or delivery.", path: ["branches", index, "pickupEnabled"] }); });
   const ids = settings.branches.map((branch) => branch.id);
   if (new Set(ids).size !== ids.length) ctx.addIssue({ code: "custom", message: "Each branch needs its own id.", path: ["branches"] });
   if (!ids.includes(CEBU_BRANCH_ID)) ctx.addIssue({ code: "custom", message: "Cebu is a permanent branch.", path: ["branches"] });
@@ -55,8 +60,8 @@ export function defaultBranchSettings(): BranchSettings {
     version: 0,
     defaultBranch: CEBU_BRANCH_ID,
     branches: [
-      { id: CEBU_BRANCH_ID, name: "Makalipie Cebu Main", address: "", visible: true, deliveryEnabled: true, areas: [] },
-      { id: "manila", name: "Makalipie Manila Main", address: "", visible: true, deliveryEnabled: true, areas: [] },
+      { id: CEBU_BRANCH_ID, name: "Makalipie Cebu Main", address: "", visible: true, deliveryEnabled: true, pickupEnabled: true, mapUrl: "", hoursLabel: "", customerLimit: null, areas: [] },
+      { id: "manila", name: "Makalipie Manila Main", address: "", visible: true, deliveryEnabled: true, pickupEnabled: true, mapUrl: "", hoursLabel: "", customerLimit: null, areas: [] },
     ],
     assignments: [],
   };
@@ -135,7 +140,8 @@ export function variantAssignment(settings: BranchSettings, productId: string, v
 
 export function variantAvailable(settings: BranchSettings, branch: BranchId, productId: string, variantId: string, minLeadDays: number, mode: CatalogMode) {
   const assignment = variantAssignment(settings, productId, variantId, minLeadDays);
-  return assignment.mode === mode && assignment.branchIds.includes(branch) && (mode === "preorder" || minLeadDays === 0);
+  void mode;
+  return assignment.branchIds.includes(branch);
 }
 
 export function regularVariantAvailable(settings: BranchSettings, branch: BranchId, productId: string, variantId: string, minLeadDays: number) {
@@ -170,8 +176,9 @@ export function selectionCatalogMode(settings: BranchSettings, catalog: Catalog,
 
 export function catalogForSelection(catalog: Catalog, settings: BranchSettings, branch: BranchId, lines: { productId: string; variantId: string }[], requested?: CatalogMode): { error: string } | { mode: CatalogMode; catalog: Catalog } {
   const mode = selectionCatalogMode(settings, catalog, lines);
-  if (mode === "mixed" || (requested && requested !== mode)) return { error: MIXED_CATALOG_MESSAGE };
-  return { mode, catalog: branchCatalog(catalog, settings, branch, mode) };
+  void requested;
+  const storedMode = mode === "mixed" ? "preorder" : mode;
+  return { mode: storedMode, catalog: branchCatalog(catalog, settings, branch, storedMode) };
 }
 
 export function currentAssignments(catalog: Catalog, settings: BranchSettings) {

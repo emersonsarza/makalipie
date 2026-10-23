@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:admin": "node --import tsx --test tests/admin-access.test.ts",
+    "test:dashboard": "node --import tsx --test tests/dashboard.test.ts",
     "test:rules": "firebase emulators:exec --only firestore --project demo-makalipie \"node --import tsx --test tests/firestore-rules.test.ts\"",
     "admin:bootstrap": "node --env-file=.env.local --conditions=react-server --import tsx scripts/bootstrap-owner.ts",
     "emulators": "firebase emulators:start --only auth,firestore,storage --project demo-makalipie",

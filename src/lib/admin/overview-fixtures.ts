@@ -341,35 +341,35 @@ export function deriveOpsOverview() {
       atLabel: "4:08 PM",
       summary: "MK-1050 marked ready for pickup",
       actor: "Owner",
-      href: "/admin/orders/o-1050",
+      href: "/v1/orders/o-1050",
     },
     {
       id: "a2",
       atLabel: "3:41 PM",
       summary: "Payment recorded · MK-1048 · GCash ₱980",
       actor: "Owner",
-      href: "/admin/orders/o-1048",
+      href: "/v1/orders/o-1048",
     },
     {
       id: "a3",
       atLabel: "2:55 PM",
       summary: "New request MK-1053 · holds until 5:05 PM",
       actor: "System",
-      href: "/admin/orders/o-1053",
+      href: "/v1/orders/o-1053",
     },
     {
       id: "a4",
       atLabel: "1:20 PM",
       summary: "MK-1042 completed",
       actor: "Owner",
-      href: "/admin/orders/o-1042",
+      href: "/v1/orders/o-1042",
     },
     {
       id: "a5",
       atLabel: "12:02 PM",
       summary: "Quote finalized · MK-1049",
       actor: "Owner",
-      href: "/admin/orders/o-1049",
+      href: "/v1/orders/o-1049",
     },
   ];
 
@@ -412,11 +412,11 @@ export function deriveOpsOverview() {
     recentActivity,
     slots,
     links: {
-      ordersToday: `/admin/orders?date=${BUSINESS_DATE}`,
-      kitchenToday: `/admin/kitchen?date=${BUSINESS_DATE}`,
-      ordersReady: `/admin/orders?date=${BUSINESS_DATE}&status=ready`,
-      ordersAttention: `/admin/orders?attention=1`,
-      payments: `/admin/orders?payment=outstanding`,
+      ordersToday: `/v1/orders?date=${BUSINESS_DATE}`,
+      kitchenToday: `/v1/kitchen?date=${BUSINESS_DATE}`,
+      ordersReady: `/v1/orders?date=${BUSINESS_DATE}&status=ready`,
+      ordersAttention: `/v1/orders?attention=1`,
+      payments: `/v1/orders?payment=outstanding`,
     },
   };
 }
@@ -478,11 +478,11 @@ export function deriveEmptyOpsOverview(now = dayjs().tz(TIMEZONE)): OpsOverview 
     recentActivity: [],
     slots: [],
     links: {
-      ordersToday: `/admin/orders?date=${date}`,
-      kitchenToday: `/admin/kitchen?date=${date}`,
-      ordersReady: `/admin/orders?date=${date}&status=ready`,
-      ordersAttention: `/admin/orders?attention=1`,
-      payments: `/admin/orders?payment=outstanding`,
+      ordersToday: `/v1/orders?date=${date}`,
+      kitchenToday: `/v1/kitchen?date=${date}`,
+      ordersReady: `/v1/orders?date=${date}&status=ready`,
+      ordersAttention: `/v1/orders?attention=1`,
+      payments: `/v1/orders?payment=outstanding`,
     },
   };
 }
@@ -547,7 +547,7 @@ function buildAttention(orders: OverviewOrder[]): AttentionItem[] {
       reasons: [reason],
       primaryLabel: reasonLabels[reason],
       detail,
-      href: `/admin/orders/${order.id}`,
+      href: `/v1/orders/${order.id}`,
       urgencyMinutes,
     });
   }

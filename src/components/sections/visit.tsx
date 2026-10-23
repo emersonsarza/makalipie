@@ -1,3 +1,5 @@
+"use client";
+import { usePublicShop } from "@/components/public-shop-provider";
 import { MapPin, Store, Sun } from "lucide-react";
 
 import { KioskStatus } from "@/components/kiosk-status";
@@ -6,6 +8,7 @@ import { site } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 export function VisitSection() {
+  const shop = usePublicShop();
   return (
     <section id="visit" className="scroll-mt-24 bg-butter/60 py-16 sm:py-20">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr]">
@@ -22,13 +25,13 @@ export function VisitSection() {
             <div className="rounded-3xl bg-cream p-5 ring-1 ring-charcoal/8">
               <p className="flex items-center gap-2 font-heading text-xl">
                 <Store className="size-5" aria-hidden />
-                {site.kiosk.name}
+                {shop.branchName}
               </p>
               <p className="mt-2 flex items-start gap-2 text-charcoal/75">
                 <MapPin className="mt-1 size-4 shrink-0" aria-hidden />
-                {site.kiosk.floor}, {site.kiosk.place}, {site.kiosk.city}
+                {shop.address}
               </p>
-              <KioskStatus className="mt-3 text-charcoal" />
+              <p className="mt-3 text-charcoal">{shop.hoursLabel}</p>
             </div>
 
             <div className="rounded-3xl bg-charcoal p-5 text-cream">
@@ -43,7 +46,7 @@ export function VisitSection() {
           </div>
 
           <a
-            href={site.mapsUrl}
+            href={shop.mapUrl}
             target="_blank"
             rel="noreferrer"
             className={cn(
@@ -57,8 +60,8 @@ export function VisitSection() {
 
         <div className="overflow-hidden rounded-[2rem] ring-1 ring-charcoal/10">
           <iframe
-            title="Map of Streetscape, Banilad, Cebu"
-            src={site.mapsEmbedUrl}
+            title={`Map of ${shop.branchName}`}
+            src={`https://maps.google.com/maps?q=${encodeURIComponent(shop.address)}&output=embed`}
             className="h-[min(28rem,70vh)] w-full border-0 lg:h-full min-h-80"
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"

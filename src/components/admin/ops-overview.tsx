@@ -81,7 +81,7 @@ function OverviewEmptyShell({ snapshot }: { snapshot: OpsOverview }) {
           </p>
         </div>
         <div className="ov-empty-cta-actions">
-          <Link href="/admin/catalog" className="ov-empty-btn">
+          <Link href="/v1/catalog" className="ov-empty-btn">
             Open catalog
             <ArrowRight size={14} aria-hidden />
           </Link>
@@ -417,7 +417,7 @@ export function OpsOverview({
           <p className="ov-section-lead">Pickup and delivery schedule</p>
           <div className="ov-order-schedule">
             {snapshot.todayOrders.map((order) => (
-              <Link key={order.id} href={`/admin/orders?q=${encodeURIComponent(order.orderNumber)}`} className="ov-scheduled-order">
+              <Link key={order.id} href={`/v1/orders?q=${encodeURIComponent(order.orderNumber)}`} className="ov-scheduled-order">
                 <div className="ov-order-time">
                   <strong>{order.slotLabel}</strong>
                   <span>{order.fulfillmentType}</span>
@@ -437,7 +437,7 @@ export function OpsOverview({
           <p className="ov-completed">
             {snapshot.completedToday.length} completed today{" "}
             {snapshot.completedToday.map((order) => (
-              <Link key={order.id} href={`/admin/orders?q=${encodeURIComponent(order.orderNumber)}`} className="ov-link">
+              <Link key={order.id} href={`/v1/orders?q=${encodeURIComponent(order.orderNumber)}`} className="ov-link">
                 {order.orderNumber}
               </Link>
             ))}

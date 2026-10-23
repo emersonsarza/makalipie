@@ -33,7 +33,7 @@ test("owner sessions, access revocation, and mutation boundaries through the run
     await t.test("signed-out and invalid-session requests are denied", async () => {
       assert.equal((await read()).status, 401);
       assert.equal((await read("makalipie_demo_session=invalid")).status, 401);
-      const page = await fetch(`${origin}/admin`, { redirect: "manual" });
+      const page = await fetch(`${origin}/v1`, { redirect: "manual" });
       if (page.status === 307) {
         assert.match(page.headers.get("location")!, /\/admin\/login/);
       } else {
@@ -55,7 +55,7 @@ test("owner sessions, access revocation, and mutation boundaries through the run
       assert.equal(allowed.status, 200);
       assert.equal(allowed.headers.get("cache-control"), "no-store");
       assert.deepEqual(await allowed.json(), { user: { displayName: "Test Owner", role: "owner" } });
-      assert.equal((await fetch(`${origin}/admin`, { headers: { Cookie: cookie } })).status, 200);
+      assert.equal((await fetch(`${origin}/v1`, { headers: { Cookie: cookie } })).status, 200);
       await db.doc(`admins/${owner.uid}`).update({ active: false });
       assert.equal((await read(cookie)).status, 403);
       await db.doc(`admins/${owner.uid}`).update({ active: true });

@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     try { body = JSON.parse((await readLimitedBody(request, 400_000)).toString()); }
     catch (e) { if (e instanceof ProductError) throw e; throw new ProductError(400, "Invalid request."); }
     await saveBranchSettings(parseBranchSettings(body), owner.uid);
-    revalidatePath("/order"); revalidatePath("/admin/branches");
+    revalidatePath("/order"); revalidatePath("/v1/branches");
     return adminJson({ settings: await readBranchSettings() });
   } catch (e) { return adminFailure(e); }
 }

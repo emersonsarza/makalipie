@@ -52,7 +52,7 @@ export function BranchManager({ initialSettings, initialCatalog }: { initialSett
     const id = slugifyBranchName(name, settings.branches.map((item) => item.id));
     edit({
       ...settings,
-      branches: [...settings.branches, { id, name, address: "", visible: false, deliveryEnabled: true, areas: [] }],
+      branches: [...settings.branches, { id, name, address: "", visible: false, deliveryEnabled: true, pickupEnabled: true, mapUrl: "", hoursLabel: "", customerLimit: null, areas: [] }],
     });
     setBranch(id);
     setAdding(false);
@@ -296,6 +296,9 @@ export function BranchManager({ initialSettings, initialCatalog }: { initialSett
                       });
                     }}
                   />
+                  <label className="block">Opening hours<input className="br-input" value={shop.hoursLabel} onChange={(event) => setSettings({ ...settings, branches: settings.branches.map((item) => item.id === shop.id ? { ...item, hoursLabel: event.target.value } : item) })} /></label>
+                  <label className="block">Directions link<input className="br-input" type="url" value={shop.mapUrl} onChange={(event) => setSettings({ ...settings, branches: settings.branches.map((item) => item.id === shop.id ? { ...item, mapUrl: event.target.value } : item) })} /></label>
+                  <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={shop.pickupEnabled} onChange={(event) => setSettings({ ...settings, branches: settings.branches.map((item) => item.id === shop.id ? { ...item, pickupEnabled: event.target.checked } : item) })} />Offer pickup</label>
                   <p className="br-eyebrow">Staff see these names while reviewing an address.</p>
                 </label>
               </div>
@@ -320,7 +323,7 @@ export function BranchManager({ initialSettings, initialCatalog }: { initialSett
               {!catalog.initialized ? (
                 <Alert role="status">
                   <AlertDescription>
-                    Set up catalog options in <Link href="/admin/catalog" className="underline">Catalog</Link> before saving branch assignments.
+                    Set up catalog options in <Link href="/v1/catalog" className="underline">Catalog</Link> before saving branch assignments.
                   </AlertDescription>
                 </Alert>
               ) : null}

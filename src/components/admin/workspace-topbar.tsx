@@ -8,12 +8,12 @@ import { Input } from "@/components/ui/input";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
 function pageCopy(pathname: string) {
-  if (pathname.startsWith("/admin/schedule")) return { title: "Bakery schedule", description: "Online dates, one-hour slots, and branch closures. Times are Asia/Manila." };
-  if (pathname.startsWith("/admin/allocation")) return { title: "Daily allocation", description: "Online pies per flavor, branch, and day. A blank day stays open." };
-  if (pathname.startsWith("/admin/orders")) return { title: "Orders", description: "Requests, payment, and pickup." };
-  if (pathname.startsWith("/admin/branches")) return { title: "Branches", description: "Main branches, default selection, and product availability." };
-  if (pathname.startsWith("/admin/popups")) return { title: "Pop-ups", description: "Temporary visit listings. They stay off online ordering." };
-  if (pathname.startsWith("/admin/catalog") || pathname.startsWith("/admin/products")) {
+  if (pathname.startsWith("/v1/schedule")) return { title: "Bakery schedule", description: "Online dates, one-hour slots, and branch closures. Times are Asia/Manila." };
+  if (pathname.startsWith("/v1/allocation")) return { title: "Daily allocation", description: "Online pies per flavor, branch, and day. A blank day stays open." };
+  if (pathname.startsWith("/v1/orders")) return { title: "Orders", description: "Requests, payment, and pickup." };
+  if (pathname.startsWith("/v1/branches")) return { title: "Branches", description: "Main branches, default selection, and product availability." };
+  if (pathname.startsWith("/v1/popups")) return { title: "Pop-ups", description: "Temporary visit listings. They stay off online ordering." };
+  if (pathname.startsWith("/v1/catalog") || pathname.startsWith("/v1/products")) {
     return {
       title: "Catalog",
       description: "Products, sizes, prices, and the finishing touches—all in one place.",

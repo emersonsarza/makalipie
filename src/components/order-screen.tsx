@@ -1,3 +1,4 @@
+import { ChatLinks } from "@/components/public-shop-provider";
 import { resolveBranch, type CatalogMode } from "@/lib/branches/schema";
 import { readPublicMenu } from "@/lib/products/public";
 import { orderIntakeEnabled } from "@/lib/orders/schema";
@@ -39,9 +40,7 @@ export async function OrderScreen({ mode, searchParams }: { mode: CatalogMode; s
             <AlertTitle>Our menu is being updated.</AlertTitle>
             <AlertDescription>
               We couldn’t load the menu right now. Please{" "}
-              <a href="https://www.instagram.com/makalipie/">
-                message us on Instagram
-              </a>{" "}
+              <ChatLinks />{" "}
               for help with your order.
             </AlertDescription>
           </Alert>

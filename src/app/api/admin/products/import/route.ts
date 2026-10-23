@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   try {
     const owner = await authorizeMutation(request);
     await importProducts(owner.uid);
-    for (const path of ["/", "/menu", "/order", "/admin/catalog"]) revalidatePath(path);
+    for (const path of ["/", "/menu", "/order", "/v1/catalog"]) revalidatePath(path);
     return adminJson(await listProducts());
   } catch (error) { return adminFailure(error); }
 }

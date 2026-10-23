@@ -9,7 +9,7 @@ export function orderStatusLabel(status: OrderStatus, delivery: OrderDelivery = 
   if (status === "processing") return "Processing";
   if (status === "confirmed") return "Approved";
   if (status === "preparing") return "Preparing";
-  if (status === "ready") return courier ? "Ready" : "Ready for pickup";
+  if (status === "ready") return courier ? "Out for delivery" : "Ready for pickup";
   if (status === "completed") return courier ? "Delivered" : "Completed";
   if (status === "expired") return "Expired";
   if (status === "cancelled") return "Cancelled";

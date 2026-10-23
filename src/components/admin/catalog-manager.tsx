@@ -231,7 +231,7 @@ export function ProductOptions({
           <h1>{product.name}</h1>
           <p>Sizes, preparation, and when it’s on the menu.</p>
         </div>
-        <Link href={`/admin/catalog?product=${encodeURIComponent(product.id)}&tab=details`}>Edit product details</Link>
+        <Link href={`/v1/catalog?product=${encodeURIComponent(product.id)}&tab=details`}>Edit product details</Link>
       </div></>}
       <form
         id={embedded ? "catalog-selling-form" : undefined}
@@ -336,6 +336,8 @@ export function ProductOptions({
                       <p className="product-help">Customers see “DM for price.” The final price is confirmed in chat.</p>
                     )}
                     <NumberField label="Preparation days" max={365} value={v.minLeadDays} onChange={(minLeadDays) => update({ minLeadDays })} />
+                    <label><input type="checkbox" checked={v.availableWeekdays !== undefined} onChange={(event) => update({ availableWeekdays: event.target.checked ? [] : undefined })} /> Use selling days for this size</label>
+                    {v.availableWeekdays !== undefined && <div><p className="text-sm">No days selected means every day. Otherwise only selected days are offered.</p><div className="flex flex-wrap gap-2">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => <button key={day} type="button" className="min-h-11 rounded border px-3" aria-pressed={v.availableWeekdays!.includes(index)} onClick={() => update({ availableWeekdays: v.availableWeekdays!.includes(index) ? v.availableWeekdays!.filter((value) => value !== index) : [...v.availableWeekdays!, index].sort() })}>{day}{v.availableWeekdays!.includes(index) ? " ✓" : ""}</button>)}</div></div>}
                     <NumberField label="Display order" value={v.sortOrder} onChange={(sortOrder) => update({ sortOrder })} />
                     <Choice
                       label="Status"

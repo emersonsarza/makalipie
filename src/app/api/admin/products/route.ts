@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   try {
     const owner = await authorizeMutation(request);
     const product = await saveProduct(productFieldsSchema.parse(await readAdminJson(request)), owner.uid);
-    for (const path of ["/", "/menu", "/order", "/admin/catalog"]) revalidatePath(path);
+    for (const path of ["/", "/menu", "/order", "/v1/catalog"]) revalidatePath(path);
     return adminJson({ product }, 201);
   } catch (error) { return adminFailure(error); }
 }

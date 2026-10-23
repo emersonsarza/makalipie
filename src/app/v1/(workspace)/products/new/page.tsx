@@ -1,0 +1,3 @@
+import { redirect } from "next/navigation";
+import { requireOwnerPage } from "@/lib/admin/session";
+export default async function Page() { await requireOwnerPage(); redirect("/v1/catalog?product=new&tab=details"); }

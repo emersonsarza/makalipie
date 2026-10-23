@@ -11,7 +11,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const { version, ...fields } = updateProductSchema.parse(await readAdminJson(request));
     if (fields.slug !== id) throw new ProductError(400, "An existing product link cannot be changed.");
     const product = await saveProduct(fields, owner.uid, version);
-    for (const path of ["/", "/menu", "/order", "/admin/catalog"]) revalidatePath(path);
+    for (const path of ["/", "/menu", "/order", "/v1/catalog"]) revalidatePath(path);
     return adminJson({ product });
   } catch (error) { return adminFailure(error); }
 }

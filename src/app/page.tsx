@@ -1,3 +1,5 @@
+import { readPublicShop } from "@/lib/settings/store";
+import { ChatLinks } from "@/components/public-shop-provider";
 import { readPublicMenu } from "@/lib/products/public";
 import { manilaDate } from "@/lib/catalog/rules";
 import { openPopups, popupDateRange } from "@/lib/popups/schema";
@@ -13,6 +15,7 @@ import { SiteShell } from "@/components/site-shell";
 import { getSiteUrl, site } from "@/lib/site";
 
 export default async function Home() {
+  const shop = await readPublicShop();
   const [{ items }, popups] = await Promise.all([
     readPublicMenu(),
     readPopupSettings().then((settings) => openPopups(settings.listings, manilaDate())),
@@ -152,7 +155,7 @@ export default async function Home() {
               Put together a box <ArrowUpRight size={18} aria-hidden />
             </Link>
             <a
-              href={site.instagramDmUrl}
+              href={shop.links.instagramDm}
               target="_blank"
               rel="noreferrer"
               className="gift-custom"
@@ -176,11 +179,11 @@ export default async function Home() {
           <div className="section-heading">
             <div>
               <p className="eyebrow">YOUR LITTLE PIE STOP</p>
-              <h2>See you at Streetscape.</h2>
+              <h2>See you at {shop.branchName}.</h2>
             </div>
             <a
               className="text-link"
-              href={site.mapsUrl}
+              href={shop.mapUrl}
               target="_blank"
               rel="noreferrer"
             >
@@ -204,16 +207,14 @@ export default async function Home() {
                 Stay for a little while.
               </h3>
               <p>
-                2nd Floor, Streetscape
-                <br />
-                Banilad, Cebu City
+                {shop.address}
               </p>
               <div className="opening-hours">
-                <span>Monday to Sunday</span>
-                <strong>10am to 8pm</strong>
+                <span>Opening hours</span>
+                <strong>{shop.hoursLabel}</strong>
               </div>
               <a
-                href={site.mapsUrl}
+                href={shop.mapUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="brand-button outline-button"
@@ -261,21 +262,17 @@ export default async function Home() {
           <details>
             <summary>How do I order a box?</summary>
             <p>
-              Choose your pies in our <Link href="/order">order form</Link>,
-              copy your order summary, and send it to us on Instagram. We’ll
-              confirm availability and send your invoice before payment.
+              Choose your branch and date in our <Link href="/order">order form</Link>, then choose from the pies available for that day. Send your order number through <ChatLinks /> so we can confirm it. No payment is collected on the website.
             </p>
           </details>
           <details>
             <summary>Can I have my pies delivered?</summary>
             <p>
-              You can book your own courier to collect your confirmed order from
-              the pickup address on your order page. Makalipie does not provide
-              delivery or collect a drop-off address.
+              {shop.deliveryAvailable ? "Choose delivery when your selected branch offers it. We arrange the rider and confirm the delivery fee in chat. " : "Delivery is not currently available from our branches. "}You can also book your own courier to collect a confirmed order; choose Pickup for this option.
             </p>
             <div className="delivery-app-actions">
               <a
-                href={site.grabUrl}
+                href={shop.links.grabFood}
                 target="_blank"
                 rel="noreferrer"
                 className="brand-button outline-button"
@@ -283,7 +280,7 @@ export default async function Home() {
                 Order on Grab <ArrowUpRight size={16} aria-hidden />
               </a>
               <a
-                href={site.foodpandaUrl}
+                href={shop.links.foodpanda}
                 target="_blank"
                 rel="noreferrer"
                 className="brand-button outline-button"
@@ -369,7 +366,7 @@ export default async function Home() {
           <InstagramIcon className="size-5" />
           <span>A little more pie in your feed.</span>
         </div>
-        <a href={site.instagramUrl} target="_blank" rel="noreferrer">
+        <a href={shop.links.instagram} target="_blank" rel="noreferrer">
           @makalipie <ArrowUpRight size={18} aria-hidden />
         </a>
       </section>

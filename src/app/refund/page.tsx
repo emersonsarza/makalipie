@@ -27,7 +27,7 @@ export default function RefundPage() {
       </LegalSection>
       <LegalSection n={2} title="Courier issues and missed pickup">
         <p>
-          Customers are responsible for their own courier arrangements. Courier problems, including incorrect collection or destination details, an unreachable courier, and damage, delays, or mishandling after handover, do not qualify for a refund from Makalipie. If you miss your scheduled pickup window and we are unable to reach you, your order may be offered to customers on the waiting list.
+          Customers may book their own courier for pickup, or choose bakery-booked delivery where available. Courier problems, including incorrect collection or destination details, an unreachable courier, and damage, delays, or mishandling after handover, do not qualify for a refund from Makalipie. If you miss your scheduled pickup window and we are unable to reach you, your order may be offered to customers on the waiting list.
         </p>
         <LegalPending>The treatment of payments when an uncollected order is offered to the waiting list has not yet been finalized. We will clarify whether payment is refunded or transferred once the policy is confirmed.</LegalPending>
       </LegalSection>

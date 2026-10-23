@@ -64,14 +64,14 @@ const STAGES = [
   { value: "closed", label: "Closed" },
 ] as const;
 type Stage = (typeof STAGES)[number]["value"];
-type SheetAction = "processing" | "approve" | "reject" | "pay" | "preparing" | "ready" | "complete" | "deliverable" | "delivered" | "reopen" | "reorder";
+type SheetAction = "preferences" | "processing" | "approve" | "reject" | "pay" | "preparing" | "ready" | "complete" | "deliverable" | "delivered" | "reopen" | "reorder";
 type RecoveryReview = {
   clear: boolean;
   blockers: string[];
   priceChanges: { from: string; to: string }[];
   unavailableLines: { productId: string; variantId: string; label: string }[];
 };
-type ActExtras = { reason?: string; method?: InboxOrder["payment"]; amountCentavos?: number; kind?: "payment" | "refund"; branchId?: string; slotId?: string; selection?: InboxOrder["selection"]; feeCentavos?: number; idempotencyKey?: string; reopenKey?: string };
+type ActExtras = { customerEditable?: boolean; requireFullPayment?: boolean; reason?: string; method?: InboxOrder["payment"]; amountCentavos?: number; kind?: "payment" | "refund"; branchId?: string; slotId?: string; selection?: InboxOrder["selection"]; feeCentavos?: number; idempotencyKey?: string; reopenKey?: string };
 type DraftLine = NonNullable<InboxOrder["selection"]>["lines"][number] & { name: string; size: string };
 
 function revisable(status: InboxOrder["status"]) {
@@ -445,7 +445,7 @@ function OrderSheet({ order, shop, branches, schedule, role, acting, onAct }: {
     setFee("");
   }, [order.id, order.status, order.payment, order.deliveryEligibility]);
   const steps = order.delivery === "lalamove"
-    ? [...STEPS.filter((step) => step.status !== "ready" && step.status !== "completed"), { status: "completed" as const, label: "Delivered" }]
+    ? [...STEPS.filter((step) => step.status !== "completed").map((step) => step.status === "ready" ? { ...step, label: "Out for delivery" } : step), { status: "completed" as const, label: "Delivered" }]
     : [...STEPS];
   const statusLabel = orderStatusLabel(order.status, order.delivery);
   const date = dateParts(order.fulfillmentDate);
@@ -506,14 +506,18 @@ function OrderSheet({ order, shop, branches, schedule, role, acting, onAct }: {
       </div>
       {recorded && due !== null && due !== 0 && revisable(order.status) ? (
         <div className="orders-overview-actions">
+          {["requested", "processing"].includes(order.status) && <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={order.customerEditable} disabled={acting} onChange={(event) => void onAct("preferences", { customerEditable: event.target.checked })} />Allow customer editing</label>}
+          {["requested", "processing", "confirmed"].includes(order.status) && <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={order.requireFullPayment} disabled={acting} onChange={(event) => void onAct("preferences", { requireFullPayment: event.target.checked })} />Require full payment before baking</label>}
           <div className="orders-overview-pay">
             <ChoiceSelect label="Settlement method" value={method} options={PAYMENT_OPTIONS} className="w-40" onChange={(value) => setMethod(value as InboxOrder["payment"])} />
             <Button type="button" disabled={acting} onClick={() => void onAct("settle", { kind: due > 0 ? "payment" : "refund", method, amountCentavos: Math.abs(due) })}>Record settlement {pesos(Math.abs(due))}</Button>
           </div>
         </div>
       ) : null}
-      {order.status === "requested" || order.status === "processing" || order.status === "confirmed" || order.status === "preparing" || (order.delivery === "pickup" && order.status === "ready") ? (
+      {order.status === "requested" || order.status === "processing" || order.status === "confirmed" || order.status === "preparing" || order.status === "ready" ? (
         <div className="orders-overview-actions">
+          {["requested", "processing"].includes(order.status) && <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={order.customerEditable} disabled={acting} onChange={(event) => void onAct("preferences", { customerEditable: event.target.checked })} />Allow customer editing</label>}
+          {["requested", "processing", "confirmed"].includes(order.status) && <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={order.requireFullPayment} disabled={acting} onChange={(event) => void onAct("preferences", { requireFullPayment: event.target.checked })} />Require full payment before baking</label>}
           {order.status === "requested" ? (
             <Button type="button" disabled={acting} onClick={() => void onAct("processing")}>Start processing</Button>
           ) : null}
@@ -536,16 +540,16 @@ function OrderSheet({ order, shop, branches, schedule, role, acting, onAct }: {
               <Button type="button" disabled={acting || order.finalTotalCentavos === null} onClick={() => void onAct("pay", { method })}>Record payment{order.finalTotalCentavos === null ? "" : ` ${pesos(order.finalTotalCentavos)}`}</Button>
             </div>
           ) : null}
-          {order.status === "confirmed" && order.paymentStatus === "paid" ? (
+          {order.status === "confirmed" && (!order.requireFullPayment || order.paymentStatus === "paid") ? (
             <Button type="button" disabled={acting} onClick={() => void onAct("preparing")}>Start preparing</Button>
           ) : null}
-          {order.delivery === "pickup" && order.status === "preparing" ? (
-            <Button type="button" disabled={acting} onClick={() => void onAct("ready")}>Ready for pickup</Button>
+          {order.status === "preparing" ? (
+            <Button type="button" disabled={acting} onClick={() => void onAct("ready")}>{order.delivery === "pickup" ? "Ready for pickup" : "Out for delivery"}</Button>
           ) : null}
           {order.delivery === "pickup" && order.status === "ready" ? (
             <Button type="button" disabled={acting} onClick={() => void onAct("complete")}>Complete pickup</Button>
           ) : null}
-          {order.delivery === "lalamove" && order.status === "preparing" ? (
+          {order.delivery === "lalamove" && order.status === "ready" ? (
             <Button type="button" disabled={acting} onClick={() => void onAct("delivered")}>Mark delivered</Button>
           ) : null}
           {order.status === "requested" || order.status === "processing" || order.status === "confirmed" ? (
@@ -579,7 +583,7 @@ function OrderSheet({ order, shop, branches, schedule, role, acting, onAct }: {
             <MapPin size={16} aria-hidden="true" />
             <div>
               <PickupAddress name={shop} address={branches.branches.find((branch) => branch.id === order.branchId)?.address} legacy={order.delivery === "lalamove"} />
-              {order.delivery === "lalamove" ? <p>Legacy delivery destination: {order.address || "Not recorded"}</p> : null}
+              {order.delivery === "lalamove" ? <p>Delivery address: {order.address || "Not recorded"}</p> : null}
               {order.delivery === "lalamove" && order.deliveryFeeCentavos !== null && order.deliveryFeeCentavos !== undefined ? <p>Delivery fee · {pesos(order.deliveryFeeCentavos)}</p> : null}
               {order.delivery === "lalamove" && areas.length ? <p>Areas for reference: {areas.join(", ")}</p> : null}
             </div>
@@ -725,6 +729,8 @@ function OrderRecovery({ order, branches, schedule, role, acting, onAct }: {
 
   return (
     <div className="orders-overview-actions">
+          {["requested", "processing"].includes(order.status) && <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={order.customerEditable} disabled={acting} onChange={(event) => void onAct("preferences", { customerEditable: event.target.checked })} />Allow customer editing</label>}
+          {["requested", "processing", "confirmed"].includes(order.status) && <label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={order.requireFullPayment} disabled={acting} onChange={(event) => void onAct("preferences", { requireFullPayment: event.target.checked })} />Require full payment before baking</label>}
       {reviewError ? <p className="orders-overview-error" role="alert">{reviewError}</p> : null}
       {shown?.priceChanges.map((change) => <p key={change.from} className="orders-overview-review">{change.from} is now {change.to}</p>)}
       {shown?.unavailableLines.map((line) => <p key={`${line.productId}:${line.variantId}`} className="orders-overview-review">{line.label} is no longer on the menu.</p>)}

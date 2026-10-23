@@ -43,7 +43,7 @@ const reasonLabels: Record<AttentionReason, string> = {
 };
 
 function orderHref(orderNumber: string) {
-  return `/admin/orders?q=${encodeURIComponent(orderNumber)}`;
+  return `/v1/orders?q=${encodeURIComponent(orderNumber)}`;
 }
 
 function slotSort(slotId: string) {
@@ -493,11 +493,11 @@ export function buildOpsOverview(input: {
     recentActivity,
     slots: groupBySlot(todayOutstanding),
     links: {
-      ordersToday: "/admin/orders",
-      kitchenToday: "/admin/orders",
-      ordersReady: "/admin/orders",
-      ordersAttention: "/admin/orders",
-      payments: "/admin/orders",
+      ordersToday: "/v1/orders",
+      kitchenToday: "/v1/orders",
+      ordersReady: "/v1/orders",
+      ordersAttention: "/v1/orders",
+      payments: "/v1/orders",
     },
   };
 }

@@ -41,6 +41,30 @@ export function isAllowedMutationOrigin(request: Request, configuredOrigin: stri
   }
 }
 
+export type PagePermissions = {
+  dashboard: boolean;
+  orders: boolean;
+  schedule: boolean;
+  allocation: boolean;
+};
+
+/**
+ * Owners always have every page. Staff receive Orders unless the profile
+ * turns it off. Dashboard, schedule, and allocation stay off until the
+ * profile sets that page to true. Nothing in the request can grant a page.
+ */
+export function pagePermissions(identity: Pick<AdminIdentity, "role" | "pages">): PagePermissions {
+  if (identity.role === "owner") {
+    return { dashboard: true, orders: true, schedule: true, allocation: true };
+  }
+  return {
+    dashboard: identity.pages?.dashboard === true,
+    orders: identity.pages?.orders !== false,
+    schedule: identity.pages?.schedule === true,
+    allocation: identity.pages?.allocation === true,
+  };
+}
+
 // Future order endpoints must enforce this against the saved order branch.
 // Catalog and branch configuration continue to require owner access.
 export function authorizeBranch(uid: string, profile: unknown, branchId: string): AdminIdentity {

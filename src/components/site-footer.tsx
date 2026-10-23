@@ -1,9 +1,12 @@
+"use client";
+import { usePublicShop } from "@/components/public-shop-provider";
 import { ArrowUpRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { site } from "@/lib/site";
 
 export function SiteFooter() {
+  const shop = usePublicShop();
   return (
     <footer className="brand-footer">
       <div className="wrap">
@@ -32,11 +35,11 @@ export function SiteFooter() {
           <div>
             <p className="eyebrow">COME BY</p>
             <p>
-              2nd Floor, Streetscape, Banilad
+              {shop.address}
               <br />
-              Cebu City · Daily, 10am to 8pm
+              {shop.hoursLabel}
             </p>
-            <a href={site.mapsUrl} target="_blank" rel="noreferrer">
+            <a href={shop.mapUrl} target="_blank" rel="noreferrer">
               Get directions <ArrowUpRight size={14} aria-hidden />
             </a>
           </div>
@@ -51,16 +54,17 @@ export function SiteFooter() {
           </div>
           <div>
             <p className="eyebrow">SAY HELLO</p>
-            <a href={site.instagramUrl} target="_blank" rel="noreferrer">
+            {shop.links.messenger && <a href={shop.links.messenger} target="_blank" rel="noreferrer">Messenger <ArrowUpRight size={14} aria-hidden /></a>}
+            <a href={shop.links.instagram} target="_blank" rel="noreferrer">
               @makalipie <ArrowUpRight size={14} aria-hidden />
             </a>
-            <a href={site.instagramDmUrl} target="_blank" rel="noreferrer">
+            <a href={shop.links.instagramDm} target="_blank" rel="noreferrer">
               Gifts & gatherings <ArrowUpRight size={14} aria-hidden />
             </a>
-            <a href={site.grabUrl} target="_blank" rel="noreferrer">
+            <a href={shop.links.grabFood} target="_blank" rel="noreferrer">
               Order on Grab <ArrowUpRight size={14} aria-hidden />
             </a>
-            <a href={site.foodpandaUrl} target="_blank" rel="noreferrer">
+            <a href={shop.links.foodpanda} target="_blank" rel="noreferrer">
               Order on Foodpanda <ArrowUpRight size={14} aria-hidden />
             </a>
           </div>

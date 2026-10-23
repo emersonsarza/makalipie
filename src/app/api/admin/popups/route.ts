@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     catch (e) { if (e instanceof ProductError) throw e; throw new ProductError(400, "Invalid request."); }
     await savePopupSettings(parsePopupSettings(body), owner.uid);
     revalidatePath("/");
-    revalidatePath("/admin/popups");
+    revalidatePath("/v1/popups");
     return adminJson({ settings: await readPopupSettings() });
   } catch (e) { return adminFailure(e); }
 }

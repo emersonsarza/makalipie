@@ -24,9 +24,9 @@ import {
   formatPrice,
   itemPriceText,
   paymentMethods,
-  site,
   type MenuItem,
 } from "@/lib/site";
+import { usePublicShop, ChatLinks } from "@/components/public-shop-provider";
 import { PickupAddress } from "@/components/pickup-address";
 import { MobileLineup } from "@/components/mobile-lineup";
 import { CatalogAddonOptions } from "@/components/catalog-addon-options";
@@ -35,7 +35,7 @@ import type { Addon, Catalog, Selection, Variant } from "@/lib/catalog/schema";
 import { useOrderSchedule } from "@/hooks/use-order-schedule";
 import type { ScheduleSettings } from "@/lib/scheduling/schema";
 import { addCalendarDays, availableOrderDates } from "@/lib/scheduling/rules";
-import { branchById, branchCatalog, variantAssignment, variantAvailable, visibleBranches, type BranchId, type BranchSettings, type CatalogMode } from "@/lib/branches/schema";
+import { branchById, branchCatalog, variantAvailable, visibleBranches, type BranchId, type BranchSettings, type CatalogMode } from "@/lib/branches/schema";
 import { cn } from "@/lib/utils";
 
 type FormState = {
@@ -50,6 +50,8 @@ type FormState = {
   lineAddons: Record<string, string[]>;
   lineMessages: Record<string, Record<string, string>>;
   payment: string;
+  delivery: "pickup" | "lalamove";
+  address: string;
 };
 
 const initialState: FormState = {
@@ -61,7 +63,7 @@ const initialState: FormState = {
   notes: "",
   selectedAddons: [],
   addonMessages: {}, lineAddons: {}, lineMessages: {},
-  payment: "bank",
+  payment: "bank", delivery: "pickup", address: "",
 };
 
 function formatPreferredWhen(date: Date | undefined, time: string) {
@@ -118,7 +120,9 @@ function FlavorRow({
   quantity,
   onQuantityChange,
   reason,
+  atLimit = false,
 }: {
+  atLimit?: boolean;
   reason?: string | null;
   item: MenuItem;
   quantity: number;
@@ -146,7 +150,7 @@ function FlavorRow({
       <QtyStepper
         value={quantity}
         onChange={onQuantityChange}
-        unavailable={Boolean(reason)}
+        unavailable={Boolean(reason) || atLimit}
         label={item.name}
       />
     </div>
@@ -155,29 +159,34 @@ function FlavorRow({
 
 type OrderItem = MenuItem & { productId: string; variant: Variant };
 export function OrderForm({ items, catalogAddons, branches, initialBranch, schedule, serverNow, openDates = {}, openProducts = {}, intakeEnabled = false, mode = "regular" }: { items: MenuItem[]; catalogAddons: Addon[]; branches: BranchSettings; initialBranch: BranchId; schedule: ScheduleSettings; serverNow: string; openDates?: Record<string, string[]>; openProducts?: Record<string, Record<string, string[]>>; intakeEnabled?: boolean; mode?: CatalogMode }) {
+  const publicShop = usePublicShop();
+  const channels = publicShop.links.messenger ? "Instagram or Messenger" : "Instagram";
   const scheduleState = useOrderSchedule(schedule, serverNow, openDates, openProducts);
   const router = useRouter();
   const idempotencyKey = useRef("");
   const recoveryToken = useRef("");
+  const [editing, setEditing] = useState<{ token: string; revision: string; keys: string[]; date: string; quantities: Record<string, number> } | null>(null);
+  const [draftLoading, setDraftLoading] = useState(false);
+  const [draftFailed, setDraftFailed] = useState(false);
   const [recovery, setRecovery] = useState<{ orderNumber: string; priceChanges: { from: string; to: string }[]; unavailableLines: { productId: string; variantId: string; label: string }[] } | null>(null);
   const [dismissedLines, setDismissedLines] = useState<string[]>([]);
   const [branch, setBranch] = useState<BranchId>(initialBranch);
   const shop = branchById(branches, branch);
   const publicBranches = visibleBranches(branches);
-  const menuItems: OrderItem[] = items.flatMap((item) => (item.variants ?? []).filter((v) => v.active && variantAssignment(branches, item.slug, v.id, v.minLeadDays).mode === mode && (mode === "preorder" || v.minLeadDays === 0)).map((v) => ({ ...item, productId: item.slug, slug: `${item.slug}:${v.id}`, name: `${item.name} · ${v.label}`, price: v.pricingMode === "fixed" ? v.priceCentavos! / 100 : undefined, priceLabel: "DM for price", variant: v })));
+  const menuItems: OrderItem[] = items.flatMap((item) => (item.variants ?? []).filter((v) => v.active).map((v) => ({ ...item, productId: item.slug, slug: `${item.slug}:${v.id}`, name: `${item.name} · ${v.label}`, price: v.pricingMode === "fixed" ? v.priceCentavos! / 100 : undefined, priceLabel: "DM for price", variant: v })));
   const availableHere = (item: OrderItem) => variantAvailable(branches, branch, item.productId, item.variant.id, item.variant.minLeadDays, mode);
   const visibleItems = menuItems.filter(availableHere);
-  const sweetItems = visibleItems.filter((item) => item.kind === "sweet");
-  const savoryItems = visibleItems.filter((item) => item.kind === "savory");
-  const [form, setForm] = useState<FormState>(() => ({ ...initialState, quantities: Object.fromEntries(menuItems.map((item) => [item.slug, 0])) }));
+  const [form, setForm] = useState<FormState>(() => ({ ...initialState, delivery: shop.pickupEnabled ? "pickup" : "lalamove", quantities: Object.fromEntries(menuItems.map((item) => [item.slug, 0])) }));
   useEffect(() => {
     const hash = window.location.hash.replace(/^#/, "");
-    if (!hash.startsWith("reorder=")) return;
-    const token = decodeURIComponent(hash.slice("reorder=".length));
+    const editMode = hash.startsWith("edit=");
+    if (!editMode && !hash.startsWith("reorder=")) return;
+    const token = decodeURIComponent(hash.slice(editMode ? 5 : 8));
+    setDraftLoading(true);
     let disposed = false;
     void (async () => {
       try {
-        const response = await fetch("/api/orders/recovery", {
+        const response = await fetch(editMode ? "/api/orders/edit" : "/api/orders/recovery", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token }),
@@ -186,11 +195,8 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
         if (disposed) return;
         if (!response.ok) throw new Error(data.error || "This request can no longer be reordered.");
         const draft = data.draft;
-        if (draft.catalogMode !== mode) {
-          setError(mode === "preorder" ? "Open the regular order page to reorder these pies." : "Open the pre-order page to reorder these pies.");
-          return;
-        }
-        recoveryToken.current = token;
+        if (editMode) setEditing({ token, revision: draft.revision, date: draft.selection.date, quantities: Object.fromEntries(draft.selection.lines.map((line: { productId: string; variantId: string; quantity: number }) => [`${line.productId}:${line.variantId}`, line.quantity])), keys: draft.selection.lines.map((line: { productId: string; variantId: string }) => `${line.productId}:${line.variantId}`) });
+        else recoveryToken.current = token;
         setBranch(draft.branchId);
         setRecovery({ orderNumber: draft.orderNumber, priceChanges: draft.review.priceChanges ?? [], unavailableLines: draft.review.unavailableLines ?? [] });
         setForm((current) => ({
@@ -199,6 +205,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
           contact: draft.contact,
           notes: draft.notes,
           payment: draft.payment,
+          delivery: draft.delivery ?? "pickup", address: draft.address ?? "",
           preferredDate: new Date(`${draft.selection.date}T12:00:00`),
           preferredTime: draft.slotId,
           selectedAddons: draft.selection.addons.map((addon: { id: string }) => addon.id),
@@ -211,8 +218,8 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
           lineMessages: Object.fromEntries(draft.selection.lines.map((line: { productId: string; variantId: string; addons: { id: string; message?: string }[] }) => [`${line.productId}:${line.variantId}`, Object.fromEntries(line.addons.map((addon) => [addon.id, addon.message ?? ""]))])),
         }));
       } catch (loadError) {
-        if (!disposed) setError(loadError instanceof Error ? loadError.message : "This request can no longer be reordered.");
-      }
+        if (!disposed) { setDraftFailed(true); setError(loadError instanceof Error ? loadError.message : "This request can no longer be reordered."); }
+      } finally { if (!disposed) setDraftLoading(false); }
     })();
     return () => { disposed = true; };
   }, [mode]);
@@ -227,6 +234,9 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
   const unavailableItems = selectedItems.filter((item) => !availableHere(item));
   const pendingUnavailable = (recovery?.unavailableLines ?? []).filter((line) => !dismissedLines.includes(`${line.productId}:${line.variantId}`));
   function changeBranch(next: BranchId) {
+    if (selectedCount && !window.confirm("Changing branches may affect the selected pies and fulfillment. Your lineup will be kept, with unavailable items marked. Continue?")) return;
+    const destination = branchById(branches, next);
+    setForm((current) => ({ ...current, preferredTime: "", delivery: current.delivery === "pickup" && !destination.pickupEnabled ? "lalamove" : current.delivery === "lalamove" && !destination.deliveryEnabled ? "pickup" : current.delivery }));
     setBranch(next);
     setError(null);
     const url = new URL(window.location.href); url.searchParams.set("branch", next);
@@ -236,14 +246,9 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
   const selectedContent: Omit<Selection, "date"> = { lines: selectedItems.map((item) => ({ productId: item.productId, variantId: item.variant.id, quantity: form.quantities[item.slug], addons: (form.lineAddons[item.slug] ?? []).map((id) => ({ id, message: form.lineMessages[item.slug]?.[id] ?? "" })) })), addons: form.selectedAddons.map((id) => ({ id, message: form.addonMessages[id] ?? "" })) };
   const clientCatalog: Catalog = { initialized: true, addons: catalogAddons, products: items.map((p) => ({ id: p.slug, slug: p.slug, name: p.name, blurb: p.blurb, description: p.description, category: p.kind, image: { url: p.image.src, alt: p.image.alt }, allergens: p.allergens ?? [], publicNotes: p.note ?? "", active: true, sortOrder: 0, version: 1, updatedAt: null, legacyPriceCentavos: null, variants: p.variants ?? [], availableWeekdays: p.availableWeekdays ?? [], unavailableDates: p.unavailableDates ?? [], allowedAddonIds: p.allowedAddonIds ?? [] })) };
   const modeCatalog = branchCatalog(clientCatalog, branches, branch, mode);
-  const scheduledDates = availableOrderDates(scheduleState.settings, branch, modeCatalog, selectedContent, scheduleState.now);
-  const chosenFlavorIds = [...new Set(selectedItems.map((item) => item.productId))];
-  const modeFlavorIds = new Set(modeCatalog.products.map((product) => product.id));
-  const availableDates = intakeEnabled ? scheduledDates.filter((date) => {
-    const open = new Set(scheduleState.openProducts[branch]?.[date.date] ?? []);
-    return chosenFlavorIds.length === 0 ? [...modeFlavorIds].some((id) => open.has(id)) : chosenFlavorIds.every((id) => open.has(id));
-  }) : scheduledDates;
-  const selectedDate = form.preferredDate ? dayjs(form.preferredDate).format("YYYY-MM-DD") : availableDates[0]?.date ?? "";
+  const scheduledDates = availableOrderDates(scheduleState.settings, branch, modeCatalog, { lines: [], addons: [] }, scheduleState.now);
+  const availableDates = scheduledDates.filter((date) => (editing?.date === date.date) || modeCatalog.products.some((product) => product.variants.some((variant) => !availabilityReason(product, variant, date.date, 0, manilaDate(scheduleState.now))) && (!intakeEnabled || scheduleState.openProducts[branch]?.[date.date]?.includes(product.id))));
+  const selectedDate = form.preferredDate ? dayjs(form.preferredDate).format("YYYY-MM-DD") : "";
   const dateValue = selectedDate ? new Date(`${selectedDate}T12:00:00`) : undefined;
   const slots = availableDates.find((d) => d.date === selectedDate)?.slots ?? [];
   const selectedSlot = slots.find((slot) => slot.id === form.preferredTime);
@@ -254,12 +259,36 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
   const hasUnpriced = quote.quoteRequired;
   const today = new Date(`${manilaDate(scheduleState.now)}T12:00:00`);
   const lastDate = new Date(`${addCalendarDays(manilaDate(scheduleState.now), scheduleState.settings.bookingHorizonDays)}T12:00:00`);
-  function row(item: OrderItem) {
-    const quantity = form.quantities[item.slug] ?? 0;
+  const limit = shop.customerLimit?.per === "order" && shop.customerLimit.unit === "pies" ? shop.customerLimit.quantity : null;
+  const unsupportedLimit = Boolean(shop.customerLimit?.quantity && (shop.customerLimit.per !== "order" || shop.customerLimit.unit !== "pies"));
+  const atLimit = limit !== null && selectedCount >= limit;
+  function itemReason(item: OrderItem) {
+    if (!availableHere(item)) return `Not available at ${shop.name}. Remove this item or switch back.`;
+    if (!selectedDate) return "Choose a date to see availability.";
+    if (!scheduleState.settings.branches[branch]?.enabled) return `Online ordering is paused at ${shop.name}.`;
     const product = clientCatalog.products.find((p) => p.id === item.productId)!;
-    const reason = !availableHere(item) ? `Not available at ${shop.name}. Remove this item or switch back.` : form.preferredDate && selectedDate ? availabilityReason(product, item.variant, selectedDate, 0, manilaDate(scheduleState.now)) : null;
-    const extras = catalogAddons.filter((a) => a.scope === "per_item" && (product.allowedAddonIds.includes(a.id) || form.lineAddons[item.slug]?.includes(a.id)));
-    return <div key={item.slug} className="space-y-2"><FlavorRow item={item} quantity={quantity} onQuantityChange={(n) => setQuantity(item.slug, n)} reason={reason} /><p className="px-3 text-xs text-charcoal/65">{availabilityText(product)}{item.variant.minLeadDays > 0 ? ` · ${item.variant.minLeadDays} ${item.variant.minLeadDays === 1 ? "day" : "days"} of preparation` : mode === "preorder" ? " · No extra preparation days." : ""}</p>{quantity > 0 && extras.length > 0 && <div className="ml-3 border-l border-charcoal/15 pl-3"><p className="mb-2 text-xs font-semibold">Extras for {item.name}</p><CatalogAddonOptions addons={extras} quantity={quantity} prefix={item.slug} selected={form.lineAddons[item.slug] ?? []} messages={form.lineMessages[item.slug] ?? {}} toggle={(id) => { const current = form.lineAddons[item.slug] ?? []; update("lineAddons", { ...form.lineAddons, [item.slug]: current.includes(id) ? current.filter((x) => x !== id) : [...current, id] }); }} message={(id, value) => update("lineMessages", { ...form.lineMessages, [item.slug]: { ...form.lineMessages[item.slug], [id]: value } })} /></div>}</div>;
+    const reasons: string[] = [];
+    const days = (Date.parse(selectedDate) - Date.parse(manilaDate(scheduleState.now))) / 86400000;
+    const weekdays = item.variant.availableWeekdays ?? product.availableWeekdays;
+    if (weekdays.length && !weekdays.includes(new Date(`${selectedDate}T00:00:00Z`).getUTCDay())) reasons.push(availabilityText(product, item.variant) + ". Not baked on this weekday.");
+    if (product.unavailableDates.includes(selectedDate)) reasons.push("Not available on this date.");
+    if (days < item.variant.minLeadDays) reasons.push(`Needs ${item.variant.minLeadDays} days of preparation. Choose a later date.`);
+    if (intakeEnabled && !scheduleState.openProducts[branch]?.[selectedDate]?.includes(item.productId) && !(editing?.date === selectedDate && editing.keys.includes(item.slug) && (form.quantities[item.slug] ?? 0) <= editing.quantities[item.slug])) reasons.push(`Sold out on ${dayjs(selectedDate).format("ddd, MMM D")}.`);
+    return reasons.join(" ") || null;
+  }
+  function row(item: OrderItem) {
+    const product = clientCatalog.products.find((p) => p.id === item.productId)!;
+    return <div key={item.slug} className="space-y-2"><FlavorRow item={item} quantity={form.quantities[item.slug] ?? 0} onQuantityChange={(n) => setQuantity(item.slug, n)} reason={itemReason(item)} atLimit={atLimit || Boolean(editing && !editing.keys.includes(item.slug))} /><p className="px-3 text-sm text-charcoal/70">{availabilityText(product, item.variant)}{item.variant.minLeadDays > 0 ? ` · ${item.variant.minLeadDays} days preparation` : ""}</p></div>;
+  }
+  const availableItems = visibleItems.filter((item) => !itemReason(item)).sort((a,b) => a.variant.minLeadDays - b.variant.minLeadDays || Number(Boolean(a.variant.availableWeekdays?.length || a.availableWeekdays?.length)) - Number(Boolean(b.variant.availableWeekdays?.length || b.availableWeekdays?.length)));
+  const otherDays = visibleItems.filter((item) => /weekday|Not available on this date/.test(itemReason(item) ?? ""));
+  const needsTime = visibleItems.filter((item) => !otherDays.includes(item) && /preparation/.test(itemReason(item) ?? ""));
+  const soldOut = visibleItems.filter((item) => !otherDays.includes(item) && !needsTime.includes(item) && /Sold out/.test(itemReason(item) ?? ""));
+  function addonReason(addon: Addon) { return !selectedDate ? "Choose a date first." : (Date.parse(selectedDate) - Date.parse(manilaDate(scheduleState.now))) / 86400000 < addon.minLeadDays ? `Needs ${addon.minLeadDays} days preparation. Choose a later date to add this extra.` : null; }
+  function changeDate(date: Date | undefined) {
+    if (selectedCount && date && dayjs(date).format("YYYY-MM-DD") !== selectedDate && !window.confirm("Changing the date may affect availability. Your pies will stay in the lineup, with any unavailable items marked for removal. Continue?")) return;
+    setForm((current) => ({ ...current, preferredDate: date, preferredTime: "" }));
+    setError(null); if (date) setCalendarOpen(false);
   }
   const dateLabel = dateValue
     ? dayjs(dateValue).format("ddd, MMM D")
@@ -270,6 +299,8 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
   }
 
   function setQuantity(slug: string, next: number) {
+    const item = menuItems.find((item) => item.slug === slug);
+    if (next > (form.quantities[slug] ?? 0) && (Boolean(editing && !editing.keys.includes(slug)) || atLimit || !item || itemReason(item))) return;
     setForm((current) => ({
       ...current,
       quantities: { ...current.quantities, [slug]: next },
@@ -308,20 +339,25 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
       return;
     }
 
+    if (unsupportedLimit) { setError("Please contact us to arrange an order for this branch’s limit."); return; }
+    if (limit !== null && selectedCount > limit) { setError(`This branch allows up to ${limit} pies per order.`); return; }
+    if (quote.errors.length || selectedItems.some(itemReason)) { setError([...quote.errors, ...selectedItems.map(itemReason).filter(Boolean)].join(" ")); return; }
+    if (form.delivery === "lalamove" && form.address.trim().length < 5) { setError("Add your delivery address."); return; }
     setChecking(true);
     try {
       if (!idempotencyKey.current) idempotencyKey.current = crypto.randomUUID();
-      const response = await fetch("/api/orders", {
+      const response = await fetch(editing ? "/api/orders/revise" : "/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: JSON.stringify(editing ? { token: editing.token, revision: editing.revision, selection, slotId: selectedSlot.id } : {
           idempotencyKey: idempotencyKey.current,
           branchId: branch,
           slotId: selectedSlot.id,
           name: form.name.trim(),
           contact: form.contact.trim(),
           notes: form.notes.trim(),
-          delivery: "pickup",
+          delivery: form.delivery,
+          address: form.delivery === "lalamove" ? form.address.trim() : "",
           payment: form.payment,
           catalogMode: mode,
           ...(recoveryToken.current ? { recoveryToken: recoveryToken.current } : {}),
@@ -333,7 +369,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
         if (result.schedule && result.serverNow) scheduleState.acceptFreshSettings(result.schedule, result.serverNow, result.openDates, result.openProducts);
         throw new Error(result.error || "Could not place your request.");
       }
-      sessionStorage.setItem("makalipie-request-token", result.token);
+      try { sessionStorage.setItem("makalipie-request-token", result.token); } catch { /* The private URL also keeps receipt access. */ }
       router.push(`/order/status#${result.token}`);
     } catch(e) {
       setError(e instanceof Error ? e.message : "Could not place your request. Please retry.");
@@ -352,9 +388,9 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
             your <span>box of happy.</span>
           </h1>
           <p>
-            Choose your pies and tell us the details.
+            Choose your branch and date, then pick your pies.
             <br />
-            We’ll take it from there, together on Instagram.
+            We’ll take it from there, together on {channels}.
           </p>
         </div>
         <Image
@@ -371,7 +407,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
             <NativeSelect
               id="order-branch"
               className="h-12 rounded-xl border-charcoal/20 bg-cream text-base"
-              disabled={checking}
+              disabled={checking || Boolean(editing) || draftLoading}
               value={branch}
               onChange={(e) => changeBranch(e.target.value as BranchId)}
             >
@@ -381,19 +417,22 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
                 </option>
               ))}
             </NativeSelect>
-            <p className="text-sm text-charcoal/65">{mode === "preorder" ? "Pre-order pies available from your selected main branch." : "Regular pies available from your selected main branch."} <Link href={mode === "preorder" ? "/order" : "/order/preorder"} className="underline">{mode === "preorder" ? "Order pies without extra preparation." : "Order pies that need preparation."}</Link></p>
+            <p className="text-sm text-charcoal/65">Regular and advance-preparation pies can share the same date. For another date, place a separate order.</p>
           </>
         ) : (
           <>
             <p className="text-sm font-medium">Ordering from</p>
             <p className="text-base">{shop.name}</p>
-            <p className="text-sm text-charcoal/65">{mode === "preorder" ? "Pre-order pies available from this main branch." : "Regular pies available from this main branch."} <Link href={mode === "preorder" ? "/order" : "/order/preorder"} className="underline">{mode === "preorder" ? "Order pies without extra preparation." : "Order pies that need preparation."}</Link></p>
+            <p className="text-sm text-charcoal/65">Regular and advance-preparation pies can share the same date. For another date, place a separate order.</p>
           </>
         )}
       </section>
+      {unsupportedLimit && <p role="status">This branch’s ordering limit needs a chat with us. Contact <ChatLinks /> before placing your order.</p>}
+      {draftFailed && <p role="alert">Your saved order could not be loaded. Reload to try again, or return to your private order link.</p>}
       {recovery ? (
         <section className="mb-6 max-w-xl space-y-2" aria-label={`Reorder ${recovery.orderNumber}`}>
-          <p className="text-sm font-medium">Reordering {recovery.orderNumber}</p>
+          <p className="text-sm font-medium">{editing ? "Editing" : "Reordering"} {recovery.orderNumber}</p>
+          {editing && <p className="text-sm">You can change existing pie quantities, the date, and time. Your original hold deadline stays the same. For other changes, contact <ChatLinks />. <a className="underline" href={`/order/status#${editing.token}`}>Return without saving</a>.</p>}
           {recovery.priceChanges.map((change) => <p key={change.from} className="text-sm text-charcoal/70">{change.from} is now {change.to}</p>)}
           {pendingUnavailable.map((line) => (
             <div key={`${line.productId}:${line.variantId}`} className="flex flex-wrap items-center gap-2">
@@ -406,99 +445,13 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
       <div className="order-layout">
         <div>
           <form id="pie-order" onSubmit={handleSubmit} className="order-form">
-            <fieldset disabled={checking} className="contents">
+            <fieldset disabled={checking || draftLoading || draftFailed} className="contents">
+            {draftLoading && <p role="status">Loading your order…</p>}
               <legend className="sr-only">Your order</legend>
-            <fieldset className="space-y-3">
-              <legend className="text-sm font-medium">Pick your pies</legend>
-              <p className="text-xs text-charcoal/55">
-                A few for you, a few to share. Use + to add your favourites.
-              </p>
-              {visibleItems.length === 0 && (
-                <Alert role="status" className="border-transparent bg-butter/60 text-charcoal">
-                  <AlertDescription className="text-charcoal">
-                    No {mode === "preorder" ? "pre-order" : "regular"} pies are currently available at {shop.name}. {publicBranches.length > 1 ? "Choose another main branch or contact us." : "Contact us."}
-                  </AlertDescription>
-                </Alert>
-              )}
-              {unavailableItems.length > 0 && (
-                <section aria-label="Unavailable cart items" className="space-y-3">
-                  <Alert className="border-berry/40 bg-transparent text-berry">
-                    <AlertDescription className="text-berry">
-                      Some selected items are unavailable at this branch. Matching items remain in your order.
-                    </AlertDescription>
-                  </Alert>
-                  {unavailableItems.map((item) => (
-                    <div key={item.slug}>
-                      {row(item)}
-                      <Button type="button" variant="link" className="h-11 px-3 text-charcoal" onClick={() => setQuantity(item.slug, 0)}>
-                        Remove {item.name}
-                      </Button>
-                    </div>
-                  ))}
-                </section>
-              )}
-              <div className="space-y-2">
-                {sweetItems.map(row)}
-              </div>
-              {savoryItems.length > 0 && <p className="pt-2 text-xs font-semibold tracking-wide text-charcoal/50 uppercase">Savoury</p>}
-              <div className="space-y-2">
-                {savoryItems.map(row)}
-              </div>
-              {!!selectedDate && quote.errors.length > 0 && (
-                <Alert role="status" className="border-berry/40 bg-transparent text-berry">
-                  <AlertDescription className="text-berry">{quote.errors.join(" ")}</AlertDescription>
-                </Alert>
-              )}
-              <div className="space-y-2 pt-1">
-                <Label htmlFor="notes">Notes (optional)</Label>
-                <Textarea
-                  id="notes"
-                  name="notes"
-                  rows={2}
-                  value={form.notes}
-                  onChange={(event) => update("notes", event.target.value)}
-                  className="min-h-0 rounded-xl bg-cream"
-                  placeholder="Allergies, packing notes, or anything else"
-                />
-              </div>
-            </fieldset>
-
-            <fieldset className="order-details-fields space-y-5">
-              <legend>Your details & timing</legend>
-              <p className="order-section-help">
-                Let us know who it’s for and when you’d like it.
-              </p>
-              <div className="grid gap-5 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    required
-                    value={form.name}
-                    onChange={(event) => update("name", event.target.value)}
-                    className="h-11 rounded-xl bg-cream px-3"
-                    autoComplete="name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="contact">Contact Number</Label>
-                  <Input
-                    id="contact"
-                    type="tel"
-                    name="contact"
-                    required
-                    value={form.contact}
-                    onChange={(event) => update("contact", event.target.value)}
-                    className="h-11 rounded-xl bg-cream px-3"
-                    autoComplete="tel"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-3">
+            {!scheduleState.settings.branches[branch]?.enabled && <Alert role="status" className="bg-butter/60"><AlertDescription>Online ordering is paused at {shop.name}. Message us on <ChatLinks />.</AlertDescription></Alert>}
+            <section aria-label="Choose fulfillment date">              <div className="space-y-3">
                 <p className="text-sm text-charcoal/65">Choose up to {scheduleState.settings.bookingHorizonDays} days ahead. All times are in Manila time.</p>
-                {quote.preparationDays > 0 ? <p className="text-sm text-charcoal/65">This box needs {quote.preparationDays} {quote.preparationDays === 1 ? "day" : "days"} of preparation. Earlier dates stay closed.</p> : null}
+                {quote.preparationDays > 0 ? <p className="text-sm text-charcoal/65">Selected extras or sizes need {quote.preparationDays} days of preparation. Choose an eligible date or remove the affected item.</p> : null}
                 {scheduleState.error && (
                   <Alert className="border-berry/40 bg-transparent text-berry">
                     <AlertDescription className="text-berry">{scheduleState.error}</AlertDescription>
@@ -530,7 +483,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
                     </AlertDescription>
                   </Alert>
                 )}
-                <Label htmlFor="preferred-date">Preferred date</Label>
+                <Label htmlFor="preferred-date">When would you like your pies?</Label>
                 <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                   <PopoverTrigger
                     id="preferred-date"
@@ -558,11 +511,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
                     <Calendar
                       mode="single"
                       selected={dateValue}
-                      onSelect={(date) => {
-                        setForm((current) => ({ ...current, preferredDate: date, preferredTime: "" }));
-                        setError(null);
-                        if (date) setCalendarOpen(false);
-                      }}
+                      onSelect={changeDate}
                       disabled={(date) => !availableDates.some((d) => d.date === dayjs(date).format("YYYY-MM-DD"))}
                       startMonth={today}
                       endMonth={lastDate}
@@ -571,6 +520,97 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
                   </PopoverContent>
                 </Popover>
               </div>
+</section>
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-medium">Pick your pies</legend>
+              <p className="text-xs text-charcoal/55">
+                A few for you, a few to share. Use + to add your favourites.
+              </p>
+              {visibleItems.length === 0 && (
+                <Alert role="status" className="border-transparent bg-butter/60 text-charcoal">
+                  <AlertDescription className="text-charcoal">
+                    No pies are currently available at {shop.name}. {publicBranches.length > 1 ? "Choose another main branch or contact us." : "Contact us."}
+                  </AlertDescription>
+                </Alert>
+              )}
+              {unavailableItems.length > 0 && (
+                <section aria-label="Unavailable cart items" className="space-y-3">
+                  <Alert className="border-berry/40 bg-transparent text-berry">
+                    <AlertDescription className="text-berry">
+                      Some selected items are unavailable at this branch. Matching items remain in your order.
+                    </AlertDescription>
+                  </Alert>
+                  {unavailableItems.map((item) => (
+                    <div key={item.slug}>
+                      {row(item)}
+                      <Button type="button" variant="link" className="h-11 px-3 text-charcoal" onClick={() => setQuantity(item.slug, 0)}>
+                        Remove {item.name}
+                      </Button>
+                    </div>
+                  ))}
+                </section>
+              )}
+              {limit !== null && <p className="text-sm">Up to {limit} pies per order at {shop.name}.{atLimit && " That’s the limit for this branch."}</p>}
+              {!selectedDate ? <p className="rounded-xl bg-butter/60 p-4">Choose a date above to see which pies you can order.</p> : <>
+                <section className="space-y-3" aria-label="Available pies"><h3 className="font-semibold">Available for {dateLabel}</h3>{availableItems.length ? availableItems.map(row) : <p>No pies are available for this date. Choose another date or branch.</p>}</section>
+                {otherDays.length > 0 && <section className="space-y-3 pt-5"><h3 className="font-semibold">Available on other days</h3><p className="text-sm">These pies are not baked on the selected date.</p>{otherDays.map(row)}</section>}
+                {needsTime.length > 0 && <section className="space-y-3 pt-5"><h3 className="font-semibold">Needs more preparation time</h3><p className="text-sm">Choose a later date to order these sizes.</p>{needsTime.map(row)}</section>}
+                {soldOut.length > 0 && <section className="space-y-3 pt-5"><h3 className="font-semibold">Sold out for this date</h3>{soldOut.map(row)}</section>}
+              </>}
+              {!!selectedDate && quote.errors.length > 0 && (
+                <Alert role="status" className="border-berry/40 bg-transparent text-berry">
+                  <AlertDescription className="text-berry">{quote.errors.join(" ")}</AlertDescription>
+                </Alert>
+              )}
+              <div className="space-y-2 pt-1">
+                <Label htmlFor="notes">Notes (optional)</Label>
+                <Textarea
+                  id="notes"
+                  name="notes"
+                  rows={2}
+                  readOnly={Boolean(editing)} value={form.notes}
+                  onChange={(event) => update("notes", event.target.value)}
+                  className="min-h-0 rounded-xl bg-cream"
+                  placeholder="Allergies, packing notes, or anything else"
+                />
+              </div>
+            </fieldset>
+
+            <fieldset className="order-details-fields space-y-5">
+              <legend>Your details & time slot</legend>
+              <p className="order-section-help">
+                Let us know who it’s for and when you’d like it.
+              </p>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    readOnly={Boolean(editing)}
+                    name="name"
+                    required
+                    value={form.name}
+                    onChange={(event) => update("name", event.target.value)}
+                    className="h-11 rounded-xl bg-cream px-3"
+                    autoComplete="name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="contact">Contact Number</Label>
+                  <Input
+                    id="contact"
+                    readOnly={Boolean(editing)}
+                    type="tel"
+                    name="contact"
+                    required
+                    value={form.contact}
+                    onChange={(event) => update("contact", event.target.value)}
+                    className="h-11 rounded-xl bg-cream px-3"
+                    autoComplete="tel"
+                  />
+                </div>
+              </div>
+
 
               <div className="space-y-3">
                 <p className="text-sm font-medium" id="time-slots-label">Preferred time slot</p>
@@ -604,23 +644,28 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
                 </div>
               </div>
             </fieldset>
-            <fieldset className="space-y-3">
+            <fieldset disabled={Boolean(editing)} className="space-y-3">
               <legend className="text-sm font-medium">
                 Make it a little personal
               </legend>
-              <p className="text-xs text-charcoal/60">Choose a pie to see compatible extras for the whole order.</p>
-              <CatalogAddonOptions addons={catalogAddons.filter((a) => a.scope === "per_order" && (selectedItems.some((item) => item.allowedAddonIds?.includes(a.id)) || form.selectedAddons.includes(a.id)))} selected={form.selectedAddons} messages={form.addonMessages} prefix="order-extra" toggle={toggleAddon} message={(id, value) => update("addonMessages", { ...form.addonMessages, [id]: value })} />
+              <p className="text-xs text-charcoal/60">Optional extras for your order. Every active extra is shown here; preparation times still apply.</p>
+              <CatalogAddonOptions addons={catalogAddons.filter((a) => a.active && a.scope === "per_order")} selected={form.selectedAddons} messages={form.addonMessages} prefix="order-extra" unavailableReason={addonReason} toggle={toggleAddon} message={(id, value) => update("addonMessages", { ...form.addonMessages, [id]: value })} />
             </fieldset>
 
-            <PickupAddress name={shop.name} address={shop.address} />
+            <fieldset disabled={Boolean(editing)} className="space-y-3"><legend className="font-medium">Extras for individual pies</legend>
+              {selectedItems.length === 0 ? <CatalogAddonOptions addons={catalogAddons.filter((a) => a.active && a.scope === "per_item")} selected={[]} messages={{}} prefix="unselected-pie" unavailableReason={() => "Choose a pie line to add this extra."} toggle={() => {}} message={() => {}} /> : selectedItems.map((item) => <div key={item.slug} className="space-y-3"><h3 className="text-sm font-semibold">For {item.name} ×{form.quantities[item.slug]}</h3><CatalogAddonOptions addons={catalogAddons.filter((a) => a.active && a.scope === "per_item")} quantity={form.quantities[item.slug]} prefix={item.slug} selected={form.lineAddons[item.slug] ?? []} messages={form.lineMessages[item.slug] ?? {}} unavailableReason={addonReason} toggle={(id) => { const current = form.lineAddons[item.slug] ?? []; update("lineAddons", { ...form.lineAddons, [item.slug]: current.includes(id) ? current.filter((x) => x !== id) : [...current, id] }); }} message={(id,value) => update("lineMessages", { ...form.lineMessages, [item.slug]: { ...form.lineMessages[item.slug], [id]: value } })} /></div>)}
+            </fieldset>
+            <fieldset disabled={Boolean(editing)} className="space-y-3"><legend className="font-medium">Pickup or delivery</legend>
+              {shop.pickupEnabled && shop.deliveryEnabled && <RadioGroup value={form.delivery} onValueChange={(value) => update("delivery", value as "pickup" | "lalamove")}><Label className="rounded-xl bg-butter/60 p-4"><RadioGroupItem value="pickup" />Pickup</Label><Label className="rounded-xl bg-butter/60 p-4"><RadioGroupItem value="lalamove" />Delivery</Label></RadioGroup>}
+              {form.delivery === "pickup" ? <PickupAddress name={shop.name} address={shop.address} hoursLabel={shop.hoursLabel} mapUrl={shop.mapUrl} /> : <div className="space-y-3 rounded-xl bg-butter/60 p-4"><Label htmlFor="delivery-address">Delivery address</Label><Textarea id="delivery-address" required minLength={5} maxLength={300} autoComplete="street-address" value={form.address} onChange={(e) => update("address", e.target.value)} /><p className="text-sm">We book the rider and confirm the delivery fee in chat. Pay it with your total or directly to the rider.</p></div>}
+            </fieldset>
 
-            <fieldset className="space-y-3">
+            <fieldset disabled={Boolean(editing)} className="space-y-3">
               <legend className="text-sm font-medium">
                 Your payment preference
               </legend>
               <p className="text-xs text-charcoal/55">
-                Choose how you&apos;d like to pay after we confirm and send an
-                invoice. Payment must be verified before preparation. No payment yet.
+                No payment yet. You’ll pay after we confirm your order.
               </p>
               <RadioGroup
                 name="payment"
@@ -641,22 +686,24 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
               </RadioGroup>
             </fieldset>
 
+            <p className="order-submit-note">Made in a shared kitchen that handles nuts (including pecans) and gluten, so cross-contact is possible.</p>
+            <p className="order-submit-note">Once a third-party courier picks up your order, we’re no longer responsible for how or when it arrives.</p>
             {error ? (
-              <Alert className="border-berry/40 bg-transparent text-berry">
+              <Alert role="alert" className="border-berry/40 bg-transparent text-berry">
                 <AlertDescription className="font-medium text-berry">{error}</AlertDescription>
               </Alert>
             ) : null}
 
             <Button
               type="submit"
-              disabled={checking || unavailableItems.length > 0 || pendingUnavailable.length > 0 || visibleItems.length === 0 || !selectedSlot || dateInvalid || Boolean(scheduleState.error)}
+              disabled={checking || selectedCount < 1 || selectedItems.some(itemReason) || quote.errors.length > 0 || unavailableItems.length > 0 || pendingUnavailable.length > 0 || visibleItems.length === 0 || !selectedSlot || dateInvalid || Boolean(scheduleState.error)}
               className="order-submit brand-button"
             >
-              {checking ? "Placing your order…" : "Place order"}{" "}
+              {checking ? (editing ? "Saving changes…" : "Placing your order…") : editing ? "Save changes" : "Place order"}{" "}
               <ArrowUpRight size={18} aria-hidden />
             </Button>
             <p className="order-submit-note">
-              Placing this request reserves the pies and opens your order page. Staff still need to confirm it. No payment is taken here.{" "}
+              Placing this request reserves the pies and opens your order page. Send your order number on {channels} so we can confirm it. No payment is taken here.{" "}
               <Link href="/terms">Terms</Link>, <Link href="/privacy">Privacy</Link>, and{" "}
               <Link href="/refund">Refund policy</Link>.
             </p>
@@ -726,7 +773,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
           </p>
           <div className="order-summary-logistics">
             <span>
-              {`Pickup at ${shop.name}${shop.address ? ` · ${shop.address}` : ""}`}
+              {form.delivery === "lalamove" ? `Delivery to ${form.address || "your address"} · Fee confirmed in chat` : `Pickup at ${shop.name}${shop.address ? ` · ${shop.address}` : ""}`}
             </span>
             <span>
               {formatPreferredWhen(dateValue, selectedSlot?.label ?? "") ||
@@ -736,9 +783,10 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
           <div className="order-next">
             <p className="eyebrow">WHAT HAPPENS NEXT</p>
             <p>
-              Place the order to open your order page. Copy the order number there when you want to continue on Instagram.
+              Place the order to open your order page. Copy the order number there to confirm with us on {channels}.
             </p>
-            <a href={site.instagramDmUrl} target="_blank" rel="noreferrer">
+            {publicShop.links.messenger && <a href={publicShop.links.messenger} target="_blank" rel="noreferrer">Open Messenger ↗</a>}
+            <a href={publicShop.links.instagramDm || publicShop.links.instagram} target="_blank" rel="noreferrer">
               Have a question? Talk to us <ArrowUpRight size={15} aria-hidden />
             </a>
           </div>
@@ -752,7 +800,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
           {selectedItems.map((item) => {
             const quantity = form.quantities[item.slug];
             const product = clientCatalog.products.find((p) => p.id === item.productId)!;
-            const reason = !availableHere(item) ? `Not available at ${shop.name}. Remove this item or switch back.` : form.preferredDate && selectedDate ? availabilityReason(product, item.variant, selectedDate, 0, manilaDate(scheduleState.now)) : null;
+            const reason = itemReason(item);
             const extras = catalogAddons.filter((addon) => form.lineAddons[item.slug]?.includes(addon.id));
             return <li key={item.slug}>
               <div className="mobile-lineup-item">
@@ -768,7 +816,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
         </ul>
         {chosenAddons.length ? <section className="mobile-lineup-extras"><h3>Order extras</h3>{chosenAddons.map((addon) => <p key={addon.id}><span>{addon.name}{form.addonMessages[addon.id] ? `: ${form.addonMessages[addon.id]}` : ""}</span><strong>{formatPrice(addon.priceCentavos / 100)}</strong></p>)}</section> : null}
         <p className="mobile-lineup-note">{hasUnpriced ? "Some prices are to confirm. " : ""}Priced extras are included in the subtotal. Staff confirm the final total on your order page.</p>
-        <section className="mobile-lineup-logistics"><h3>Your schedule</h3><p>{`Pickup at ${shop.name}`}</p><p>{formatPreferredWhen(dateValue, selectedSlot?.label ?? "") || "Choose your date and time in the form."}</p>{dateInvalid ? <p className="mobile-lineup-warning">Choose an available date in the form.</p> : null}</section>
+        <section className="mobile-lineup-logistics"><h3>Your schedule</h3><p>{form.delivery === "lalamove" ? `Delivery to ${form.address || "your address"} · Fee confirmed in chat` : `Pickup at ${shop.name}`}</p><p>{formatPreferredWhen(dateValue, selectedSlot?.label ?? "") || "Choose your date and time in the form."}</p>{dateInvalid ? <p className="mobile-lineup-warning">Choose an available date in the form.</p> : null}</section>
       </MobileLineup>
     </div>
   );

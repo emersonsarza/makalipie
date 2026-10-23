@@ -1,9 +1,12 @@
+"use client";
+import { usePublicShop } from "@/components/public-shop-provider";
 import Link from "next/link";
 
 import { Reveal } from "@/components/reveal";
 import { reviews, site } from "@/lib/site";
 
 export function ReviewsSection() {
+  const shop = usePublicShop();
   if (reviews.length === 0) return null;
 
   return (
@@ -16,7 +19,7 @@ export function ReviewsSection() {
           <p className="mt-4 max-w-xl text-lg text-charcoal/70">
             Don&apos;t forget to post pictures and tag{" "}
             <Link
-              href={site.instagramUrl}
+              href={shop.links.instagram}
               target="_blank"
               rel="noreferrer"
               className="font-semibold text-charcoal underline decoration-crust decoration-2 underline-offset-4"

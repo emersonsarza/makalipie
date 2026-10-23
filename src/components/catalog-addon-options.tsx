@@ -12,6 +12,7 @@ export function CatalogAddonOptions({
   messages,
   prefix,
   quantity = 1,
+  unavailableReason,
   toggle,
   message,
 }: {
@@ -20,18 +21,21 @@ export function CatalogAddonOptions({
   messages: Record<string, string>;
   prefix: string;
   quantity?: number;
+  unavailableReason?: (addon: Addon) => string | null;
   toggle: (id: string) => void;
   message: (id: string, value: string) => void;
 }) {
   return (
     <div className="space-y-3">
       {addons.map((addon) => {
+        const reason = unavailableReason?.(addon);
         const checkId = `${prefix}-${addon.id}-selected`;
         return (
           <div key={addon.id} className="rounded-xl bg-butter/60 p-3">
             <div className="flex min-h-11 items-center gap-3">
               <Checkbox
                 id={checkId}
+                disabled={Boolean(reason) && !selected.includes(addon.id)}
                 checked={selected.includes(addon.id)}
                 aria-label={addon.name}
                 onCheckedChange={() => toggle(addon.id)}
@@ -49,6 +53,7 @@ export function CatalogAddonOptions({
                 </span>
               </Label>
             </div>
+            {reason && <p className="mt-2 text-sm text-charcoal">{reason}</p>}
             {selected.includes(addon.id) && addon.customization.enabled ? (
               <div className="mt-3 space-y-2">
                 <Label htmlFor={`${prefix}-${addon.id}`}>

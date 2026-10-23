@@ -1,3 +1,5 @@
+"use client";
+import { usePublicShop, ChatLinks } from "@/components/public-shop-provider";
 import { CatalogDetails } from "@/components/catalog-details";
 import Image from "next/image";
 import Link from "next/link";
@@ -5,6 +7,7 @@ import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { itemPriceText, site, type MenuItem } from "@/lib/site";
 
 export function MenuCatalog({ items: menuItems, unavailable = false }: { items: MenuItem[]; unavailable?: boolean }) {
+  const shop = usePublicShop();
   const classics = menuItems.filter(
     (item) => item.kind === "sweet" && item.slug !== "buko",
   );
@@ -139,7 +142,7 @@ export function MenuCatalog({ items: menuItems, unavailable = false }: { items: 
               <h3>{item.name}</h3><p>{item.description}</p><CatalogDetails item={item} />
               {item.note && <p>{item.note}</p>}
               {!!item.allergens?.length && <p>Contains: {item.allergens.join(", ")}.</p>}
-              <a href={site.instagramDmUrl} target="_blank" rel="noreferrer" className="brand-button">Ask about this pie <ArrowUpRight size={18} aria-hidden /></a>
+              <a href={shop.links.instagramDm} target="_blank" rel="noreferrer" className="brand-button">Ask about this pie <ArrowUpRight size={18} aria-hidden /></a>
               <span className="weekend-price">{itemPriceText(item)}</span>
             </article>)}
           </div>
@@ -157,7 +160,7 @@ export function MenuCatalog({ items: menuItems, unavailable = false }: { items: 
           </p>
         </div>
         <a
-          href={site.instagramUrl}
+          href={shop.links.instagram}
           target="_blank"
           rel="noreferrer"
           className="text-link"
@@ -170,8 +173,7 @@ export function MenuCatalog({ items: menuItems, unavailable = false }: { items: 
           <p className="eyebrow">FROM OUR KITCHEN TO YOUR TABLE</p>
           <h2>Picked your favourites?</h2>
           <p>
-            Fill in your order, then send the summary through Instagram. We’ll
-            confirm availability, payment, and pickup with you.
+            Choose a branch and date to see which pies are available. Send your order number through <ChatLinks /> so we can confirm the details.
           </p>
           <Link href="/order" className="brand-button">
             Put together your order <ArrowUpRight size={18} aria-hidden />
@@ -186,7 +188,7 @@ export function MenuCatalog({ items: menuItems, unavailable = false }: { items: 
             </p>
             <div className="delivery-app-actions">
               <a
-                href={site.grabUrl}
+                href={shop.links.grabFood}
                 target="_blank"
                 rel="noreferrer"
                 className="brand-button outline-button"
@@ -194,7 +196,7 @@ export function MenuCatalog({ items: menuItems, unavailable = false }: { items: 
                 Order on Grab <ArrowUpRight size={16} aria-hidden />
               </a>
               <a
-                href={site.foodpandaUrl}
+                href={shop.links.foodpanda}
                 target="_blank"
                 rel="noreferrer"
                 className="brand-button outline-button"
@@ -206,15 +208,15 @@ export function MenuCatalog({ items: menuItems, unavailable = false }: { items: 
           <div>
             <span>Taking it home</span>
             <p>
-              Pick up at Streetscape, Banilad.
+              {shop.address}
               <br />
-              Daily, 10am to 8pm.
+              {shop.hoursLabel}
             </p>
           </div>
           <div>
             <span>Sending a little happiness</span>
             <p>
-              Book your own courier after confirmation.
+              {shop.deliveryAvailable ? "Choose bakery-booked delivery where offered, with the fee confirmed in chat." : "Delivery is not currently offered."} You can also book your own courier; choose Pickup.
               <br />
               Use the pickup address shown on your order page.
             </p>
@@ -223,7 +225,7 @@ export function MenuCatalog({ items: menuItems, unavailable = false }: { items: 
             <span>Something we should know?</span>
             <p>
               For allergies or dietary questions,{" "}
-              <a href={site.instagramDmUrl} target="_blank" rel="noreferrer">
+              <a href={shop.links.instagramDm} target="_blank" rel="noreferrer">
                 talk to us
               </a>{" "}
               before placing your order.

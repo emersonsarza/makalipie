@@ -1,7 +1,9 @@
 import "server-only";
+import { readShopSettings } from "../settings/store";
+import { orderHold } from "./hold";
 
 import { createHash, randomBytes } from "node:crypto";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldPath, FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 import type { AdminIdentity } from "../admin/schemas";
 import { selectionSchema, type Catalog, type Selection } from "../catalog/schema";
@@ -17,7 +19,7 @@ import { addCalendarDays, scheduleValidationError, slotsForDate } from "../sched
 import { defaultScheduleSettings, scheduleSettingsSchema, type ScheduleSettings } from "../scheduling/schema";
 import { readScheduleSettings } from "../scheduling/store";
 import { allocationDaySchema, allocationRecordSchema, allocationSaveSchema, capacityOpen, flavorAvailabilityMessage, flavorCapacityKey, flavorHasRoom, flavorQuantities, type AllocationDay, type AllocationRecord, type AllocationSave } from "./allocation";
-import { assertPaymentBeforePreparation, dailyCapacityKey, defaultOrderingPolicy, initialReservationDeadline } from "./policy";
+import { assertPaymentBeforePreparation, dailyCapacityKey, defaultOrderingPolicy } from "./policy";
 import { inboxOrderSchema, orderActionSchema, orderEventSchema, orderRequestSchema, ordersVisibleTo, paymentRecordSchema, type InboxOrder, type OrderAction, type OrderEvent, type PaymentRecord } from "./schema";
 import { orderStatusLabel } from "./status-display";
 
@@ -203,6 +205,17 @@ function decodeInboxOrder(id: string, data: FirebaseFirestore.DocumentData): Inb
     fulfillmentDate: data.fulfillmentDate,
     slotId: data.slotId,
     slotLabel: data.slotLabel,
+    requireFullPayment: data.requireFullPayment === true,
+    customerEditable: data.customerEditable === true,
+    submittedAfterHours: data.submittedAfterHours === true,
+    ...(typeof data.openingAt === "string" ? { openingAt: data.openingAt } : {}),
+    heldFlavors: Array.isArray(data.heldFlavors) ? data.heldFlavors.flatMap((flavor) => {
+      const parsed = heldFlavorSchema.safeParse(flavor);
+      return parsed.success ? [parsed.data] : [];
+    }) : [],
+    anonymized: data.anonymized === true || typeof data.anonymizedAt === "string",
+    cancelReason: typeof data.cancelReason === "string" ? data.cancelReason : [...events].reverse().find((event) => event.action === "reject")?.reason ?? null,
+    ...(data.deliveryFeePayment ? { deliveryFeePayment: data.deliveryFeePayment } : {}),
     customerName: data.customerName,
     contact: data.contact,
     address: data.address ?? "",
@@ -230,18 +243,10 @@ function decodeInboxOrder(id: string, data: FirebaseFirestore.DocumentData): Inb
   return parsed.success ? parsed.data : null;
 }
 
-function guestStatusCopy(status: InboxOrder["status"], delivery: InboxOrder["delivery"]) {
-  const courier = delivery === "lalamove";
+function guestStatusCopy(status: InboxOrder["status"], delivery: "pickup" | "lalamove") {
   const statusLabel = orderStatusLabel(status, delivery);
-  if (status === "processing") return { statusLabel, message: courier ? "Staff are reviewing this address and the delivery fee. The hold stays in place." : "Staff are reviewing this request. The hold stays in place." };
-  if (status === "confirmed") return { statusLabel, message: courier ? "This delivery is approved. Payment is arranged separately." : "This request is approved. Payment is arranged separately." };
-  if (status === "preparing") return { statusLabel, message: courier ? "The bakery is preparing this delivery." : "The bakery is preparing this pickup." };
-  if (status === "ready") return { statusLabel, message: courier ? "This order is ready for delivery." : "This order is ready for pickup." };
-  if (status === "completed") return { statusLabel, message: courier ? "This delivery is complete." : "This pickup is complete." };
-  if (status === "expired") return { statusLabel, message: "This hold ended." };
-  if (status === "cancelled") return { statusLabel, message: courier ? "This delivery was not approved." : "This request was not approved." };
-  if (status === "requested") return { statusLabel, message: courier ? "Staff still need to confirm this address and the delivery fee. Delivery is not confirmed yet." : "Staff still need to confirm this request. Approval is not complete." };
-  return { statusLabel, message: "This request is no longer waiting for approval." };
+  const copy: Record<string, string> = { requested: "We've got your order. Send your order number so we can confirm it.", processing: delivery === "lalamove" ? "We're checking your order and getting a rider quote for your address." : "We're checking your order.", confirmed: "Your order is confirmed.", preparing: "We're baking your order.", ready: delivery === "lalamove" ? "Your order is on its way." : "Your order is ready for pickup.", completed: "Thank you for choosing Makalipie.", expired: "Your hold ended before we could confirm it.", cancelled: "We couldn't take this order." };
+  return { statusLabel, message: copy[status] ?? "Here if you need us." };
 }
 
 function guestPaymentLabel(status: InboxOrder["paymentStatus"]) {
@@ -323,6 +328,8 @@ async function settleOrder(id: string, now: Date, actorUid: string, action: Orde
     };
     const next = {
       status: nextStatus,
+      ...(["confirmed", "cancelled", "expired"].includes(nextStatus) ? { customerEditable: false } : {}),
+      ...(nextStatus === "cancelled" && reason ? { cancelReason: reason } : {}),
       ...(releasing ? { capacityReleased: true } : {}),
       ...(nextStatus === "processing" ? { processingStartedAt: now.toISOString() } : {}),
       events: withEvent(data, event),
@@ -347,7 +354,7 @@ function advanceFulfillment(
   if (action === "preparing" && data.status !== "confirmed") {
     return { conflict: "This request changed. Reload it and try again.", order: decodeInboxOrder(id, data) };
   }
-  if ((action === "ready" || action === "complete") && !pickup) {
+  if (action === "complete" && !pickup) {
     return { conflict: "Pickup progress is for pickup requests.", order: decodeInboxOrder(id, data) };
   }
   if (action === "ready" && data.status !== "preparing") {
@@ -356,7 +363,7 @@ function advanceFulfillment(
   if (action === "complete" && data.status !== "ready") {
     return { conflict: "This request changed. Reload it and try again.", order: decodeInboxOrder(id, data) };
   }
-  if (action === "preparing") {
+  if (action === "preparing" && data.requireFullPayment === true) {
     const commercial = commercialFields(data);
     try {
       assertPaymentBeforePreparation({
@@ -443,7 +450,7 @@ function paymentStatusFor(net: number, total: number): InboxOrder["paymentStatus
 function pricedTotal(data: FirebaseFirestore.DocumentData, knownSubtotalCentavos: number, itemQuotePending: boolean) {
   const awaitingFee = data.delivery === "lalamove" && data.deliveryEligibility !== "eligible";
   if (itemQuotePending || awaitingFee) return { quoteStatus: "pending" as const, finalTotalCentavos: null as number | null };
-  const fee = data.delivery === "lalamove" && Number.isInteger(data.deliveryFeeCentavos) && data.deliveryFeeCentavos >= 0 ? data.deliveryFeeCentavos : 0;
+  const fee = data.delivery === "lalamove" && data.deliveryFeePayment !== "to_driver" && Number.isInteger(data.deliveryFeeCentavos) && data.deliveryFeeCentavos >= 0 ? data.deliveryFeeCentavos : 0;
   return { quoteStatus: "finalized" as const, finalTotalCentavos: knownSubtotalCentavos + fee };
 }
 
@@ -473,7 +480,7 @@ function heldFlavorList(data: FirebaseFirestore.DocumentData) {
   }) : [];
 }
 
-async function reviseOrder(input: OrderAction, admin: AdminIdentity, now: Date) {
+async function reviseOrder(input: OrderAction, admin: Pick<AdminIdentity, "uid" | "role">, now: Date, guest?: { token: string; revision: string }) {
   const { db } = getServerFirebase();
   const orderRef = db.doc(`orders/${input.orderId}`);
   const previewSnap = await orderRef.get();
@@ -488,6 +495,7 @@ async function reviseOrder(input: OrderAction, admin: AdminIdentity, now: Date) 
   if (input.branchId !== preview.branchId && admin.role !== "owner") {
     throw new ProductError(403, "Only an owner can move a request to another branch.");
   }
+  if (guest && (!preview.customerEditable || !["requested", "processing"].includes(preview.status))) throw new ProductError(403, "Editing is no longer allowed. Return to your order for the latest update.");
   const nextSelection = revisedSelection(preview.selection, input.selection);
   if (nextSelection === "empty") return { conflict: "Keep at least one pie on this request.", order: preview };
   if (nextSelection === "unknown") return { conflict: "Only the pies already on this request can change.", order: preview };
@@ -500,6 +508,7 @@ async function reviseOrder(input: OrderAction, admin: AdminIdentity, now: Date) 
   if (preview.delivery === "lalamove" && !destination.deliveryEnabled) {
     return { conflict: "Delivery is not available from this branch.", order: preview };
   }
+  assertCustomerLimit(destination, nextSelection);
   const mode = preview.catalogMode === "preorder" ? "preorder" as const : "regular" as const;
   const branchCatalog = branchCatalogFor(catalog, branchSettings, input.branchId, mode);
   const quote = quoteSelection(branchCatalog, nextSelection, today);
@@ -514,6 +523,8 @@ async function reviseOrder(input: OrderAction, admin: AdminIdentity, now: Date) 
     if (!snap.exists) return { missing: true as const };
     const data = snap.data()!;
     const order = decodeInboxOrder(input.orderId, data);
+    if (guest && (data.accessTokenHash !== tokenHash(guest.token) || !data.customerEditable || !["requested", "processing"].includes(data.status) || orderIsDue(data, now))) throw new ProductError(403, "Editing is no longer allowed. Return to your order for the latest update.");
+    if (guest && revisionFor(data) !== guest.revision) throw new ProductError(409, "Your order changed while you were editing. Return to your order and open Edit again; your changes have not been saved.");
     if (!order?.selection || order.status !== input.expectedStatus || !revisableStatuses.has(order.status)) {
       return { conflict: "This request changed. Reload it and try again.", order };
     }
@@ -564,6 +575,7 @@ async function reviseOrder(input: OrderAction, admin: AdminIdentity, now: Date) 
       { field: "Total", from: pesosLabel(commercial.finalTotalCentavos), to: pesosLabel(quoted.finalTotalCentavos) },
     ];
     const changes = changeRows.filter((change) => change.from !== change.to);
+    if (JSON.stringify(order.selection) !== JSON.stringify(nextSelection) && !changes.some((change) => change.field === "Pies")) changes.push({ field: "Pies", from: "Previous selection", to: "Updated quantities" });
     if (changes.length === 0) return { order };
     snaps.forEach((allocation, index) => {
       const item = deltaList[index];
@@ -691,7 +703,7 @@ async function markDelivered(input: OrderAction, actorUid: string, now: Date) {
     if (!snap.exists) return { missing: true as const };
     const data = snap.data()!;
     const order = decodeInboxOrder(input.orderId, data);
-    if (!order || data.delivery !== "lalamove" || data.status !== "preparing" || data.status !== input.expectedStatus) {
+    if (!order || data.delivery !== "lalamove" || data.status !== "ready" || data.status !== input.expectedStatus) {
       return { conflict: data.delivery === "lalamove" ? "This request changed. Reload it and try again." : "Pickup progress is for pickup requests.", order };
     }
     const next = {
@@ -700,7 +712,7 @@ async function markDelivered(input: OrderAction, actorUid: string, now: Date) {
         at: now.toISOString(),
         actorUid,
         action: "delivered" as const,
-        previousStatus: "preparing" as const,
+        previousStatus: "ready" as const,
         status: "completed" as const,
       }),
     };
@@ -718,7 +730,9 @@ export async function transitionOrder(raw: unknown, admin: AdminIdentity, now = 
   if (admin.role !== "owner" && !admin.branchIds.some((id) => id === branchId)) {
     throw new ProductError(403, "This request is not in your branch.");
   }
-  const settled = input.action === "pay"
+  const settled = input.action === "preferences"
+    ? await updateCustomerPreferences(input, admin.uid, now)
+    : input.action === "pay"
     ? await recordOrderPayment(input, admin.uid, now)
     : input.action === "revise"
       ? await reviseOrder(input, admin, now)
@@ -757,7 +771,8 @@ export type RecoveryDraft = {
   catalogMode: "regular" | "preorder";
   branchId: InboxOrder["branchId"];
   slotId: string;
-  delivery: "pickup";
+  delivery: "pickup" | "lalamove";
+  address?: string;
   name: string;
   contact: string;
   payment: InboxOrder["payment"];
@@ -897,7 +912,8 @@ export async function reviewRecovery(order: InboxOrder, now = new Date(), propos
 
 async function orderByToken(token: string) {
   const snap = await getServerFirebase().db.collection("orders").where("accessTokenHash", "==", tokenHash(token)).limit(1).get();
-  return snap.docs[0] ?? null;
+  const doc = snap.docs[0];
+  return doc && !guestAccessEnded(doc.data(), new Date()) ? doc : null;
 }
 
 export async function readRecoveryDraft(token: string, now = new Date()): Promise<RecoveryDraft | null> {
@@ -913,7 +929,8 @@ export async function readRecoveryDraft(token: string, now = new Date()): Promis
     catalogMode: order.catalogMode,
     branchId: order.branchId,
     slotId: order.slotId,
-    delivery: "pickup",
+    delivery: order.delivery,
+    address: order.address,
     name: order.customerName,
     contact: order.contact,
     payment: order.payment,
@@ -948,6 +965,7 @@ export async function reopenOrder(input: { orderId?: string; token?: string; reo
   if (!preview?.selection) return { conflict: "This request was saved before item changes.", order: preview };
   const previewSelection = preview.selection;
   if (preview.status === "requested" && previewData.reopenKey === input.reopenKey) return { order: preview };
+  if (input.token && preview.status !== "expired") throw new ProductError(409, "Only expired orders can be reopened. Place a reorder instead.");
   if (!recoverableStatuses.has(preview.status)) return { order: preview };
   if (input.expectedStatus && preview.status !== input.expectedStatus) {
     return { conflict: "This request changed. Reload it and try again.", order: preview };
@@ -971,7 +989,10 @@ export async function reopenOrder(input: { orderId?: string; token?: string; reo
     now,
   });
   if (!assessed.clear || !assessed.quote || !assessed.slot) return { conflict: assessed.blockers.join(" "), order: preview };
-  const deadline = initialReservationDeadline(now, defaultOrderingPolicy);
+  assertCustomerLimit(branchById(context.branches, preview.branchId), previewSelection);
+  const hold = orderHold(now, context.schedule.branches[preview.branchId], previewSelection.date, preview.slotId, await readShopSettings());
+  const deadline = hold.deadline;
+  if (deadline <= now) return { conflict: "This time is too soon to confirm. Reorder for a later slot.", order: preview };
   const flavorRefs = assessed.heldFlavors.map((flavor) => db.doc(`allocations/${flavorCapacityKey(preview.branchId, previewSelection.date, flavor.productId)}`));
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
@@ -980,6 +1001,7 @@ export async function reopenOrder(input: { orderId?: string; token?: string; reo
     const order = decodeInboxOrder(ref.id, data);
     if (!order?.selection) return { conflict: "This request was saved before item changes.", order };
     if (data.status === "requested" && data.reopenKey === input.reopenKey) return { order };
+    if (input.token && data.status !== "expired") return { conflict: "This order changed. Only expired orders can be reopened.", order };
     if (!recoverableStatuses.has(data.status)) return { order };
     if (input.expectedStatus && data.status !== input.expectedStatus) {
       return { conflict: "This request changed. Reload it and try again.", order };
@@ -1025,6 +1047,10 @@ export async function reopenOrder(input: { orderId?: string; token?: string; reo
       heldFlavors: live.heldFlavors,
       capacityReleased: false,
       reopenKey: input.reopenKey,
+      submittedAfterHours: hold.submittedAfterHours,
+      openingAt: hold.openingAt,
+      customerEditable: false,
+      cancelReason: null,
       events: withEvent(data, event),
       ...freshQuoteFields(data, live.quote),
     };
@@ -1052,7 +1078,9 @@ async function commitReservedOrder(input: {
   name: string;
   contact: string;
   notes: string;
-  delivery: "pickup";
+  delivery: "pickup" | "lalamove";
+  address?: string;
+  deliveryFeePayment?: "with_total" | "to_driver";
   payment: "bank" | "gcash" | "cash";
   catalogMode: "regular" | "preorder";
   selection: Selection;
@@ -1065,7 +1093,10 @@ async function commitReservedOrder(input: {
   actorUid: string;
 }) {
   const today = manilaDate(input.now);
-  const deadline = initialReservationDeadline(input.now, defaultOrderingPolicy);
+  const shopSettings = await readShopSettings();
+  const hold = orderHold(input.now, input.schedule.branches[input.branchId], input.selection.date, input.slot.id, shopSettings);
+  const deadline = hold.deadline;
+  if (deadline <= input.now) throw new ProductError(409, "This time is too soon to confirm. Choose a later slot.");
   const { db } = getServerFirebase();
   const idemRef = db.doc(`orderIdempotency/${input.idempotencyKey}`);
   const dayRef = db.doc(`allocationDays/${dailyCapacityKey(input.branchId, input.selection.date)}`);
@@ -1109,7 +1140,7 @@ async function commitReservedOrder(input: {
       const short = input.heldFlavors.flatMap((flavor, index) => flavorHasRoom(entries[index], flavor.quantity, input.selection.date, today, false) ? [] : [input.flavorNames.get(flavor.productId) ?? flavor.productId]);
       if (short.length) throw new ProductError(409, flavorAvailabilityMessage(short));
       const nextNumber = (Number.isInteger(counterSnap.data()?.value) ? counterSnap.data()!.value : 1000) + 1;
-      const orderNumber = `MP-${String(nextNumber).padStart(4, "0")}`;
+      const orderNumber = `MK-${String(nextNumber).padStart(4, "0")}`;
       const token = randomBytes(32).toString("base64url");
       const sourceData = sourceSnap?.data();
       const order = {
@@ -1121,6 +1152,13 @@ async function commitReservedOrder(input: {
         customerName: input.name,
         contact: input.contact,
         delivery: input.delivery,
+        address: input.delivery === "lalamove" ? input.address ?? "" : "",
+        ...(input.delivery === "lalamove" ? { deliveryEligibility: "pending", deliveryFeeCentavos: null, deliveryFeePayment: input.deliveryFeePayment ?? "with_total" } : {}),
+        requireFullPayment: shopSettings.requireFullPaymentDefault,
+        customerEditable: shopSettings.customerEditDefault,
+        submittedAfterHours: hold.submittedAfterHours,
+        openingAt: hold.openingAt,
+        cancelReason: null,
         payment: input.payment,
         catalogMode: input.catalogMode,
         preparationDays: input.quote.preparationDays,
@@ -1131,8 +1169,8 @@ async function commitReservedOrder(input: {
         heldFlavors: input.heldFlavors,
         knownSubtotalCentavos: input.quote.knownSubtotalCentavos,
         itemQuotePending: input.quote.quoteRequired,
-        quoteStatus: input.quote.quoteRequired ? "pending" as const : "finalized" as const,
-        finalTotalCentavos: input.quote.quoteRequired ? null : input.quote.knownSubtotalCentavos,
+        quoteStatus: input.quote.quoteRequired || input.delivery === "lalamove" ? "pending" as const : "finalized" as const,
+        finalTotalCentavos: input.quote.quoteRequired || input.delivery === "lalamove" ? null : input.quote.knownSubtotalCentavos,
         paymentStatus: "unpaid" as const,
         netReceivedCentavos: 0,
         payments: [],
@@ -1179,6 +1217,34 @@ async function commitReservedOrder(input: {
   }
 }
 
+const DASHBOARD_ORDER_PAGE = 200;
+const DASHBOARD_ORDER_CAP = 2000;
+
+/** Reads every saved order for dashboard totals. Stops with an error once the scan cap is reached so a truncated read cannot be reported as a complete count. */
+export async function readOrdersForDashboard() {
+  const { db } = getServerFirebase();
+  const orders: InboxOrder[] = [];
+  let scanned = 0;
+  let cursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+  for (;;) {
+    let query = db.collection("orders").orderBy(FieldPath.documentId()).limit(DASHBOARD_ORDER_PAGE);
+    if (cursor) query = query.startAfter(cursor);
+    const snap = await query.get();
+    scanned += snap.size;
+    for (const doc of snap.docs) {
+      const order = decodeInboxOrder(doc.id, doc.data());
+      if (order) orders.push(order);
+    }
+    if (snap.size < DASHBOARD_ORDER_PAGE) return orders;
+    if (scanned >= DASHBOARD_ORDER_CAP) {
+      throw new ProductError(503, "The dashboard couldn't be loaded. Please try again.");
+    }
+    const next = snap.docs.at(-1);
+    if (!next) return orders;
+    cursor = next;
+  }
+}
+
 export async function readHeldOrders(admin: AdminIdentity, now = new Date()) {
   await expireDueHolds(now);
   const snap = await getServerFirebase().db.collection("orders").where("status", "in", ["requested", "processing", "confirmed", "preparing", "ready", "completed"]).limit(100).get();
@@ -1203,7 +1269,7 @@ export async function readGuestOrder(token: string, now = new Date()) {
   const { db } = getServerFirebase();
   const snap = await db.collection("orders").where("accessTokenHash", "==", tokenHash(token)).limit(1).get();
   const doc = snap.docs[0];
-  if (!doc) return null;
+  if (!doc || guestAccessEnded(doc.data(), now)) return null;
   if (orderIsDue(doc.data(), now)) await settleOrder(doc.id, now, "system", "expire", "requested");
   const fresh = orderIsDue(doc.data(), now) ? await doc.ref.get() : doc;
   const order = decodeInboxOrder(fresh.id, fresh.data() ?? {});
@@ -1222,6 +1288,16 @@ export async function readGuestOrder(token: string, now = new Date()) {
   });
   return {
     orderNumber: order.orderNumber,
+    requireFullPayment: order.requireFullPayment,
+    paymentStatus: order.paymentStatus,
+    customerEditable: order.customerEditable && ["requested", "processing"].includes(order.status),
+    submittedAfterHours: order.submittedAfterHours,
+    openingAt: order.openingAt ?? null,
+    cancelReason: order.status === "cancelled" ? order.cancelReason : null,
+    deliveryAddress: order.address,
+    deliveryFeePayment: order.deliveryFeePayment ?? "with_total",
+    branchHours: branch.hoursLabel,
+    branchMapUrl: branch.mapUrl,
     status: order.status,
     statusLabel: copy.statusLabel,
     branchName: branch.name,
@@ -1238,7 +1314,9 @@ export async function readGuestOrder(token: string, now = new Date()) {
     deliveryFeeCentavos: order.delivery === "lalamove" ? order.deliveryFeeCentavos ?? null : null,
     preparationDays: order.preparationDays,
     paymentLabel: guestPaymentLabel(order.paymentStatus),
-    message: copy.message,
+    message: order.status === "requested" && order.submittedAfterHours && order.openingAt
+      ? `We're closed right now. We'll confirm your order when we open at ${new Date(order.openingAt).toLocaleTimeString("en-PH", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" })}.`
+      : copy.message,
   };
 }
 
@@ -1248,6 +1326,14 @@ export async function reopenGuestOrder(token: string, reopenKey: string, now = n
   const order = await readGuestOrder(token, now);
   if (!order) return null;
   return { order, conflict: "conflict" in result ? result.conflict : undefined };
+}
+
+function assertCustomerLimit(branch: Awaited<ReturnType<typeof readBranchSettings>>["branches"][number], selection: Selection) {
+  const limit = branch.customerLimit;
+  if (!limit?.quantity) return;
+  // Q7: only the brief's initial per-order/pies configuration is supported until box/day policy is decided.
+  if (limit.per !== "order" || limit.unit !== "pies") throw new ProductError(409, "This branch’s order limit needs confirmation. Please contact us.");
+  if (selection.lines.reduce((sum, line) => sum + line.quantity, 0) > limit.quantity) throw new ProductError(400, `That’s over the limit for ${branch.name}.`);
 }
 
 async function preparedReservation(input: {
@@ -1265,7 +1351,11 @@ async function preparedReservation(input: {
   const { catalog } = await readPublicMenu();
   if (!catalog) throw new ProductError(503, "The menu is temporarily unavailable. Please try again.");
   const branchSettings = await readBranchSettings();
+  if (!branchSettings.branches.some((b) => b.id === input.branchId && b.visible)) throw new ProductError(409, "This branch is no longer available. Choose another branch.");
   const branchId = resolveBranch(input.branchId, branchSettings);
+  const destination = branchById(branchSettings, branchId);
+  if (input.delivery === "pickup" && !destination.pickupEnabled) throw new ProductError(409, "Pickup is not available from this branch.");
+  assertCustomerLimit(destination, input.selection);
   if (input.delivery === "lalamove" && !branchById(branchSettings, branchId).deliveryEnabled) {
     throw new ProductError(409, "Delivery is not available from this branch. Pickup is still available.");
   }
@@ -1311,6 +1401,8 @@ export async function submitOrder(raw: unknown, now = new Date()) {
     contact: input.contact,
     notes: input.notes,
     delivery: input.delivery,
+    address: input.address,
+    deliveryFeePayment: input.deliveryFeePayment,
     payment: input.payment,
     catalogMode: prepared.catalogMode,
     selection: input.selection,
@@ -1389,4 +1481,52 @@ async function reorderClosedOrder(input: OrderAction, admin: AdminIdentity, now:
   const createdOrder = created.exists ? decodeInboxOrder(created.id, created.data()!) : null;
   if (!createdOrder) return { missing: true as const };
   return { order: createdOrder };
+}
+
+function revisionFor(data: FirebaseFirestore.DocumentData) {
+  return createHash("sha256").update(JSON.stringify([data.selection, data.status, data.events, data.customerEditable, data.deadline])).digest("hex");
+}
+export async function readGuestEdit(token: string, now = new Date()) {
+  await expireDueHolds(now);
+  const doc = await orderByToken(token);
+  if (!doc) throw new ProductError(404, "This order link is unavailable.");
+  const data = doc.data();
+  const order = decodeInboxOrder(doc.id, data);
+  if (!order?.selection || !order.customerEditable || !["requested", "processing"].includes(order.status) || orderIsDue(data, now)) throw new ProductError(403, "Editing is no longer allowed. Return to your order for the latest update.");
+  return { orderNumber: order.orderNumber, revision: revisionFor(data), branchId: order.branchId, slotId: order.slotId, delivery: order.delivery, address: order.address, name: order.customerName, contact: order.contact, payment: order.payment, notes: order.notes, selection: order.selection, review: { priceChanges: [], unavailableLines: [] } };
+}
+export async function reviseGuestOrder(token: string, revision: string, selection: Selection, slotId: string, now = new Date()) {
+  await expireDueHolds(now);
+  const doc = await orderByToken(token);
+  if (!doc) throw new ProductError(404, "This order link is unavailable.");
+  const order = decodeInboxOrder(doc.id, doc.data());
+  if (!order || !["requested", "processing"].includes(order.status)) throw new ProductError(403, "Editing is no longer allowed.");
+  const input = orderActionSchema.parse({ orderId: doc.id, expectedStatus: order.status, action: "revise", branchId: order.branchId, slotId, selection });
+  const result = await reviseOrder(input, { uid: "customer", role: "staff" }, now, { token, revision });
+  if ("conflict" in result) throw new ProductError(409, result.conflict || "Your order changed. Please reload it.");
+  if ("missing" in result) throw new ProductError(404, "This order link is unavailable.");
+  return { token };
+}
+
+async function updateCustomerPreferences(input: OrderAction, actorUid: string, now: Date) {
+  const db = getServerFirebase().db;
+  const ref = db.doc(`orders/${input.orderId}`);
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return { missing: true as const };
+    const data = snap.data()!;
+    const order = decodeInboxOrder(ref.id, data);
+    if (!order || order.status !== input.expectedStatus || orderIsDue(data, now)) throw new ProductError(409, "This order changed. Refresh it before changing permissions.");
+    if (input.customerEditable !== undefined && !["requested", "processing"].includes(order.status)) throw new ProductError(409, "Customer edits are only available before approval.");
+    if (input.requireFullPayment !== undefined && !["requested", "processing", "confirmed"].includes(order.status)) throw new ProductError(409, "Payment requirements cannot change once preparation starts.");
+    const flags = { ...(input.customerEditable !== undefined ? { customerEditable: input.customerEditable } : {}), ...(input.requireFullPayment !== undefined ? { requireFullPayment: input.requireFullPayment } : {}) };
+    const changes = Object.entries(flags).filter(([key,value]) => Boolean(data[key]) !== value).map(([key,value]) => ({ field: key === "customerEditable" ? "Customer editing" : "Full payment required", from: data[key] ? "On" : "Off", to: value ? "On" : "Off" }));
+    const next = { ...flags, events: changes.length ? withEvent(data, { at: now.toISOString(), actorUid, action: "revise", previousStatus: order.status, status: order.status, changes }) : data.events ?? [] };
+    tx.update(ref, next);
+    return { order: decodeInboxOrder(ref.id, { ...data, ...next }) };
+  });
+}
+
+function guestAccessEnded(data: FirebaseFirestore.DocumentData, now: Date) {
+  return Boolean(data.anonymizedAt || data.anonymized) || (["completed", "cancelled", "expired"].includes(data.status) && typeof data.fulfillmentDate === "string" && now.getTime() >= Date.parse(`${data.fulfillmentDate}T00:00:00+08:00`) + 30 * 86400000);
 }

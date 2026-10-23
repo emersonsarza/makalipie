@@ -134,14 +134,14 @@ export function ProductEditor({ initial, embedded = false, onSaved, onBack }: { 
       onSaved?.(product, !version);
       if (!version && !embedded) {
         // Replace the creation URL so refreshing cannot start a duplicate product.
-        window.history.replaceState(null, "", `/admin/catalog?product=${encodeURIComponent(product.id)}&tab=details`);
+        window.history.replaceState(null, "", `/v1/catalog?product=${encodeURIComponent(product.id)}&tab=details`);
       }
     } catch (error) { setError(error instanceof Error ? error.message : "Could not save. Your edits are still here; please try again."); }
     finally { setPending(false); }
   }
 
   return <>
-    {!embedded && <><Link href="/admin/catalog" className="product-back"><ArrowLeft size={16} aria-hidden="true" /> All products</Link>
+    {!embedded && <><Link href="/v1/catalog" className="product-back"><ArrowLeft size={16} aria-hidden="true" /> All products</Link>
     <div className="products-heading"><div className="admin-page-heading"><p className="admin-eyebrow">A LITTLE DETAIL GOES A LONG WAY</p><h1>{version ? "Edit product" : "Add a product"}</h1><p>{version ? form.name : "Make room for something delicious."}</p></div><Badge variant="outline" className={form.active ? "product-visible" : "product-hidden"}>{form.active ? "Visible" : "Hidden"}</Badge></div>
     </>}
     <form ref={formRef} id={embedded ? "catalog-product-form" : undefined} onSubmit={save} className="product-editor" noValidate aria-busy={pending || uploading}>
@@ -164,7 +164,7 @@ export function ProductEditor({ initial, embedded = false, onSaved, onBack }: { 
       </fieldset>
       <aside className="product-editor-side">
         <section className="product-editor-section" aria-labelledby="product-photo-title"><h2 id="product-photo-title">Product photo</h2><div className="product-photo-preview"><Image src={form.image.url} alt={form.image.alt || "Product photo preview"} unoptimized width={480} height={480} /></div><input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" tabIndex={-1} aria-label="Choose a product photo" disabled={pending || uploading} onChange={(e) => void upload(e.target.files?.[0])} /><div className="product-photo-actions"><Button type="button" variant="outline" onClick={() => fileInput.current?.click()} disabled={pending || uploading}><Upload aria-hidden="true" />{uploading ? "Uploading photo…" : "Upload photo"}</Button><Button type="button" variant="outline" disabled={pending || uploading || form.image.url === "/brand/seal.png"} onClick={() => update("image", { url: "/brand/seal.png", alt: "Makalipie seal" })}>Remove</Button></div><p className="product-help">JPG, PNG, or WebP. Up to 3 MB. Photos are resized for the website.</p>{fieldError("image.url")}<div className="admin-field"><Label htmlFor="product-image-alt">Photo description</Label><Textarea id="product-image-alt" rows={3} disabled={pending || uploading} value={form.image.alt} maxLength={200} onChange={(e) => update("image", { ...form.image, alt: e.target.value })} {...fieldProps("image.alt")} />{fieldError("image.alt")}</div></section>
-        {!embedded && <section className="product-editor-section"><h2>On the menu</h2>{version && <Link href="/admin/catalog" className="text-link">Manage sizes, prices & availability</Link>}<p className="product-price-note">Prices belong to sizes. Use Catalog to manage fixed prices, quotes, preparation time, and availability.</p></section>}
+        {!embedded && <section className="product-editor-section"><h2>On the menu</h2>{version && <Link href="/v1/catalog" className="text-link">Manage sizes, prices & availability</Link>}<p className="product-price-note">Prices belong to sizes. Use Catalog to manage fixed prices, quotes, preparation time, and availability.</p></section>}
       </aside>
       <div className="product-savebar">
         <div className="product-save-feedback">
@@ -210,7 +210,7 @@ export function ProductEditor({ initial, embedded = false, onSaved, onBack }: { 
             onClick={() => {
               if (embedded) { onBack?.(); return; }
               if (dirty) setLeaving(true);
-              else router.push("/admin/catalog");
+              else router.push("/v1/catalog");
             }}
           >
             Cancel
@@ -235,7 +235,7 @@ export function ProductEditor({ initial, embedded = false, onSaved, onBack }: { 
               onClick={() => {
                 allowLeave.current = true;
                 setLeaving(false);
-                router.push("/admin/catalog");
+                router.push("/v1/catalog");
               }}
             >
               Discard changes

@@ -9,5 +9,5 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   if (!id.success) notFound();
   const product = await findProduct(id.data);
   if (!product) notFound();
-  redirect(`/admin/catalog?product=${encodeURIComponent(product.id)}&tab=details`);
+  redirect(`/v1/catalog?product=${encodeURIComponent(product.id)}&tab=details`);
 }

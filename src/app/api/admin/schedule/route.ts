@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   try {
     const owner = await authorizeMutation(request);
     await saveScheduleSettings(scheduleSettingsSchema.parse(await readAdminJson(request)), owner.uid);
-    revalidatePath("/order"); revalidatePath("/admin/schedule");
+    revalidatePath("/order"); revalidatePath("/v1/schedule");
     return adminJson({ settings: await readScheduleSettings() });
   } catch (e) { return adminFailure(e); }
 }

@@ -13,14 +13,16 @@ export const orderRequestSchema = z.object({
   name: z.string().trim().min(1).max(100),
   contact: z.string().trim().min(1).max(40),
   notes: z.string().trim().max(500).default(""),
-  delivery: z.literal("pickup", { error: "Orders are now pickup-only. Please reload the page to continue." }),
-  // Accept only the empty field sent by older pickup forms; never store it.
-  address: z.literal("").optional(),
+  delivery: z.enum(["pickup", "lalamove"]),
+  address: z.string().trim().max(300).optional(),
+  deliveryFeePayment: z.enum(["with_total", "to_driver"]).optional(),
   payment: z.enum(["bank", "gcash", "cash"]),
   catalogMode: z.enum(["regular", "preorder"]).optional(),
   recoveryToken: z.string().trim().min(20).max(200).optional(),
   selection: selectionSchema,
-}).strict();
+}).strict().superRefine((input, ctx) => {
+  if (input.delivery === "lalamove" && (!input.address || input.address.length < 5)) ctx.addIssue({ code: "custom", path: ["address"], message: "Add your delivery address." });
+});
 export type OrderRequest = z.infer<typeof orderRequestSchema>;
 
 export const guestStatusRequestSchema = z.object({
@@ -69,7 +71,7 @@ const recoverableStatusSchema = z.enum(["expired", "cancelled"]);
 
 export const orderActionSchema = z.object({
   orderId: z.string().min(1),
-  action: z.enum(["processing", "approve", "reject", "pay", "preparing", "ready", "complete", "revise", "settle", "deliverable", "delivered", "review", "reopen", "reorder"]),
+  action: z.enum(["processing", "approve", "reject", "pay", "preparing", "ready", "complete", "revise", "settle", "deliverable", "delivered", "review", "reopen", "reorder", "preferences"]),
   expectedStatus: z.enum(["requested", "processing", "confirmed", "preparing", "ready", "expired", "cancelled"]),
   idempotencyKey: z.string().uuid().optional(),
   reopenKey: z.string().uuid().optional(),
@@ -81,6 +83,8 @@ export const orderActionSchema = z.object({
   slotId: clockTimeSchema.optional(),
   selection: selectionSchema.optional(),
   feeCentavos: z.number().int().nonnegative().optional(),
+  customerEditable: z.boolean().optional(),
+  requireFullPayment: z.boolean().optional(),
 }).strict().superRefine((input, ctx) => {
   if (input.action === "reject" && !input.reason) {
     ctx.addIssue({ code: "custom", message: "Add a reason.", path: ["reason"] });
@@ -136,7 +140,7 @@ export const orderActionSchema = z.object({
   if (input.action === "deliverable" && input.feeCentavos === undefined) {
     ctx.addIssue({ code: "custom", message: "Record the delivery fee.", path: ["feeCentavos"] });
   }
-  if (input.action === "delivered" && input.expectedStatus !== "preparing") {
+  if (input.action === "delivered" && input.expectedStatus !== "ready") {
     ctx.addIssue({ code: "custom", message: "Mark a delivery delivered after preparation.", path: ["expectedStatus"] });
   }
   const recoverable = recoverableStatusSchema.safeParse(input.expectedStatus).success;
@@ -171,6 +175,14 @@ export const inboxOrderSchema = z.object({
   fulfillmentDate: businessDateSchema,
   slotId: clockTimeSchema,
   slotLabel: z.string().min(1),
+  requireFullPayment: z.boolean().default(false),
+  customerEditable: z.boolean().default(false),
+  submittedAfterHours: z.boolean().default(false),
+  openingAt: z.string().optional(),
+  heldFlavors: z.array(z.object({ productId: z.string().min(1), quantity: z.number().int().positive() }).strict()).max(100).default([]),
+  anonymized: z.boolean().default(false),
+  cancelReason: z.string().nullable().default(null),
+  deliveryFeePayment: z.enum(["with_total", "to_driver"]).optional(),
   customerName: z.string(),
   contact: z.string(),
   address: z.string(),

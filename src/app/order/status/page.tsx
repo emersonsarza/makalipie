@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 import { SiteShell } from "@/components/site-shell";
 import type { InboxOrder } from "@/lib/orders/schema";
-import { site } from "@/lib/site";
+import { usePublicShop } from "@/components/public-shop-provider";
 import { receiptLine, receiptAddon } from "@/lib/orders/receipt-line";
 
 type RecoveryReview = {
@@ -20,6 +20,16 @@ type RecoveryReview = {
 };
 
 type Receipt = {
+  requireFullPayment?: boolean;
+  paymentStatus?: string;
+  customerEditable?: boolean;
+  submittedAfterHours?: boolean;
+  openingAt?: string | null;
+  cancelReason?: string | null;
+  deliveryAddress?: string;
+  deliveryFeePayment?: "with_total" | "to_driver";
+  branchHours?: string;
+  branchMapUrl?: string;
   orderNumber: string;
   status: InboxOrder["status"];
   statusLabel: string;
@@ -46,11 +56,11 @@ function OrderPhoto({ image }: { image: { src: string; alt: string } }) {
 }
 
 export default function OrderStatusPage() {
+  const shop = usePublicShop();
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [error, setError] = useState("");
   const [token, setToken] = useState("");
   const [review, setReview] = useState<RecoveryReview | null>(null);
-  const [catalogMode, setCatalogMode] = useState<"regular" | "preorder">("regular");
   const [reopening, setReopening] = useState(false);
   const [actionError, setActionError] = useState("");
   const [copyState, setCopyState] = useState<"idle" | "copied" | "manual">("idle");
@@ -65,7 +75,9 @@ export default function OrderStatusPage() {
   }, []);
 
   useEffect(() => {
-    const accessToken = window.location.hash.replace(/^#/, "") || sessionStorage.getItem("makalipie-request-token") || "";
+    let savedToken = "";
+    try { savedToken = sessionStorage.getItem("makalipie-request-token") || ""; } catch { /* Private URL still works without storage. */ }
+    const accessToken = window.location.hash.replace(/^#/, "") || savedToken;
     let disposed = false;
     let timer = 0;
     if (!accessToken || accessToken.startsWith("reorder=")) {
@@ -82,7 +94,7 @@ export default function OrderStatusPage() {
           body: JSON.stringify({ token: accessToken }),
         });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "This link doesn't match a request.");
+        if (!response.ok) { if (response.status === 404 || response.status === 403) { setReceipt(null); setReview(null); } throw new Error(data.error || "This link is unavailable or has expired."); }
         if (disposed) return;
         setError("");
         setToken(accessToken);
@@ -96,20 +108,14 @@ export default function OrderStatusPage() {
           const draft = await recovery.json();
           if (!disposed && recovery.ok) {
             setReview(draft.draft.review);
-            setCatalogMode(draft.draft.catalogMode === "preorder" ? "preorder" : "regular");
           }
         } else if (!disposed) {
           setReview(null);
         }
       } catch (loadError) {
-        if (!disposed && !receiptRef.current) setError(loadError instanceof Error ? loadError.message : "We couldn't open that request.");
+        if (!disposed) setError(loadError instanceof Error ? loadError.message : "We couldn't open that request.");
       }
     }
-    const receiptRef = { current: false };
-    const trackedLoad = async () => {
-      await load();
-      receiptRef.current = true;
-    };
     function schedule() {
       window.clearInterval(timer);
       if (document.visibilityState !== "visible") return;
@@ -119,7 +125,7 @@ export default function OrderStatusPage() {
       if (document.visibilityState === "visible") void load();
       schedule();
     }
-    void trackedLoad();
+    void load();
     schedule();
     document.addEventListener("visibilitychange", onShow);
     window.addEventListener("focus", onShow);
@@ -147,10 +153,10 @@ export default function OrderStatusPage() {
 
   function openInstagram() {
     if (window.matchMedia("(pointer: coarse)").matches) {
-      window.location.assign(site.instagramDmUrl);
+      window.location.assign(shop.links.instagramDm || shop.links.instagram);
       return;
     }
-    window.open(site.instagramDmUrl, "_blank", "noopener,noreferrer");
+    window.open(shop.links.instagramDm || shop.links.instagram, "_blank", "noopener,noreferrer");
   }
 
   async function reopen() {
@@ -187,7 +193,7 @@ export default function OrderStatusPage() {
         <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
           {receipt ? `Order status: ${receipt.statusLabel}. ${receipt.message}` : ""}
         </p>
-        {error ? (
+        {error && !receipt ? (
           <div className={styles.unavailable}>
             <CircleAlert size={32} aria-hidden />
             <p className={styles.eyebrow}>YOUR ORDER</p>
@@ -197,22 +203,26 @@ export default function OrderStatusPage() {
           </div>
         ) : receipt ? (
           <>
+            {error && <p role="alert">We couldn’t refresh your order. Showing the last saved update; we’ll try again shortly.</p>}
             <div className={styles.layout}>
               <div className={styles.details}>
                 <div className={styles.status}>
                   <OrderStatusBadge status={receipt.status} delivery={receipt.delivery ?? "pickup"} size="md" className={styles.statusBadge} />
                   <p className={styles.eyebrow}>MADE IN CEBU. MEANT TO BE SHARED.</p>
-                  <h1>{recoverable ? "A little update on your order." : receipt.status === "completed" ? "Thank you for choosing Makalipie." : "Thank you for your order!"}</h1>
+                  <h1>{recoverable ? "A little update on your order." : receipt.status === "completed" ? "Thank you for choosing Makalipie." : receipt.status === "requested" ? "Order received — awaiting confirmation." : "A little update on your order."}</h1>
                   <p>{receipt.message}</p>
+                  {receipt.cancelReason && <p className="whitespace-pre-wrap">{receipt.cancelReason}</p>}
+                  {receipt.requireFullPayment && receipt.paymentStatus !== "paid" && !recoverable && receipt.status !== "completed" && <p>Full payment is needed before we start baking.</p>}
+                  {receipt.customerEditable && <a className={styles.reorder} href={`/order#edit=${encodeURIComponent(token)}`}>Edit your order <ArrowUpRight size={16} aria-hidden /></a>}
                 </div>
                 <section className={styles.next} aria-labelledby="next-heading">
                   <h2 id="next-heading">{recoverable || receipt.status === "completed" ? "Here if you need us." : "Let’s keep in touch."}</h2>
-                  <p>Copy your order number and paste it into the Makalipie chat on Instagram.</p>
+                  <p>Copy your order number and paste it into the Makalipie chat on {shop.links.messenger ? "Instagram or Messenger" : "Instagram"}.</p>
                   {receipt.status === "requested" ? (
                     <p className={styles.deadline}><Clock3 size={17} aria-hidden /><span>Hold until <strong>{new Date(receipt.deadline).toLocaleString("en-PH", { timeZone: "Asia/Manila", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</strong> <span className={styles.timezone}>(Manila time)</span></span></p>
                   ) : null}
                   <Button type="button" className={styles.primary} onClick={openInstagram}>Open Instagram <ArrowUpRight aria-hidden /></Button>
-                  <p className={styles.hint}>On a phone, this opens the Instagram app.</p>
+                  {shop.links.messenger && <a className={styles.reorder} href={shop.links.messenger} target="_blank" rel="noreferrer">Open Messenger <ArrowUpRight size={16} aria-hidden /></a>}
                 </section>
                 <section className={styles.schedule} aria-labelledby="schedule-heading">
                   <h2 id="schedule-heading">Your schedule</h2>
@@ -221,9 +231,9 @@ export default function OrderStatusPage() {
                     <div><dt>Date</dt><dd>{when}</dd></div>
                     <div><dt>Time slot</dt><dd>{receipt.slotLabel}</dd></div>
                   </dl>
-                  <PickupAddress name={receipt.branchName} address={receipt.branchAddress} legacy={receipt.delivery === "lalamove"} />
+                  {receipt.delivery === "lalamove" ? <div><h3>Delivery address</h3><p className="whitespace-pre-wrap">{receipt.deliveryAddress}</p><p>We book the rider and confirm the fee in chat. Once collected, the courier is responsible for handling your order.</p></div> : <PickupAddress name={receipt.branchName} address={receipt.branchAddress} hoursLabel={receipt.branchHours} mapUrl={receipt.branchMapUrl} />}
                   {receipt.preparationDays ? <p className={styles.note}>Needs {receipt.preparationDays} {receipt.preparationDays === 1 ? "day" : "days"} of preparation.</p> : null}
-                  {receipt.status === "ready" ? <p className={styles.note}>Pick up at {receipt.branchName}{receipt.branchAddress ? `, ${receipt.branchAddress}` : ""} on {when}, {receipt.slotLabel}.</p> : null}
+                  {receipt.status === "ready" && receipt.delivery !== "lalamove" ? <p className={styles.note}>Pick up at {receipt.branchName}{receipt.branchAddress ? `, ${receipt.branchAddress}` : ""} on {when}, {receipt.slotLabel}.</p> : null}
                 </section>
                 {review && recoverable ? (
                   <section className={styles.recovery} aria-labelledby="recovery-heading">
@@ -233,8 +243,8 @@ export default function OrderStatusPage() {
                     {review.blockers.map((blocker, index) => <p key={index}>{blocker}</p>)}
                     {actionError ? <p role="alert">{actionError}</p> : null}
                     <div className={styles.actions}>
-                      <a className={styles.reorder} href={`${catalogMode === "preorder" ? "/order/preorder" : "/order"}#reorder=${encodeURIComponent(token)}`}>Reorder <ArrowUpRight size={16} aria-hidden /></a>
-                      <Button type="button" variant="outline" className={styles.copy} disabled={!review.clear || reopening} onClick={() => void reopen()}>{reopening ? "Reopening…" : "Reopen"}</Button>
+                      <a className={styles.reorder} href={`/order#reorder=${encodeURIComponent(token)}`}>Reorder <ArrowUpRight size={16} aria-hidden /></a>
+                      {receipt.status === "expired" && <Button type="button" variant="outline" className={styles.copy} disabled={!review.clear || reopening} onClick={() => void reopen()}>{reopening ? "Reopening…" : "Reopen"}</Button>}
                     </div>
                   </section>
                 ) : null}
@@ -278,6 +288,8 @@ export default function OrderStatusPage() {
                   return <li key={index} className={styles.addonLine}>{addon ? <><span>{addon.title}</span><strong>{addon.amount}</strong></> : line}</li>;
                 })}</ul></div> : null}
                 <div className={styles.totals}>
+                  {receipt.delivery === "lalamove" && receipt.deliveryFeeCentavos == null && <p>Delivery fee to be confirmed in chat.</p>}
+                  {receipt.delivery === "lalamove" && receipt.deliveryFeePayment === "to_driver" && <p>Pay the delivery fee directly to the rider. It is excluded from your bakery total.</p>}
                   {typeof receipt.deliveryFeeCentavos === "number" ? <div className={styles.fee}><span>Delivery fee</span><span>₱{(receipt.deliveryFeeCentavos / 100).toFixed(2)}</span></div> : null}
                   {receipt.totalLabel ? <div className={styles.total}><span>Total</span><strong>{receipt.totalLabel}</strong></div> : null}
                   {receipt.paymentLabel ? <p className={styles.payment}>{receipt.paymentLabel}</p> : null}

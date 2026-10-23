@@ -33,26 +33,26 @@ import { SessionControls } from "@/components/admin/session-controls";
 import { adminKeys, fetchAdminCatalog, fetchAdminProducts } from "@/lib/admin/query";
 
 const ownerNav = [
-  { href: "/admin", label: "Overview", icon: LayoutDashboard },
-  { href: "/admin/catalog", label: "Catalog", icon: Layers, prefetch: true },
-  { href: "/admin/branches", label: "Branches", icon: Settings2 },
-  { href: "/admin/popups", label: "Pop-ups", icon: MapPin },
-  { href: "/admin/schedule", label: "Bakery schedule", icon: CalendarDays },
-  { href: "/admin/allocation", label: "Daily allocation", icon: SlidersHorizontal },
-  { href: "/admin/orders", label: "Orders", icon: ClipboardList },
+  { href: "/v1", label: "Overview", icon: LayoutDashboard },
+  { href: "/v1/catalog", label: "Catalog", icon: Layers, prefetch: true },
+  { href: "/v1/branches", label: "Branches", icon: Settings2 },
+  { href: "/v1/popups", label: "Pop-ups", icon: MapPin },
+  { href: "/v1/schedule", label: "Bakery schedule", icon: CalendarDays },
+  { href: "/v1/allocation", label: "Daily allocation", icon: SlidersHorizontal },
+  { href: "/v1/orders", label: "Orders", icon: ClipboardList },
+  { href: "/v1/settings", label: "Settings", icon: Settings2 },
 ] as const;
 
 const staffNav = [
-  { href: "/admin/orders", label: "Orders", icon: ClipboardList },
+  { href: "/v1/orders", label: "Orders", icon: ClipboardList },
 ] as const;
 
 const plannedNav = [
   { label: "Kitchen", icon: CookingPot },
-  { label: "Settings", icon: Settings2 },
 ] as const;
 
 function isActivePath(pathname: string, href: string) {
-  return href === "/admin" ? pathname === href : pathname.startsWith(href);
+  return href === "/v1" ? pathname === href : pathname.startsWith(href);
 }
 
 export function AppSidebar({ role = "owner", ...props }: ComponentProps<typeof Sidebar> & { role?: "owner" | "staff" }) {
@@ -75,7 +75,7 @@ export function AppSidebar({ role = "owner", ...props }: ComponentProps<typeof S
               size="lg"
               tooltip="makalipie"
               className="group-data-[collapsible=icon]:overflow-visible!"
-              render={<Link href="/admin" />}
+              render={<Link href="/v1" />}
             >
               <Image
                 src="/brand/seal.png"

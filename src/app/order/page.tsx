@@ -6,11 +6,11 @@ import { OrderScreen } from "@/components/order-screen";
 export const metadata: Metadata = {
   title: "Order Tarts & Pies in Cebu",
   description:
-    "Build a box of Makalipie tarts and pies for Cebu pickup. Copy your order and send it on Instagram to confirm availability and payment.",
+    "Choose your branch and date, then order available Makalipie pies for pickup or delivery where offered. Confirm your order in chat; no payment is collected online.",
   openGraph: {
     title: "Order Tarts & Pies in Cebu · Makalipie",
     description:
-      "Build a box of Makalipie tarts and pies for Cebu pickup. Copy your order and send it on Instagram to confirm availability and payment.",
+      "Choose your branch and date, then order available Makalipie pies for pickup or delivery where offered. Confirm your order in chat; no payment is collected online.",
     url: "/order",
     type: "website",
     locale: "en_PH",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Order Tarts & Pies in Cebu · Makalipie",
     description:
-      "Build a box of Makalipie tarts and pies for Cebu pickup. Copy your order and send it on Instagram to confirm availability and payment.",
+      "Choose your branch and date, then order available Makalipie pies for pickup or delivery where offered. Confirm your order in chat; no payment is collected online.",
   },
   alternates: {
     canonical: "/order",
