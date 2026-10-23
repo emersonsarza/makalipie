@@ -665,7 +665,7 @@ function OrderRecovery({ order, branches, schedule, role, acting, onAct }: {
   schedule: ScheduleSettings;
   role: "owner" | "staff";
   acting: boolean;
-  onAct: (action: "reopen" | "reorder", extras?: ActExtras) => Promise<boolean>;
+  onAct: (action: "reopen" | "reorder" | "preferences", extras?: ActExtras) => Promise<boolean>;
 }) {
   const [original, setOriginal] = useState<RecoveryReview | null>(null);
   const [proposed, setProposed] = useState<RecoveryReview | null>(null);

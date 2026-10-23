@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { AdminAccessError, pagePermissions, type AdminIdentity } from "./access";
+import { AdminAccessError, pagePermissions } from "./access";
+import { type AdminIdentity } from "./schemas";
 import { branchIdSchema, type BranchSettings } from "../branches/schema";
 import { manilaDate } from "../catalog/rules";
 import { dailyCapacityKey } from "../orders/policy";
@@ -52,8 +53,10 @@ export class ScheduleCommandError extends Error {
   }
 }
 
-export function scheduleAccess(admin: Pick<AdminIdentity, "role" | "pages">) {
-  const allowed = pagePermissions(admin).schedule;
+type ScheduleActor = { role: AdminIdentity["role"]; branchIds?: AdminIdentity["branchIds"]; pages?: AdminIdentity["pages"] };
+
+export function scheduleAccess(admin: ScheduleActor) {
+  const allowed = pagePermissions({ role: admin.role, pages: admin.pages }).schedule;
   const owner = admin.role === "owner";
   return {
     allowed,
@@ -62,8 +65,8 @@ export function scheduleAccess(admin: Pick<AdminIdentity, "role" | "pages">) {
   };
 }
 
-export function resolveScheduleBranch(branch: string | null, admin: Pick<AdminIdentity, "role" | "branchIds" | "pages">, settings: BranchSettings) {
-  if (!pagePermissions(admin).schedule) throw new AdminAccessError(403, "You do not have access to this page.");
+export function resolveScheduleBranch(branch: string | null, admin: ScheduleActor & { branchIds: AdminIdentity["branchIds"] }, settings: BranchSettings) {
+  if (!pagePermissions({ role: admin.role, pages: admin.pages }).schedule) throw new AdminAccessError(403, "You do not have access to this page.");
   if (!branch || branch === "all") throw new ScheduleQueryError(400, "Choose one branch.");
   const parsed = branchIdSchema.safeParse(branch);
   if (!parsed.success || !settings.branches.some((item) => item.id === parsed.data)) throw new ScheduleQueryError(400, "Choose a valid branch.");

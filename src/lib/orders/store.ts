@@ -819,7 +819,7 @@ async function markDelivered(input: OrderAction, actorUid: string, now: Date) {
   });
 }
 
-export async function transitionOrder(raw: unknown, admin: AdminIdentity, now = new Date()) {
+export async function transitionOrder(raw: unknown, admin: AdminIdentity, now = new Date()): Promise<{ order: InboxOrder; conflict?: string; review?: RecoveryReview }> {
   const input = orderActionSchema.parse(raw) as OrderAction;
   const { db } = getServerFirebase();
   const snap = await db.doc(`orders/${input.orderId}`).get();
@@ -848,7 +848,7 @@ export async function transitionOrder(raw: unknown, admin: AdminIdentity, now = 
                   ? await reorderClosedOrder(input, admin, now)
                   : await settleOrder(input.orderId, now, admin.uid, input.action, input.expectedStatus, input.reason);
   if (!("order" in settled) || !settled.order || ("missing" in settled && settled.missing)) throw new ProductError(404, "This request is no longer available.");
-  const review = "review" in settled ? settled.review : undefined;
+  const review = "review" in settled && settled.review && typeof settled.review === "object" && "clear" in settled.review ? settled.review as RecoveryReview : undefined;
   if ("conflict" in settled && settled.conflict) return { order: settled.order, conflict: settled.conflict, review };
   return { order: settled.order, review };
 }
