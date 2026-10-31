@@ -138,7 +138,7 @@ export const menuItems: MenuItem[] = [
     slug: "buko",
     name: "Buko",
     kind: "sweet",
-    priceLabel: "DM for price",
+    price: 280,
     blurb:
       "Young coconut, creamy filling, and the crust that started all the DMs.",
     description:
@@ -154,7 +154,7 @@ export const menuItems: MenuItem[] = [
     slug: "butter-chicken-curry",
     name: "Butter Chicken Curry pie",
     kind: "savory",
-    priceLabel: "DM for price",
+    price: 300,
     blurb:
       "Slow, saucy, and wrapped in that one-of-a-kind flaky crust. A little savoury comfort.",
     description:
@@ -269,7 +269,7 @@ export function formatPrice(price: number) {
 
 export function itemPriceText(item: Pick<MenuItem, "price" | "priceLabel">) {
   if (item.price != null) return formatPrice(item.price);
-  return item.priceLabel ?? "DM for price";
+  return item.priceLabel ?? "";
 }
 
 export function getSiteUrl() {

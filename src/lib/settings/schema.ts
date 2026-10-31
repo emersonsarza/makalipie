@@ -12,4 +12,4 @@ export const shopSettingsSchema = z.object({
 export type ShopSettings = z.infer<typeof shopSettingsSchema>;
 export const defaultShopSettings = shopSettingsSchema.parse({});
 export type PublicShop = { links: ShopSettings["links"]; branchName: string; address: string; hoursLabel: string; mapUrl: string; deliveryAvailable: boolean; defaultPreorderLeadDays: number; featuredProductIds: string[] };
-export const defaultPublicShop: PublicShop = { links: defaultShopSettings.links, branchName: "Cebu", address: "2nd Floor, Streetscape, Banilad, Cebu City", hoursLabel: "Daily, 10am to 8pm", mapUrl: site.mapsUrl, deliveryAvailable: true, defaultPreorderLeadDays: defaultShopSettings.defaultPreorderLeadDays, featuredProductIds: defaultShopSettings.featuredProductIds };
+export const defaultPublicShop: PublicShop = { links: defaultShopSettings.links, branchName: "Makalipie Cebu", address: "2nd Floor, Streetscape, Banilad, Cebu City", hoursLabel: "Daily, 10am to 8pm", mapUrl: site.mapsUrl, deliveryAvailable: true, defaultPreorderLeadDays: defaultShopSettings.defaultPreorderLeadDays, featuredProductIds: defaultShopSettings.featuredProductIds };

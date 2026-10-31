@@ -160,7 +160,7 @@ function FlavorRow({
         {reason && availabilityLabel !== "" && <p className={selected ? design.productWarning : design.productNote}>{availabilityLabel ?? reason}</p>}
         {!!item.allergens?.length && <details className={design.productDetails}><summary>Allergen information</summary><p>Contains: {item.allergens.join(", ")}.</p></details>}
       </div>
-      <p className={design.productPrice}>{item.price == null ? "Price to confirm" : formatPrice(item.price)}</p>
+      <p className={design.productPrice}>{formatPrice(item.price)}</p>
       </div>
       {(!reason || selected) && <QtyStepper
         productRow
@@ -173,7 +173,7 @@ function FlavorRow({
   );
 }
 
-type OrderItem = MenuItem & { catalogMode: CatalogMode; displayName: string; productId: string; variant: Variant };
+type OrderItem = MenuItem & { catalogMode: CatalogMode; displayName: string; productId: string; price: number; variant: Variant };
 export function OrderForm({ items, catalogAddons, branches, initialBranch, schedule, serverNow, openDates = {}, openProducts = {}, intakeEnabled = false, mode = "regular", sections = [] }: { items: MenuItem[]; catalogAddons: Addon[]; branches: BranchSettings; initialBranch: BranchId; schedule: ScheduleSettings; serverNow: string; openDates?: Record<string, string[]>; openProducts?: Record<string, Record<string, string[]>>; intakeEnabled?: boolean; mode?: CatalogMode; sections?: MenuSection[] }) {
   const [step, setStep] = useState(0);
   const stepHeading = useRef<HTMLHeadingElement>(null);
@@ -189,7 +189,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
     });
   }
   const publicShop = usePublicShop();
-  const packages = publicShop.experience?.packages ?? [];
+  const packages = (publicShop.experience?.packages ?? []).filter((pack): pack is typeof pack & { priceCentavos: number } => pack.priceCentavos != null);
   const [packageQuantities,setPackageQuantities] = useState<Record<string,number>>({});
   const channels = publicShop.links.messenger ? (publicShop.links.messenger.includes("facebook.com")?"Instagram or Facebook":"Instagram or Messenger") : "Instagram";
   const scheduleState = useOrderSchedule(schedule, serverNow, openDates, openProducts);
@@ -211,7 +211,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
   const shop = branchById(branches, branch);
   const publicBranches = visibleBranches(branches);
   const branchUnavailable = !publicBranches.some(item => item.id === branch);
-  const menuItems: OrderItem[] = items.flatMap((item) => (item.variants ?? []).filter((v) => v.active).map((v) => ({ ...item, catalogMode: variantAvailable(branches, branch, item.slug, v.id, v.minLeadDays, "regular", v.orderMode) ? "regular" as const : "preorder" as const, displayName: item.name, productId: item.slug, slug: `${item.slug}:${v.id}`, name: flavorSizeName(item.name, v.label), price: v.pricingMode === "fixed" ? v.priceCentavos! / 100 : undefined, priceLabel: "Price pending", variant: v, image: v.image ? { src: v.image.url, alt: v.image.alt } : item.image })));
+  const menuItems: OrderItem[] = items.flatMap((item) => (item.variants ?? []).filter((v) => v.active && v.pricingMode === "fixed" && v.priceCentavos != null).map((v) => ({ ...item, catalogMode: variantAvailable(branches, branch, item.slug, v.id, v.minLeadDays, "regular", v.orderMode) ? "regular" as const : "preorder" as const, displayName: item.name, productId: item.slug, slug: `${item.slug}:${v.id}`, name: flavorSizeName(item.name, v.label), price: v.priceCentavos! / 100, variant: v, image: v.image ? { src: v.image.url, alt: v.image.alt } : item.image })));
   const availableHere = (item: OrderItem) => variantAvailable(branches, branch, item.productId, item.variant.id, item.variant.minLeadDays, "regular", item.variant.orderMode) || variantAvailable(branches, branch, item.productId, item.variant.id, item.variant.minLeadDays, "preorder", item.variant.orderMode);
   const visibleItems = menuItems.filter(availableHere);
   const [form, setForm] = useState<FormState>(() => ({ ...initialState, delivery: shop.pickupEnabled ? "pickup" : "lalamove", quantities: Object.fromEntries(menuItems.map((item) => [item.slug, 0])) }));
@@ -319,7 +319,6 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
   const invalidPackages = Object.entries(packageQuantities).some(([id,quantity]) => { if(!quantity)return false; const p=selectedPackages.find(p=>p.id===id); return !publicShop.experience?.packageCheckoutEnabled||!p||p.unavailableReason||p.priceCentavos===null||p.availablePackages===null||quantity>p.availablePackages||p.maxPerOrder!==null&&quantity>p.maxPerOrder; });
   const packageSubtotal = selectedPackages.reduce((sum,p)=>sum+(p.priceCentavos??0)*(packageQuantities[p.id]||0),0);
   const subtotal = (quote.knownSubtotalCentavos + packageSubtotal) / 100;
-  const hasUnpriced = quote.quoteRequired;
   const today = new Date(`${manilaDate(scheduleState.now)}T12:00:00`);
   const lastDate = new Date(`${addCalendarDays(manilaDate(scheduleState.now), scheduleState.settings.bookingHorizonDays)}T12:00:00`);
   const limit = shop.customerLimit?.per === "order" && shop.customerLimit.unit === "pies" ? shop.customerLimit.quantity : null;
@@ -443,17 +442,16 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
       pies: selectedItems.map((item) => ({
         quantity: form.quantities[item.slug],
         name: item.name,
-        price: item.price == null ? "To confirm" : formatPrice(item.price * form.quantities[item.slug]),
-        extras: (form.lineAddons[item.slug] ?? []).map((id) => {
+        price: formatPrice(item.price * form.quantities[item.slug]),
+        extras: (form.lineAddons[item.slug] ?? []).flatMap((id) => {
           const addon = catalogAddons.find((entry) => entry.id === id);
-          return { name: addon?.name ?? "Extra", price: addon ? formatPrice(addon.priceCentavos / 100) : "To confirm", message: form.lineMessages[item.slug]?.[id] };
+          return addon ? [{ name: addon.name, price: formatPrice(addon.priceCentavos / 100), message: form.lineMessages[item.slug]?.[id] }] : [];
         }),
       })),
       orderExtras: chosenAddons.map((addon) => ({ name: addon.name, price: formatPrice(addon.priceCentavos / 100), message: form.addonMessages[addon.id] })),
-      packages: selectedPackages.map((pack) => ({ quantity: packageQuantities[pack.id] || 0, name: pack.name, price: pack.priceCentavos === null ? "To confirm" : formatPrice(pack.priceCentavos / 100 * (packageQuantities[pack.id] || 0)) })),
+      packages: selectedPackages.map((pack) => ({ quantity: packageQuantities[pack.id] || 0, name: pack.name, price: formatPrice(pack.priceCentavos / 100 * (packageQuantities[pack.id] || 0)) })),
       notes: form.notes.trim(),
       subtotal: formatPrice(subtotal),
-      unpriced: hasUnpriced,
     });
     setChecking(true);
     setCopiedOrder(false);
@@ -835,7 +833,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
                 <Label><RadioGroupItem value="pickup" /><Store size={18} aria-hidden />Pickup</Label>
                 <Label><RadioGroupItem value="lalamove" /><Truck size={18} aria-hidden />Delivery</Label>
               </RadioGroup>}
-              {form.delivery === "pickup" ? <PickupAddress name={shop.name} address={shop.address} hoursLabel={shop.hoursLabel} mapUrl={shop.mapUrl} /> : <div className="space-y-3 rounded-xl bg-butter/60 p-4"><Label htmlFor="delivery-address" className="gap-2"><Truck size={16} aria-hidden />Delivery address</Label><Textarea id="delivery-address" required minLength={5} maxLength={300} autoComplete="street-address" value={form.address} onChange={(e) => update("address", e.target.value)} /><p className="text-sm">We book the rider and confirm the delivery fee in chat. Pay it with your total or directly to the rider.</p><label className="block">Delivery fee payment<select className="mt-2 min-h-11 w-full rounded-lg border p-3" value={form.deliveryFeePayment} onChange={e => update("deliveryFeePayment", e.target.value as FormState["deliveryFeePayment"])}><option value="with_total">Include in my bakery payment</option><option value="to_driver">Pay the rider directly</option></select></label><p className="text-sm">{form.deliveryFeePayment === "with_total" ? "We'll confirm the delivery fee in chat. If you include it with the bakery payment, wait for that total before paying." : "Pay the delivery fee directly to the rider. We'll tell you in chat if the pies need to be paid in full before we start baking."}</p></div>}
+              {form.delivery === "pickup" ? <PickupAddress name={shop.name} address={shop.address} hoursLabel={shop.hoursLabel} mapUrl={shop.mapUrl} /> : <div className="space-y-3 rounded-xl bg-butter/60 p-4"><Label htmlFor="delivery-address" className="gap-2"><Truck size={16} aria-hidden />Delivery address</Label><Textarea id="delivery-address" required minLength={5} maxLength={300} autoComplete="street-address" value={form.address} onChange={(e) => update("address", e.target.value)} /><p className="text-sm">We book the rider. The delivery fee is confirmed in chat. Pay it with your order or directly to the rider.</p><label className="block">Delivery fee payment<select className="mt-2 min-h-11 w-full rounded-lg border p-3" value={form.deliveryFeePayment} onChange={e => update("deliveryFeePayment", e.target.value as FormState["deliveryFeePayment"])}><option value="with_total">Include in my bakery payment</option><option value="to_driver">Pay the rider directly</option></select></label><p className="text-sm">{form.deliveryFeePayment === "with_total" ? "The delivery fee is confirmed in chat. Pay it with your order." : "The delivery fee is confirmed in chat. Pay it directly to the rider."}</p></div>}
             </fieldset>
 
             <fieldset disabled={Boolean(editing)} className="space-y-3">
@@ -935,15 +933,13 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
                     {form.quantities[item.slug]} × {item.name}
                   </span>
                   <span>
-                    {item.price == null
-                      ? "To confirm"
-                      : formatPrice(item.price * form.quantities[item.slug])}
+                    {formatPrice(item.price * form.quantities[item.slug])}
                   </span>
                 </li>
               ))}
             </ul>
           )}
-          {selection.lines.some((line) => line.addons.length) && <p className="order-total-note">Selected per-pie extras are included in the known subtotal.</p>}
+          {selection.lines.some((line) => line.addons.length) && <p className="order-total-note">Selected per-pie extras are included in the subtotal.</p>}
           {chosenAddons.length > 0 && (
             <ul className="order-summary-lines order-summary-addons">
               {chosenAddons.map((addon) => (
@@ -954,17 +950,14 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
               ))}
             </ul>
           )}
-          {selectedPackages.map(p=><p key={p.id}>{packageQuantities[p.id]} × {p.name} · fixed box of 4 pies · {p.priceCentavos===null?'Price pending':formatPrice(p.priceCentavos/100*(packageQuantities[p.id]||0))}</p>)}
+          {selectedPackages.map(p=><p key={p.id}>{packageQuantities[p.id]} × {p.name} · fixed box of 4 pies · {formatPrice(p.priceCentavos/100*(packageQuantities[p.id]||0))}</p>)}
 
           <div className="order-subtotal">
-            <span>Known subtotal</span>
+            <span>Subtotal</span>
             <strong>{formatPrice(subtotal)}</strong>
           </div>
           <p className="order-total-note">
-            {hasUnpriced
-              ? "Quoted sizes will be priced after confirmation. "
-              : ""}
-            Staff confirm the final total in chat.
+            The subtotal is the pies and extras. The delivery fee is confirmed in chat.
           </p>
           {orderNotes("desktop-order-notes")}
           <div className="order-summary-logistics">
@@ -993,7 +986,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
           </Link>
         </aside>
       </div>
-      <MobileLineup count={selectedCount} subtotal={subtotal} hasUnpriced={hasUnpriced}>
+      <MobileLineup count={selectedCount} subtotal={subtotal}>
         <ul className="mobile-lineup-items">
           {selectedItems.map((item) => {
             const quantity = form.quantities[item.slug];
@@ -1003,8 +996,8 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
             return <li key={item.slug}>
               <div className="mobile-lineup-item">
                 <Image src={item.image.src} alt="" width={56} height={56} unoptimized />
-                <div><strong>{item.name}</strong><p>{quantity} {quantity === 1 ? "pc" : "pcs"}{item.price == null ? " · Price to confirm" : ` · ${formatPrice(item.price)} each`}</p></div>
-                <strong>{item.price == null ? "To confirm" : formatPrice(item.price * quantity)}</strong>
+                <div><strong>{item.name}</strong><p>{quantity} {quantity === 1 ? "pc" : "pcs"} · {formatPrice(item.price)} each</p></div>
+                <strong>{formatPrice(item.price * quantity)}</strong>
               </div>
               {reason ? <p className="mobile-lineup-warning">{reason}</p> : null}
               {extras.map((addon) => <p className="mobile-lineup-extra" key={addon.id}>{addon.name}{form.lineMessages[item.slug]?.[addon.id] ? `: ${form.lineMessages[item.slug][addon.id]}` : ""} · {formatPrice(addon.priceCentavos * quantity / 100)}</p>)}
@@ -1012,9 +1005,9 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
             </li>;
           })}
         </ul>
-        {selectedPackages.length > 0 && <section className="mobile-lineup-extras"><h3>Packages</h3>{selectedPackages.map(p => <p key={p.id}><span>{packageQuantities[p.id]} × {p.name}</span><strong>{p.priceCentavos === null ? "Price pending" : formatPrice(p.priceCentavos / 100 * packageQuantities[p.id])}</strong></p>)}</section>}
+        {selectedPackages.length > 0 && <section className="mobile-lineup-extras"><h3>Packages</h3>{selectedPackages.map(p => <p key={p.id}><span>{packageQuantities[p.id]} × {p.name}</span><strong>{formatPrice(p.priceCentavos / 100 * packageQuantities[p.id])}</strong></p>)}</section>}
         {chosenAddons.length ? <section className="mobile-lineup-extras"><h3>Order extras</h3>{chosenAddons.map((addon) => <p key={addon.id}><span>{addon.name}{form.addonMessages[addon.id] ? `: ${form.addonMessages[addon.id]}` : ""}</span><strong>{formatPrice(addon.priceCentavos / 100)}</strong></p>)}</section> : null}
-        <p className="mobile-lineup-note">{hasUnpriced ? "Some prices are to confirm. " : ""}Priced extras are included in the subtotal. Staff confirm the final total in chat.</p>
+        <p className="mobile-lineup-note">The subtotal is the pies and extras. The delivery fee is confirmed in chat.</p>
         {orderNotes("mobile-order-notes")}
         <section className="mobile-lineup-logistics"><h3>Your schedule</h3><p>{form.delivery === "lalamove" ? `Delivery to ${form.address || "your address"} · Fee confirmed in chat` : `Pickup at ${shop.name}`}</p><p>{formatPreferredWhen(dateValue, selectedSlot?.label ?? "") || "Choose your date and time in the form."}</p>{dateInvalid ? <p className="mobile-lineup-warning">Choose an available date in the form.</p> : null}</section>
       </MobileLineup>

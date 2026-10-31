@@ -17,7 +17,6 @@ export type InstagramOrder = {
   packages?: InstagramPackageLine[];
   notes?: string;
   subtotal: string;
-  unpriced?: boolean;
 };
 
 export function formatInstagramOrder(order: InstagramOrder) {
@@ -34,7 +33,7 @@ export function formatInstagramOrder(order: InstagramOrder) {
   ];
   if (order.fulfillment === "delivery") {
     lines.push(`Address: ${order.deliveryAddress ?? ""}`);
-    lines.push(order.deliveryFeePayment === "to_driver" ? "Delivery fee: Pay the rider directly" : "Delivery fee: Pay with the order");
+    lines.push(order.deliveryFeePayment === "to_driver" ? "Delivery fee: pending, confirmed in chat. Pay the rider directly." : "Delivery fee: pending, confirmed in chat. Pay with the order.");
   }
   lines.push(`Payment: ${order.payment}`, "", "Pies");
   for (const pie of order.pies) {
@@ -56,8 +55,10 @@ export function formatInstagramOrder(order: InstagramOrder) {
     for (const pack of order.packages) lines.push(`${pack.quantity} × ${pack.name} — ${pack.price}`);
   }
   if (order.notes?.trim()) lines.push("", "Notes", order.notes.trim());
-  lines.push("", `Known subtotal: ${order.subtotal}`);
-  if (order.unpriced) lines.push("Some prices will be confirmed in chat.");
+  const totalLine = order.fulfillment === "delivery" && order.deliveryFeePayment === "with_total"
+    ? `Total: ${order.subtotal} + Delivery fee`
+    : `Subtotal: ${order.subtotal}`;
+  lines.push("", totalLine);
   lines.push("This is a request until Makalipie confirms it in this chat.");
   return lines.join("\n");
 }

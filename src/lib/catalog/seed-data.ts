@@ -1,11 +1,9 @@
 import { featuredMenuSlugs, site } from "@/lib/site";
 
-/** Prices marked estimated were not given by the owner. Replace them in this file. */
 export type SeedSize = {
   id: "4-inch" | "10-inch";
   label: '4"' | '10"';
   priceCentavos: number;
-  priceEstimated?: boolean;
   minLeadDays: number;
   /** Empty means every day. */
   availableWeekdays: number[];
@@ -34,13 +32,13 @@ function fourInch(pricePesos: number, leadDays: number, mode: SeedSize["mode"], 
   return { id: "4-inch", label: '4"', priceCentavos: pricePesos * 100, minLeadDays: leadDays, availableWeekdays: days, mode };
 }
 
-function tenInch(pricePesos: number, file: string, alt: string, estimated = false): SeedSize {
-  return { id: "10-inch", label: '10"', priceCentavos: pricePesos * 100, priceEstimated: estimated || undefined, minLeadDays: 3, availableWeekdays: daily, mode: "preorder", image: { url: `/images/brand/${file}.webp`, alt } };
+function tenInch(pricePesos: number, file: string, alt: string): SeedSize {
+  return { id: "10-inch", label: '10"', priceCentavos: pricePesos * 100, minLeadDays: 3, availableWeekdays: daily, mode: "preorder", image: { url: `/images/brand/${file}.webp`, alt } };
 }
 
 /** Same size record the admin seed writes. Weekdays stay on the product and section. */
 export function seedVariantRecord(size: SeedSize) {
-  const { priceEstimated: _priceEstimated, mode, availableWeekdays: _availableWeekdays, ...fields } = size;
+  const { mode, availableWeekdays: _availableWeekdays, ...fields } = size;
   return { ...fields, pricingMode: "fixed" as const, orderMode: mode, minLeadDays: mode === "preorder" ? fields.minLeadDays : 0, active: true, sortOrder: size.id === "4-inch" ? 0 : 1 };
 }
 
@@ -63,7 +61,7 @@ export const seedProducts: SeedProduct[] = [
     blurb: "Tart, sunny, and a little tropical. A squeeze of sunshine in a flaky shell.",
     description: "A zesty, tangy delight with a smooth lime filling on a graham crust, finished with a dollop of whipped cream. Refreshingly irresistible.",
     image: { url: "/images/brand/keylime.webp", alt: "A Keylime tart with graham crust, creamy lime filling, and whipped cream" },
-    sizes: [fourInch(240, 0, "regular", daily), tenInch(2500, "keylime-10", "A large Keylime tart with graham crust, creamy lime filling, and whipped cream", true)],
+    sizes: [fourInch(240, 0, "regular", daily), tenInch(2500, "keylime-10", "A large Keylime tart with graham crust, creamy lime filling, and whipped cream")],
   },
   {
     id: "pecan",
@@ -128,7 +126,7 @@ export const seedProducts: SeedProduct[] = [
     blurb: "Spiced apple and a buttery oat crumble in our handcrafted crust.",
     description: "A warm apple filling under a golden oat crumble, baked in our handcrafted crust. This description is a placeholder until it is replaced.",
     image: { url: "/images/brand/apple.webp", alt: "An apple tart with oat crumble and caramel on a gold board" },
-    sizes: [fourInch(280, 0, "regular", weekend), tenInch(2800, "apple-10", "A large apple tart with oat crumble and caramel", true)],
+    sizes: [fourInch(280, 0, "regular", weekend), tenInch(2800, "apple-10", "A large apple tart with oat crumble and caramel")],
   },
   {
     id: "buko",
@@ -154,7 +152,7 @@ export const seedProducts: SeedProduct[] = [
     blurb: "Slow, saucy, and wrapped in that one-of-a-kind flaky crust. A little savoury comfort.",
     description: "Homemade Indian butter chicken curry in our French all-butter flaky crust. Ask us about the current batch at Streetscape.",
     image: { url: "/images/brand/butter-chicken.webp", alt: "A flaky Butter Chicken Curry pie broken open to show the chicken filling" },
-    sizes: [fourInch(300, 0, "regular", weekend), tenInch(3000, "butter-chicken-10", "A large Butter Chicken Curry pie", true)],
+    sizes: [fourInch(300, 0, "regular", weekend)],
   },
   {
     id: "pumpkin-spice",
@@ -228,16 +226,6 @@ export const seedBranchSettings = {
 export const seedPopups = {
   version: 1,
   listings: [
-    {
-      id: "mont-christmas-bazaar",
-      name: "MONT Christmas Bazaar",
-      address: "Montecima Clubhouse, Monterrazas de Cebu, Guadalupe, Cebu City",
-      mapUrl: "https://www.google.com/maps/dir/?api=1&destination=Montecima+Clubhouse+Monterrazas+de+Cebu+Guadalupe+Cebu+City",
-      startDate: "2026-10-24",
-      endDate: "2026-10-25",
-      hours: "10am–6pm",
-      items: ["Keylime", "Pecan", "Banoffee", "S’mores", "Oreo"],
-    },
     {
       id: "sunday-market",
       name: "Sunday Market",

@@ -125,9 +125,7 @@ export async function seedAdmin() {
     batch.set(db.doc(`addons/${id}`), fields);
   }
   await batch.commit();
-  const estimated = seedProducts.flatMap((product) => product.sizes.filter((size) => size.priceEstimated).map((size) => `${product.name} ${size.label}`));
   console.log(`Admin catalog seeded for ${OWNER_EMAIL}.`);
-  if (estimated.length) console.log(`Estimated prices still to confirm: ${estimated.join(", ")}.`);
 }
 
 const command = process.argv[2];

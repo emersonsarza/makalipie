@@ -31,13 +31,14 @@ test("formats a pickup request without an order number", () => {
   assert.match(message, /Extra: Birthday Topper — ₱8/);
   assert.match(message, /Message: Happy birthday/);
   assert.match(message, /Notes\nNo nuts on the card/);
-  assert.match(message, /Known subtotal: ₱708/);
+  assert.match(message, /Subtotal: ₱708/);
   assert.match(message, /This is a request until Makalipie confirms it in this chat\.$/);
   assert.equal(message.includes("MK-"), false);
   assert.equal(message.includes("order number"), false);
+  assert.equal(message.includes("To confirm"), false);
 });
 
-test("formats delivery, packages, and an unpriced size", () => {
+test("formats delivery with a priced pie and a pending delivery fee", () => {
   const message = formatInstagramOrder({
     name: "Ben",
     phone: "09180000000",
@@ -47,14 +48,35 @@ test("formats delivery, packages, and an unpriced size", () => {
     deliveryAddress: "123 Example Street, Cebu City",
     deliveryFeePayment: "to_driver",
     payment: "Bank Transfer",
-    pies: [{ quantity: 1, name: "Apple 10\"", price: "To confirm" }],
+    pies: [{ quantity: 1, name: "Apple 10\"", price: "₱2,800" }],
     packages: [{ quantity: 1, name: "Sunday box", price: "₱1,200" }],
-    subtotal: "₱1,200",
-    unpriced: true,
+    subtotal: "₱4,000",
   });
   assert.match(message, /Fulfillment: Delivery/);
   assert.match(message, /Address: 123 Example Street, Cebu City/);
-  assert.match(message, /Delivery fee: Pay the rider directly/);
+  assert.match(message, /Delivery fee: pending, confirmed in chat\. Pay the rider directly\./);
+  assert.match(message, /1 × Apple 10" — ₱2,800/);
   assert.match(message, /1 × Sunday box — ₱1,200/);
-  assert.match(message, /Some prices will be confirmed in chat\./);
+  assert.match(message, /Subtotal: ₱4,000/);
+  assert.equal(message.includes("Total:"), false);
+  assert.equal(message.includes("To confirm"), false);
+  assert.equal(message.includes("Some prices will be confirmed in chat."), false);
+});
+
+test("adds the delivery fee onto the total when it is included in the bakery payment", () => {
+  const message = formatInstagramOrder({
+    name: "Cara",
+    phone: "09180000001",
+    branch: "Cebu",
+    when: "Sun, Nov 2 · 2:00 PM–3:00 PM",
+    fulfillment: "delivery",
+    deliveryAddress: "45 Sample Road, Cebu City",
+    deliveryFeePayment: "with_total",
+    payment: "GCash",
+    pies: [{ quantity: 1, name: "S’mores 4\"", price: "₱190" }],
+    subtotal: "₱190",
+  });
+  assert.match(message, /Delivery fee: pending, confirmed in chat\. Pay with the order\./);
+  assert.match(message, /Total: ₱190 \+ Delivery fee/);
+  assert.equal(message.includes("Subtotal:"), false);
 });

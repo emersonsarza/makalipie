@@ -5,16 +5,15 @@ import type { Variant } from "@/lib/catalog/schema";
 /** Shared by the rendered menu and its structured data. */
 export function menuSizes(items: MenuItem[], preorder: boolean): MenuItem[] {
   return items.flatMap(item => {
-    const variants = (item.variants ?? []).filter(variant => variant.active && variantOrderMode(variant) === (preorder ? "preorder" : "regular"));
+    const variants = (item.variants ?? []).filter(variant => variant.active && variant.pricingMode === "fixed" && variant.priceCentavos != null && variantOrderMode(variant) === (preorder ? "preorder" : "regular"));
     return variants.length ? [withVariantPrice(item, variants)] : [];
   });
 }
 
 function withVariantPrice(item: MenuItem, variants: Variant[]): MenuItem {
-  const prices = variants.flatMap((variant) => variant.pricingMode === "fixed" && variant.priceCentavos != null ? [variant.priceCentavos / 100] : []);
-  const allFixed = prices.length === variants.length;
-  const price = variants.length === 1 && allFixed ? prices[0] : undefined;
-  const priceLabel = prices.length ? `From ₱${Math.min(...prices).toLocaleString("en-PH")}${allFixed ? "" : " · other sizes quoted"}` : "DM for price";
+  const prices = variants.map((variant) => variant.priceCentavos! / 100);
+  const price = variants.length === 1 ? prices[0] : undefined;
+  const priceLabel = `From ₱${Math.min(...prices).toLocaleString("en-PH")}`;
   return { ...item, variants, price, priceLabel, image: cardImage(item, variants) };
 }
 

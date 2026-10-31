@@ -537,12 +537,12 @@ summary:focus-visible {
   font-size: 13px;
 }
 .desktop-nav > a,
-.desktop-pies-trigger {
+.nav-drop-trigger {
   padding-block: 14px;
   position: relative;
 }
 .desktop-nav > a::after,
-.desktop-pies-trigger::after {
+.nav-drop-trigger::after {
   content: "";
   position: absolute;
   height: 2px;
@@ -556,29 +556,29 @@ summary:focus-visible {
 }
 .desktop-nav > a:hover::after,
 .desktop-nav > a[aria-current]::after,
-.desktop-pies-trigger:hover::after,
-.desktop-pies-trigger[aria-expanded="true"]::after,
-.desktop-pies-trigger[data-current]::after {
+.nav-drop-trigger:hover::after,
+.nav-drop-trigger[aria-expanded="true"]::after,
+.nav-drop-trigger[data-current]::after {
   transform: scaleX(1);
 }
-.desktop-pies {
+.nav-drop {
   position: relative;
   display: flex;
   align-items: center;
 }
-.desktop-pies-trigger {
+.nav-drop-trigger {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
 }
-.desktop-pies-trigger svg {
+.nav-drop-trigger svg {
   transition: transform 160ms var(--ease-out);
 }
-.desktop-pies-trigger[aria-expanded="true"] svg {
+.nav-drop-trigger[aria-expanded="true"] svg {
   transform: rotate(180deg);
 }
-.desktop-pies-menu {
+.nav-drop-menu {
   position: absolute;
   z-index: 60;
   top: calc(100% - 2px);
@@ -590,7 +590,7 @@ summary:focus-visible {
   background: var(--brand-white);
   box-shadow: 0 14px 30px rgb(44 42 40 / 12%);
 }
-.desktop-pies-menu a {
+.nav-drop-menu a {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -599,12 +599,12 @@ summary:focus-visible {
   padding: 10px 12px;
   border-radius: 3px;
 }
-.desktop-pies-menu a:hover,
-.desktop-pies-menu a:focus-visible,
-.desktop-pies-menu a[aria-current] {
+.nav-drop-menu a:hover,
+.nav-drop-menu a:focus-visible,
+.nav-drop-menu a[aria-current] {
   background: #f0eee7;
 }
-.desktop-pies-menu a[aria-current] {
+.nav-drop-menu a[aria-current] {
   font-weight: 700;
 }
 .nav-actions {
@@ -656,16 +656,16 @@ summary:focus-visible {
 .mobile-menu-trigger[aria-expanded="true"] svg {
   transform: rotate(180deg);
 }
-.mobile-pies-menu {
+.mobile-drop-menu {
   padding-left: 16px;
   border-bottom: 1px solid var(--brand-line);
 }
-.mobile-pies-menu a {
+.mobile-drop-menu a {
   min-height: 52px;
   padding-block: 14px;
   font-size: 13px;
 }
-.mobile-pies-menu a[aria-current] {
+.mobile-drop-menu a[aria-current] {
   font-weight: 700;
   text-decoration: underline;
   text-decoration-color: var(--brand-yellow);
@@ -2563,17 +2563,7 @@ summary:focus-visible {
 .menu-catalog-page .menu-classics, .menu-size-section { scroll-margin-top:260px; }
 
 /* Locations share the home page's editorial type, slate, and fine rules. */
-.location-trigger { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding-block: 14px; color: inherit; font-size: 13px; cursor: pointer; }
-.location-trigger::after { content: ""; position: absolute; height: 2px; background: var(--brand-yellow); bottom: 5px; left: 0; width: 100%; transform: scaleX(0); transition: transform 180ms; }
-.location-trigger:hover::after, .location-trigger[aria-expanded="true"]::after { transform: scaleX(1); }
-.location-trigger:focus-visible, .location-menu a:focus-visible, .popup-directions:focus-visible { outline: 2px solid var(--brand-slate); outline-offset: 4px; }
-.location-menu[data-slot="popover-content"] { width: min(300px, calc(100vw - 32px)); max-height: min(480px, var(--available-height)); overflow-y: auto; padding: 8px; gap: 0; border: 1px solid var(--brand-line); border-radius: 4px; background: var(--brand-white); color: var(--brand-slate); box-shadow: 0 14px 30px rgb(44 42 40 / 12%); }
-.location-menu-group + .location-menu-group { border-top: 1px solid var(--brand-line); margin-top: 6px; padding-top: 8px; }
-.location-menu-label { padding: 6px 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; }
-.location-menu a { display: flex; align-items: center; gap: 10px; padding: 10px 12px; min-height: 44px; font-size: 13px; border-radius: 3px; }
-.location-menu a > span { flex: 1; min-width: 0; }
-.location-menu a > svg { flex-shrink: 0; }
-.location-menu a:hover, .location-menu a:focus-visible { background: #f0eee7; }
+.popup-directions:focus-visible { outline: 2px solid var(--brand-slate); outline-offset: 4px; }
 .location-content { width: 100%; margin-inline: auto; }
 .location-directions { min-height: 44px; margin-top: 8px; }
 .location-anchor { scroll-margin-top: 190px; }
@@ -2596,9 +2586,6 @@ summary:focus-visible {
 .popup-event-details p { font-size: 13px; line-height: 1.65; margin: 0; }
 .popup-directions { min-height: 44px; align-self: center; white-space: nowrap; font-size: 12px; }
 @media (max-width: 767px) {
-  .location-trigger { width: 44px; height: 44px; padding: 0; flex-shrink: 0; }
-  .location-trigger > span, .location-trigger > svg:last-child { display: none; }
-  .location-trigger > svg:first-child { width: 21px; height: 21px; }
   .brand-nav { gap: 8px; }
   .brand-nav .nav-actions { gap: 8px; }
   .location-anchor { scroll-margin-top: 120px; }
@@ -2615,8 +2602,6 @@ summary:focus-visible {
   .brand-nav { gap: 4px; }
   .brand-nav .brand-lockup { gap: 8px; }
 }
-@media (prefers-reduced-motion: reduce) { .location-trigger::after { transition: none; } }
-
 /* The featured address is the permanent home of Makalipie Cebu. */
 .location-section .visit-details { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
 .location-section .visit-details h3 { margin: 0 0 12px; font-size: 32px; }
