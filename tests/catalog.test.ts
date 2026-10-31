@@ -23,14 +23,16 @@ test("Manila date boundaries, recurring days, exceptions, lead times, and inacti
   assert.equal(availabilityReason(p, v, "2026-09-25", 0, "2026-09-23"), null);
   assert.match(availabilityReason(p, v, "2026-09-24", 0, "2026-09-23")!, /weekday/);
   assert.match(availabilityReason({ ...p, unavailableDates: ["2026-09-25"] }, v, "2026-09-25", 0, "2026-09-23")!, /Not available/);
-  assert.match(availabilityReason(p, { ...v, minLeadDays: 3 }, "2026-09-25", 0, "2026-09-23")!, /3 days/);
+  assert.match(availabilityReason(p, { ...v, label: "Standard", orderMode: undefined, minLeadDays: 3 }, "2026-09-25", 0, "2026-09-23")!, /3 days/);
   assert.equal(availabilityReason({ ...p, availableWeekdays: [] }, v, "2026-09-24", 0, "2026-09-23"), null);
   assert.match(availabilityReason(p, { ...v, active: false }, "2026-09-25", 0, "2026-09-23")!, /unavailable/);
 });
 
 test("mixed quoted lines, per-item multiplication, per-order extras, customization and compatibility", () => {
   const c = defaultCatalog(); c.addons[0].scope = "per_item";
-  const selection: Selection = { date: "2026-09-25", lines: [{ productId: "keylime", variantId: "standard", quantity: 3, addons: [{ id: "birthday-topper", message: "" }] }, { productId: "buko", variantId: "standard", quantity: 1, addons: [] }], addons: [{ id: "note-card", message: "Happy birthday" }] };
+  const buko = c.products.find((product) => product.id === "buko")!;
+  buko.variants[0] = { ...buko.variants[0], pricingMode: "quote_required", priceCentavos: null };
+  const selection: Selection = { date: "2026-09-25", lines: [{ productId: "keylime", variantId: "4-inch", quantity: 3, addons: [{ id: "birthday-topper", message: "" }] }, { productId: "buko", variantId: "4-inch", quantity: 1, addons: [] }], addons: [{ id: "note-card", message: "Happy birthday" }] };
   const quote = quoteSelection(c, selection, "2026-09-23");
   assert.deepEqual(quote.errors, []); assert.equal(quote.knownSubtotalCentavos, 75900); assert.equal(quote.quoteRequired, true); assert.match(quote.addonLines[0], /Happy birthday/);
   c.products[0].allowedAddonIds = [];

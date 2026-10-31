@@ -1,7 +1,6 @@
-export const dynamic = "force-dynamic";
 import type { Metadata } from "next";
 
-import { OrderScreen } from "@/components/order-screen";
+import { LegacyOrderRedirect } from "@/components/legacy-order-redirect";
 
 export const metadata: Metadata = {
   title: "Pre-order Tarts & Pies in Cebu",
@@ -27,6 +26,6 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function PreorderPage({ searchParams }: { searchParams: Promise<{ branch?: string | string[] }> }) {
-  return <OrderScreen mode="preorder" searchParams={searchParams} />;
+export default function PreorderPage() {
+  return <LegacyOrderRedirect />;
 }

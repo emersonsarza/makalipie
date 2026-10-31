@@ -29,6 +29,7 @@ function product(overrides: Partial<StoredProduct> = {}): StoredProduct {
     active: true,
     sortOrder: 1,
     legacyPriceCentavos: null,
+    menuCategoryId: null,
     availableWeekdays: [5, 6, 0],
     unavailableDates: [],
     allowedAddonIds: ["note-card"],
@@ -252,4 +253,99 @@ test("quotes, new links, permissions, and stale revisions are decided before wri
   if (!described.ok) assert.match(described.error.message, /not stored/);
   assert.notEqual(catalogRevision({ products: [{ id: "buko", version: 2 }], addons: [], branchVersion: 4, assignments: [] }), catalogRevision({ products: [{ id: "buko", version: 3 }], addons: [], branchVersion: 4, assignments: [] }));
   assert.throws(() => catalogCommandSchema.parse({ ...command(baseEntry, current.revision), idempotencyKey: "nope" }));
+});
+
+test("sizes are stored in inches and a category with pies cannot be removed", () => {
+  const current = snapshot({ products: [product({ menuCategoryId: "weekend" })], sections: [{ id: "weekend", name: "Weekend specials", note: "Friday to Sunday", sortOrder: 0 }] });
+  const saved = planCatalogSave({
+    command: command({ ...baseEntry, sizes: [baseEntry.sizes[0], { ...baseEntry.sizes[1], weekdays: null }] }, current.revision),
+    products: [product({ menuCategoryId: "weekend" })],
+    addons: [],
+    assignments: [],
+    knownBranchIds: branches,
+    branchVersion: 4,
+    sections: current.sections,
+    canEdit: true,
+    manageableBranchIds: branches,
+  });
+  if (!saved.ok) throw new Error(saved.error.message);
+  if (saved.ok && saved.product) {
+    assert.equal(saved.product.variants.find((variant) => variant.id === "six-inch")?.data.label, "6\"");
+    assert.equal(saved.product.variants.find((variant) => variant.id === "nine-inch")?.data.label, "9\"");
+  }
+  const unnamed = planCatalogSave({
+    command: command({ ...baseEntry, sizes: [{ ...baseEntry.sizes[0], name: "Standard" }] }, current.revision),
+    products: [product({ menuCategoryId: "weekend" })],
+    addons: [],
+    assignments: [],
+    knownBranchIds: branches,
+    branchVersion: 4,
+    sections: current.sections,
+    canEdit: true,
+    manageableBranchIds: branches,
+  });
+  assert.equal(unnamed.ok, false);
+  if (!unnamed.ok) assert.match(unnamed.error.message, /inches/);
+  const removed = planCatalogSave({
+    command: catalogCommandSchema.parse({ sections: [], expectedRevision: current.revision, idempotencyKey: "22222222-2222-4222-8222-222222222222" }),
+    products: [product({ menuCategoryId: "weekend" })],
+    addons: [],
+    assignments: [],
+    knownBranchIds: branches,
+    branchVersion: 4,
+    sections: current.sections,
+    canEdit: true,
+    manageableBranchIds: branches,
+  });
+  assert.equal(removed.ok, false);
+  if (!removed.ok) assert.match(removed.error.message, /another category/);
+});
+
+test("a size photo is stored, and a blank photo is left off the size", () => {
+  const stored = product({
+    variants: [
+      { ...product().variants[0], image: { url: "/images/brand/buko.webp", alt: "A buko pie" } },
+      { ...product().variants[1], image: { url: "/images/brand/apple.webp", alt: "An apple tart" } },
+    ],
+  });
+  const current = snapshot({ products: [stored] });
+  const shown = current.entries.find((entry) => entry.id === "buko");
+  assert.equal(shown?.sizes[0].imageUrl, "/images/brand/buko.webp");
+  assert.equal(shown?.sizes[1].imageAlt, "An apple tart");
+  const photo = { url: "/images/brand/pumpkin-spice-10.webp", alt: "A large pumpkin tart with a whipped-cream border and leaf cookies on a white board" };
+  const saved = planCatalogSave({
+    command: command({
+      ...baseEntry,
+      sizes: [
+        { ...baseEntry.sizes[0], imageUrl: photo.url, imageAlt: photo.alt },
+        { ...baseEntry.sizes[1], imageUrl: " ", imageAlt: "" },
+      ],
+    }, current.revision),
+    products: [stored],
+    addons: [],
+    assignments: [],
+    knownBranchIds: branches,
+    branchVersion: 4,
+    canEdit: true,
+    manageableBranchIds: branches,
+  });
+  assert.equal(saved.ok, true);
+  if (!saved.ok || !saved.product) return;
+  assert.deepEqual(saved.product.variants.find((variant) => variant.id === "six-inch")?.data.image, photo);
+  assert.equal("image" in (saved.product.variants.find((variant) => variant.id === "nine-inch")?.data ?? {}), false);
+  const rejected = planCatalogSave({
+    command: command({
+      ...baseEntry,
+      sizes: [{ ...baseEntry.sizes[0], imageUrl: "https://example.com/pie.webp", imageAlt: "A pie" }],
+    }, current.revision),
+    products: [stored],
+    addons: [],
+    assignments: [],
+    knownBranchIds: branches,
+    branchVersion: 4,
+    canEdit: true,
+    manageableBranchIds: branches,
+  });
+  assert.equal(rejected.ok, false);
+  if (!rejected.ok) assert.match(rejected.error.message, /Size 1/);
 });

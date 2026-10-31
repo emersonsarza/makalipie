@@ -2,7 +2,6 @@ import { z } from "zod";
 import type { Catalog } from "../catalog/schema";
 
 export type CatalogMode = "regular" | "preorder";
-export const MIXED_CATALOG_MESSAGE = "Regular pies and pre-order pies need separate requests.";
 
 export const CEBU_BRANCH_ID = "cebu";
 export const branchIdSchema = z.string().trim().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and hyphens.").max(40);
@@ -60,8 +59,8 @@ export function defaultBranchSettings(): BranchSettings {
     version: 0,
     defaultBranch: CEBU_BRANCH_ID,
     branches: [
-      { id: CEBU_BRANCH_ID, name: "Makalipie Cebu Main", address: "", visible: true, deliveryEnabled: true, pickupEnabled: true, mapUrl: "", hoursLabel: "", customerLimit: null, areas: [] },
-      { id: "manila", name: "Makalipie Manila Main", address: "", visible: true, deliveryEnabled: true, pickupEnabled: true, mapUrl: "", hoursLabel: "", customerLimit: null, areas: [] },
+      { id: CEBU_BRANCH_ID, name: "Cebu", address: "2nd Floor, Streetscape, Banilad, Cebu City", visible: true, deliveryEnabled: true, pickupEnabled: true, mapUrl: "https://www.google.com/maps/search/?api=1&query=Streetscape%20Banilad%20Cebu", hoursLabel: "Daily, 10am to 8pm", customerLimit: null, areas: [] },
+      { id: "manila", name: "Manila", address: "", visible: false, deliveryEnabled: true, pickupEnabled: true, mapUrl: "", hoursLabel: "", customerLimit: null, areas: [] },
     ],
     assignments: [],
   };
@@ -103,7 +102,7 @@ export function coerceBranchSettings(input: unknown) {
     areas: [] as string[],
   }));
   if (!list.some((branch) => branch.id === CEBU_BRANCH_ID)) {
-    list.unshift({ id: CEBU_BRANCH_ID, name: "Makalipie Cebu Main", address: "", visible: true, deliveryEnabled: true, areas: [] });
+    list.unshift({ id: CEBU_BRANCH_ID, name: "Cebu", address: "", visible: true, deliveryEnabled: true, areas: [] });
   }
   value.branches = list;
   return value;
@@ -138,10 +137,9 @@ export function variantAssignment(settings: BranchSettings, productId: string, v
     ?? { productId, variantId, branchIds: [CEBU_BRANCH_ID] as BranchId[], mode: minLeadDays > 0 ? "preorder" as const : "regular" as const };
 }
 
-export function variantAvailable(settings: BranchSettings, branch: BranchId, productId: string, variantId: string, minLeadDays: number, mode: CatalogMode) {
+export function variantAvailable(settings: BranchSettings, branch: BranchId, productId: string, variantId: string, minLeadDays: number, mode: CatalogMode, explicitMode?: CatalogMode) {
   const assignment = variantAssignment(settings, productId, variantId, minLeadDays);
-  void mode;
-  return assignment.branchIds.includes(branch);
+  return assignment.branchIds.includes(branch) && (explicitMode ?? assignment.mode) === mode;
 }
 
 export function regularVariantAvailable(settings: BranchSettings, branch: BranchId, productId: string, variantId: string, minLeadDays: number) {
@@ -153,9 +151,14 @@ export function branchCatalog(catalog: Catalog, settings: BranchSettings, branch
     ...catalog,
     products: catalog.products.filter((product) => product.active).map((product) => ({
       ...product,
-      variants: product.variants.filter((variant) => variant.active && variantAvailable(settings, branch, product.id, variant.id, variant.minLeadDays, mode)),
+      variants: product.variants.filter((variant) => variant.active && variantAvailable(settings, branch, product.id, variant.id, variant.minLeadDays, mode, variant.orderMode)),
     })).filter((product) => product.variants.length > 0),
   };
+}
+
+/** Customer ordering includes every active size assigned to this branch. */
+export function orderingBranchCatalog(catalog: Catalog, settings: BranchSettings, branch: BranchId): Catalog {
+  return {...catalog, products:catalog.products.filter(product=>product.active).map(product=>({...product,variants:product.variants.filter(variant=>variant.active && variantAssignment(settings,product.id,variant.id,variant.minLeadDays).branchIds.includes(branch))})).filter(product=>product.variants.length>0)};
 }
 
 export function regularBranchCatalog(catalog: Catalog, settings: BranchSettings, branch: BranchId): Catalog {
@@ -168,17 +171,16 @@ export function selectionCatalogMode(settings: BranchSettings, catalog: Catalog,
     const product = catalog.products.find((item) => item.id === line.productId);
     const variant = product?.variants.find((item) => item.id === line.variantId);
     if (!product || !variant) continue;
-    modes.add(variantAssignment(settings, product.id, variant.id, variant.minLeadDays).mode);
+    modes.add(variant.orderMode ?? variantAssignment(settings, product.id, variant.id, variant.minLeadDays).mode);
   }
   if (modes.size > 1) return "mixed";
   return modes.has("preorder") ? "preorder" : "regular";
 }
 
 export function catalogForSelection(catalog: Catalog, settings: BranchSettings, branch: BranchId, lines: { productId: string; variantId: string }[], requested?: CatalogMode): { error: string } | { mode: CatalogMode; catalog: Catalog } {
-  const mode = selectionCatalogMode(settings, catalog, lines);
-  void requested;
-  const storedMode = mode === "mixed" ? "preorder" : mode;
-  return { mode: storedMode, catalog: branchCatalog(catalog, settings, branch, storedMode) };
+  // The old mode is metadata only. Branch and per-size rules still constrain every line.
+  void lines;
+  return {mode:requested ?? "regular",catalog:orderingBranchCatalog(catalog,settings,branch)};
 }
 
 export function currentAssignments(catalog: Catalog, settings: BranchSettings) {

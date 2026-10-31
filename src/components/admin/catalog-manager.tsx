@@ -6,6 +6,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useCatalogEditState } from "./catalog-edit-guard";
 import Image from "next/image";
+import { AddonMark, hasAddonMark } from "@/components/addon-mark";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { CatalogTabActions } from "./catalog-tab-actions";
 import { ArrowLeft, Plus } from "lucide-react";
@@ -572,7 +573,7 @@ export function AddonEditor({ initial, save, back, embedded = false }: { initial
           </section>
           <section className="product-editor-section">
             <h2>Photo</h2>
-            <Image src={form.image.url} unoptimized alt={form.image.alt} width={140} height={140} className="catalog-addon-photo" />
+            {hasAddonMark(id) ? <span className="catalog-addon-photo grid size-[140px] place-items-center bg-cream text-charcoal"><AddonMark id={id} size={40} /></span> : <Image src={form.image.url} unoptimized alt={form.image.alt} width={140} height={140} className="catalog-addon-photo" />}
             <Field label="Upload photo" help="JPG, PNG, or WebP, up to 3 MB.">
               <Input
                 type="file"

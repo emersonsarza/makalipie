@@ -5,18 +5,31 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
-import { itemPriceText, type MenuItem } from "@/lib/site";
-
-const filters = ["House favourites", "Sweet", "Savoury"] as const;
+import { type MenuItem } from "@/lib/site";
+import { variantOrderMode } from "@/lib/catalog/mode";
+type Filter = "House favourites" | "Sweet" | "Savoury";
 export function PieSelection({ items: menuItems }: { items: MenuItem[] }) {
   const shop = usePublicShop();
-  const featuredIds = shop.experience?.featuredProductIds;
-  const [filter, setFilter] =
-    useState<(typeof filters)[number]>("House favourites");
+  const activeItems = menuItems.filter((item) =>
+    item.variants?.some((v) => v.active),
+  );
+  const featured = [...new Set(shop.featuredProductIds ?? [])].flatMap((id) =>
+    activeItems.filter((item) => item.slug === id),
+  );
+  const filters: Filter[] = [
+    ...(featured.length ? ["House favourites" as const] : []),
+    ...(activeItems.some((i) => i.kind === "sweet") ? ["Sweet" as const] : []),
+    ...(activeItems.some((i) => i.kind === "savory")
+      ? ["Savoury" as const]
+      : []),
+  ];
+  const [chosenFilter, setFilter] = useState<Filter | null>(null);
+  const filter =
+    chosenFilter && filters.includes(chosenFilter) ? chosenFilter : filters[0];
   const items =
     filter === "House favourites"
-      ? featuredIds ? featuredIds.flatMap(id => menuItems.filter(item => item.slug === id)) : menuItems.slice(0, 4)
-      : menuItems.filter(
+      ? featured
+      : activeItems.filter(
           (item) => item.kind === (filter === "Sweet" ? "sweet" : "savory"),
         );
   return (
@@ -42,11 +55,13 @@ export function PieSelection({ items: menuItems }: { items: MenuItem[] }) {
         ))}
       </div>
       <div className="pie-grid" aria-live="polite">
-        {!items.length && <p>No products to show here right now. Please check back soon.</p>}
+        {!items.length && (
+          <p>No products to show here right now. Please check back soon.</p>
+        )}
         {items.map((item) => (
           <Link
             key={item.slug}
-            href={`/menu#${item.slug}`}
+            href={`${item.variants?.some((v) => v.active && variantOrderMode(v) === "regular") ? "/menu" : "/menu?view=preorders"}#${item.slug}`}
             className="pie-tile"
           >
             <div className="pie-photo">
@@ -60,13 +75,8 @@ export function PieSelection({ items: menuItems }: { items: MenuItem[] }) {
             </div>
             <div className="pie-name">
               <h3>{item.name}</h3>
-              <ArrowUpRight size={20} aria-hidden />
             </div>
             <p>{item.blurb}</p>
-            <span className="pie-price">
-              {itemPriceText(item)}{" "}
-              <span>{item.price != null && item.variants?.length === 1 ? `/ ${item.variants[0].label.toLowerCase()}` : ""}</span>
-            </span>
           </Link>
         ))}
       </div>

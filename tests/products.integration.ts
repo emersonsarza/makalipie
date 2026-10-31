@@ -29,7 +29,7 @@ test("product lifecycle, conflicts, storefront, uploads and access boundaries", 
   await db.doc("privateSettings/productCatalog").delete();
   const user = await auth.createUser({ email: `products-${Date.now()}@example.test`, password: "Product-tests-only!" });
   await db.doc(`admins/${user.uid}`).set({ role: "owner", active: true, displayName: "Product Test", email: user.email });
-  const login = await fetch("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-api-key", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: user.email, password: "Product-tests-only!", returnSecureToken: true }) });
+  const login = await fetch(`http://${emulatorEnv.FIREBASE_AUTH_EMULATOR_HOST}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-api-key`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: user.email, password: "Product-tests-only!", returnSecureToken: true }) });
   const { idToken } = await login.json();
   const session = await fetch(`${origin}/api/admin/session`, { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ idToken }) });
   assert.equal(session.status, 200, await session.text());
@@ -41,13 +41,13 @@ test("product lifecycle, conflicts, storefront, uploads and access boundaries", 
     await t.test("reads do not import; anonymous and cross-origin writes fail", async () => {
       assert.equal((await fetch(`${origin}/api/admin/products`)).status, 401);
       const preview = await (await request("")).json();
-      assert.equal(preview.initialized, false); assert.equal(preview.products.length, 7);
+      assert.equal(preview.initialized, false); assert.equal(preview.products.length, defaultProducts().length);
       assert.equal((await db.collection("products").get()).size, 0);
       assert.equal((await request("/import", "POST", undefined, { Origin: "https://evil.example" })).status, 403);
     });
     await t.test("imports once and preserves legacy prices", async () => {
       const imported = await request("/import", "POST"); assert.equal(imported.status, 200, await imported.clone().text());
-      const data = await imported.json(); assert.equal(data.products.length, 7);
+      const data = await imported.json(); assert.equal(data.products.length, defaultProducts().length);
       product = data.products.find((p: typeof product) => p.id === "keylime"); assert.equal(product.legacyPriceCentavos, 24000);
       const edited = await request(`/${product.id}`, "PUT", { ...fields(product), name: "Citrus test tart", publicNotes: "Keep chilled", allergens: ["dairy"], sortOrder: 0 });
       assert.equal(edited.status, 200); product = (await edited.json()).product;
@@ -84,7 +84,7 @@ test("product lifecycle, conflicts, storefront, uploads and access boundaries", 
       assert.equal((await upload(Buffer.alloc(3 * 1024 * 1024 + 1))).status, 413);
       const png = await sharp({ create: { width: 2000, height: 1000, channels: 3, background: "#eac28c" } }).png().toBuffer();
       const result = await upload(png); assert.equal(result.status, 201, await result.clone().text());
-      const { url } = await result.json(); assert.match(url, /^http:\/\/127.0.0.1:9199\//);
+      const { url } = await result.json(); assert.match(url, new RegExp(`^http://${emulatorEnv.FIREBASE_STORAGE_EMULATOR_HOST.replaceAll(".", "\\.")}/`));
       const image = await fetch(url); assert.equal(image.status, 200);
       const info = await sharp(Buffer.from(await image.arrayBuffer())).metadata(); assert.equal(info.format, "webp"); assert.equal(info.width, 1600);
       assert.equal((await request(`/${product.id}`, "PUT", { ...fields(product), image: { url, alt: "Test pie photo" } })).status, 200);

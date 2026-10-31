@@ -5,6 +5,7 @@ import { AdminAccessError, isAllowedMutationOrigin } from "../admin/access";
 import { requireAdmin } from "../admin/session";
 import { parseBranchSettings, type BranchSettings } from "../branches/schema";
 import { getServerFirebase } from "../firebase/server";
+import { forget, publicCacheKeys } from "../public-cache";
 import { ProductError } from "../products/store";
 import { scheduleSettingsSchema, type ScheduleSettings } from "../scheduling/schema";
 import {
@@ -51,6 +52,7 @@ export async function commitAdminSchedule(request: Request, command: ScheduleCom
     });
     completed = true;
     await completeCommand(db, command.idempotencyKey);
+    forget(publicCacheKeys.schedule);
     return finish(command.branchId, admin, now);
   } catch (error) {
     if (!completed) await db.collection(commands).doc(command.idempotencyKey).delete().catch(() => undefined);

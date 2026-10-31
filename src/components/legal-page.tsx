@@ -35,7 +35,7 @@ export function LegalPage({ title, intro, policy, children }: {
           <p className={styles.eyebrow}>MAKALIPIE · THE DETAILS</p>
           <h1>{title}</h1>
           <p className={styles.intro}>{intro}</p>
-          <p className={styles.updated}>Last updated: <time dateTime="2026-09-30">30 Sep 2026</time></p>
+          <p className={styles.updated}>Last updated: <time dateTime="2026-10-21">21 Oct 2026</time></p>
         </header>
         <div className={styles.layout}>
           <nav className={styles.desktopIndex} aria-label="On this page">

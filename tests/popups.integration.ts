@@ -7,7 +7,7 @@ describe("pop-up visits", { concurrency: false }, () => {
   test("an order that names a pop-up id is refused", async (t) => {
     let reachable = false;
     try {
-      const probe = await fetch("http://127.0.0.1:8080", { signal: AbortSignal.timeout(800) });
+      const probe = await fetch(`http://${emulatorEnv.FIRESTORE_EMULATOR_HOST}`, { signal: AbortSignal.timeout(800) });
       reachable = probe.status > 0;
     } catch {
       reachable = false;
@@ -74,6 +74,8 @@ describe("pop-up visits", { concurrency: false }, () => {
     } finally {
       if (before.exists) await db.doc("settings/popups").set(before.data()!);
       else await db.doc("settings/popups").delete();
+      const { forget, publicCacheKeys } = await import("../src/lib/public-cache");
+      forget(publicCacheKeys.popups);
       const events = await db.collection("popupSettingsEvents").where("actorUid", "==", "popups-integration").get();
       await Promise.all(events.docs.map((doc) => doc.ref.delete()));
       const idempotency = await db.doc(`orderIdempotency/${idempotencyKey}`).get();

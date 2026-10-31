@@ -1,7 +1,7 @@
 export type StaffAccess = { uid:string; name:string; active:boolean; branchIds:string[]; pages:string[] };
 export type SettingsValues = {
  links:{instagram:string;instagramDm:string;messenger:string;grabFood:string;foodpanda:string};
- holdMinutes:string;confirmBeforeSlotMinutes:string;requireFullPaymentDefault:boolean|null;customerEditDefault:boolean|null;
+ holdMinutes:string;confirmBeforeSlotMinutes:string;defaultPreorderLeadDays:string;requireFullPaymentDefault:boolean|null;customerEditDefault:boolean|null;
  themeId:string|null;bannerEnabled:boolean|null;bannerText:string;bannerLink:string;
  staff:StaffAccess[];
 };

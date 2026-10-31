@@ -2,16 +2,19 @@ import "server-only";
 import { FieldValue } from "firebase-admin/firestore";
 import { firebaseSetupReady, getServerFirebase } from "../firebase/server";
 import { ProductError } from "../products/store";
+import { forget, publicCacheKeys, remember } from "../public-cache";
 import { defaultPopupSettings, parsePopupSettings, type PopupSettings } from "./schema";
 
 export async function readPopupSettings(): Promise<PopupSettings> {
   if (!firebaseSetupReady()) return defaultPopupSettings();
-  const doc = await getServerFirebase().db.doc("settings/popups").get();
-  if (!doc.exists) return defaultPopupSettings();
-  const { updatedAt: _at, updatedBy: _by, ...settings } = doc.data()!;
-  void _at;
-  void _by;
-  return parsePopupSettings(settings);
+  return remember(publicCacheKeys.popups, async () => {
+    const doc = await getServerFirebase().db.doc("settings/popups").get();
+    if (!doc.exists) return defaultPopupSettings();
+    const { updatedAt: _at, updatedBy: _by, ...settings } = doc.data()!;
+    void _at;
+    void _by;
+    return parsePopupSettings(settings);
+  });
 }
 
 export async function savePopupSettings(input: PopupSettings, uid: string) {
@@ -39,4 +42,5 @@ export async function savePopupSettings(input: PopupSettings, uid: string) {
       after: settings,
     });
   });
+  forget(publicCacheKeys.popups);
 }

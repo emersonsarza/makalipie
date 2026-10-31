@@ -36,10 +36,10 @@ test("closed weekdays and explicit dates override offered hours",()=>{
  s.branches.cebu.closedDates=["2026-09-28"];
  assert.equal(slotsForDate(s,"cebu","2026-09-28",now).length,0);
 });
-test("date search combines product weekdays, blackouts and preparation requirements",()=>{
+test("regular date search combines product weekdays and date blackouts",()=>{
  const s=settings(), catalog=defaultCatalog(), product=catalog.products[0];
- product.availableWeekdays=[4]; product.unavailableDates=["2026-10-01"];
- product.variants[0].minLeadDays=3;
+ product.menuCategoryId=null; product.availableWeekdays=[4]; product.unavailableDates=["2026-10-01"];
+ product.variants[0].orderMode="regular"; product.variants[0].minLeadDays=0;
  const selection={lines:[{productId:product.id,variantId:product.variants[0].id,quantity:1,addons:[]}],addons:[]};
  assert.equal(availableOrderDates(s,"cebu",catalog,selection,now)[0].date,"2026-10-08");
  s.bookingHorizonDays=3;
@@ -47,8 +47,8 @@ test("date search combines product weekdays, blackouts and preparation requireme
 });
 test("the longest preparation sets the earliest date, and a shorter selection brings earlier dates back",()=>{
  const s=settings(), catalog=defaultCatalog(), product=catalog.products[0];
- product.availableWeekdays=[];
- product.variants[0].minLeadDays=3;
+ product.menuCategoryId=null; product.availableWeekdays=[];
+ product.variants[0].label="Standard"; delete product.variants[0].orderMode; product.variants[0].minLeadDays=3;
  const longer={...product.variants[0], id:"large", minLeadDays:5};
  product.variants.push(longer);
  const both={lines:[{productId:product.id,variantId:product.variants[0].id,quantity:1,addons:[]},{productId:product.id,variantId:"large",quantity:1,addons:[]}],addons:[]};

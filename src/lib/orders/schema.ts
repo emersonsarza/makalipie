@@ -2,6 +2,7 @@ import { z } from "zod";
 import { businessDateSchema } from "../admin/schemas";
 import { branchIdSchema } from "../branches/schema";
 import { selectionSchema } from "../catalog/schema";
+import { phoneNumberError } from "./phone";
 import { clockTimeSchema } from "../scheduling/schema";
 
 export const orderStatusSchema = z.enum(["requested", "processing", "confirmed", "preparing", "ready", "completed", "cancelled", "expired"]);
@@ -11,7 +12,10 @@ export const orderRequestSchema = z.object({
   branchId: branchIdSchema,
   slotId: clockTimeSchema,
   name: z.string().trim().min(1).max(100),
-  contact: z.string().trim().min(1).max(40),
+  contact: z.string().trim().max(40).superRefine((value, ctx) => {
+    const message = phoneNumberError(value);
+    if (message) ctx.addIssue({ code: "custom", message });
+  }),
   notes: z.string().trim().max(500).default(""),
   delivery: z.enum(["pickup", "lalamove"]),
   address: z.string().trim().max(300).optional(),

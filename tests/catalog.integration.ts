@@ -14,7 +14,7 @@ test("catalog migration, editing, server previews, access control and storefront
   await db.doc("privateSettings/catalogV2").delete(); await db.doc("privateSettings/productCatalog").delete();
   const user = await auth.createUser({ email: `catalog-${Date.now()}@example.test`, password: "Catalog-test-only!" });
   await db.doc(`admins/${user.uid}`).set({ role: "owner", active: true, email: user.email, displayName: "Catalog Test" });
-  const login = await fetch("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-api-key", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: user.email, password: "Catalog-test-only!", returnSecureToken: true }) });
+  const login = await fetch(`http://${emulatorEnv.FIREBASE_AUTH_EMULATOR_HOST}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-api-key`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: user.email, password: "Catalog-test-only!", returnSecureToken: true }) });
   const { idToken } = await login.json();
   const session = await fetch(`${origin}/api/admin/session`, { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ idToken }) }); assert.equal(session.status, 200);
   const cookie = session.headers.get("set-cookie")!.split(";")[0];

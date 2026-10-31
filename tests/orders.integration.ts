@@ -7,7 +7,7 @@ describe("orders emulator", { concurrency: false }, () => {
 test("allocation hold, retry, and guest access", async (t) => {
   let reachable = false;
   try {
-    const probe = await fetch("http://127.0.0.1:8080", { signal: AbortSignal.timeout(800) });
+    const probe = await fetch(`http://${emulatorEnv.FIRESTORE_EMULATOR_HOST}`, { signal: AbortSignal.timeout(800) });
     reachable = probe.status > 0;
   } catch {
     reachable = false;
@@ -141,7 +141,7 @@ test("allocation hold, retry, and guest access", async (t) => {
 test("processing, approval, rejection, and one-time expiration", async (t) => {
   let reachable = false;
   try {
-    const probe = await fetch("http://127.0.0.1:8080", { signal: AbortSignal.timeout(800) });
+    const probe = await fetch(`http://${emulatorEnv.FIRESTORE_EMULATOR_HOST}`, { signal: AbortSignal.timeout(800) });
     reachable = probe.status > 0;
   } catch {
     reachable = false;
@@ -342,7 +342,7 @@ test("processing, approval, rejection, and one-time expiration", async (t) => {
 test("pickup payment, preparation, and completion", async (t) => {
   let reachable = false;
   try {
-    const probe = await fetch("http://127.0.0.1:8080", { signal: AbortSignal.timeout(800) });
+    const probe = await fetch(`http://${emulatorEnv.FIRESTORE_EMULATOR_HOST}`, { signal: AbortSignal.timeout(800) });
     reachable = probe.status > 0;
   } catch {
     reachable = false;
@@ -510,7 +510,7 @@ test("pickup payment, preparation, and completion", async (t) => {
 test("revisions, settlement, and guest totals", async (t) => {
   let reachable = false;
   try {
-    const probe = await fetch("http://127.0.0.1:8080", { signal: AbortSignal.timeout(800) });
+    const probe = await fetch(`http://${emulatorEnv.FIRESTORE_EMULATOR_HOST}`, { signal: AbortSignal.timeout(800) });
     reachable = probe.status > 0;
   } catch {
     reachable = false;
@@ -528,6 +528,7 @@ test("revisions, settlement, and guest totals", async (t) => {
   const { readScheduleSettings } = await import("../src/lib/scheduling/store");
   const { manilaDate } = await import("../src/lib/catalog/rules");
   const { flavorCapacityKey } = await import("../src/lib/orders/allocation");
+  const { forget, publicCacheKeys } = await import("../src/lib/public-cache");
   const { ZodError } = await import("zod");
   const menu = await readPublicMenu();
   const product = menu.catalog?.products.find((item) => item.active && item.variants.some((variant) => variant.active && variant.minLeadDays === 0 && variant.pricingMode === "fixed"));
@@ -713,6 +714,7 @@ test("revisions, settlement, and guest totals", async (t) => {
       assignments.push({ productId: product.id, variantId: variant.id, branchIds: ["cebu", "manila"], mode: "regular" });
     }
     await settingsRef.update({ assignments });
+    forget(publicCacheKeys.branches);
     const ownerMove = await transitionOrder({
       orderId: transfer.orderId,
       action: "revise",
@@ -743,6 +745,7 @@ test("revisions, settlement, and guest totals", async (t) => {
     for (const id of created) if (id) await db.doc(`orders/${id}`).delete();
     if (settingsBefore.exists) await settingsRef.set(settingsBefore.data()!);
     if (scheduleBefore.exists) await scheduleRef.set(scheduleBefore.data()!);
+    forget(publicCacheKeys.branches, publicCacheKeys.schedule);
     for (const [key, snap] of snapshots) {
       if (snap.exists) await db.doc(`allocations/${key}`).set(snap.data()!);
       else await db.doc(`allocations/${key}`).delete();
@@ -753,7 +756,7 @@ test("revisions, settlement, and guest totals", async (t) => {
 test("delivery review, shared capacity, and delivered wording", async (t) => {
   let reachable = false;
   try {
-    const probe = await fetch("http://127.0.0.1:8080", { signal: AbortSignal.timeout(800) });
+    const probe = await fetch(`http://${emulatorEnv.FIRESTORE_EMULATOR_HOST}`, { signal: AbortSignal.timeout(800) });
     reachable = probe.status > 0;
   } catch {
     reachable = false;
@@ -770,6 +773,7 @@ test("delivery review, shared capacity, and delivered wording", async (t) => {
   const { readScheduleSettings } = await import("../src/lib/scheduling/store");
   const { manilaDate } = await import("../src/lib/catalog/rules");
   const { flavorCapacityKey } = await import("../src/lib/orders/allocation");
+  const { forget, publicCacheKeys } = await import("../src/lib/public-cache");
   const { ZodError } = await import("zod");
   const menu = await readPublicMenu();
   const product = menu.catalog?.products.find((item) => item.active && item.variants.some((variant) => variant.active && variant.minLeadDays === 0 && variant.pricingMode === "fixed"));
@@ -858,6 +862,7 @@ test("delivery review, shared capacity, and delivered wording", async (t) => {
     );
     const branches = settingsBefore.data()?.branches ?? [];
     await settingsRef.update({ branches: branches.map((branch: { id: string }) => branch.id === "cebu" ? { ...branch, deliveryEnabled: false } : branch) });
+    forget(publicCacheKeys.branches);
     await assert.rejects(
       () => submitOrder({ delivery: "lalamove" }),
       (error: unknown) => error instanceof ZodError,
@@ -908,6 +913,7 @@ test("delivery review, shared capacity, and delivered wording", async (t) => {
     for (const idempotencyKey of idempotencyKeys) await db.doc(`orderIdempotency/${idempotencyKey}`).delete();
     for (const id of created) if (id) await db.doc(`orders/${id}`).delete();
     if (settingsBefore.exists) await settingsRef.set(settingsBefore.data()!);
+    forget(publicCacheKeys.branches);
     for (const [key, snap] of snapshots) {
       if (snap.exists) await db.doc(`allocations/${key}`).set(snap.data()!);
       else await db.doc(`allocations/${key}`).delete();
@@ -918,7 +924,7 @@ test("delivery review, shared capacity, and delivered wording", async (t) => {
 test("preorder preparation, shared flavor count, and revision", async (t) => {
   let reachable = false;
   try {
-    const probe = await fetch("http://127.0.0.1:8080", { signal: AbortSignal.timeout(800) });
+    const probe = await fetch(`http://${emulatorEnv.FIRESTORE_EMULATOR_HOST}`, { signal: AbortSignal.timeout(800) });
     reachable = probe.status > 0;
   } catch {
     reachable = false;
@@ -990,18 +996,14 @@ test("preorder preparation, shared flavor count, and revision", async (t) => {
     await saveBranchAllocations({ branchId: "cebu", productId: product.id, days: [{ fulfillmentDate: ready, limit: startHeld + 2, version: startVersion + 1 }] }, "phase8");
     const regularLine = { productId: product.id, variantId: variant.id, quantity: 1 };
     const preparedLine = { productId: product.id, variantId: "phase8", quantity: 1 };
-    await assert.rejects(
-      () => submitOrder(request(crypto.randomUUID(), ready, readySlot.id, [regularLine, preparedLine], "regular")),
-      (error: unknown) => error instanceof Error && /separate requests/.test(error.message),
-    );
-    await assert.rejects(
-      () => submitOrder(request(crypto.randomUUID(), ready, readySlot.id, [preparedLine], "regular")),
-      (error: unknown) => error instanceof Error && /separate requests/.test(error.message),
-    );
-    await assert.rejects(
-      () => submitOrder(request(crypto.randomUUID(), ready, readySlot.id, [regularLine], "preorder")),
-      (error: unknown) => error instanceof Error && /separate requests/.test(error.message),
-    );
+    const mixedKey=crypto.randomUUID();idempotencyKeys.push(mixedKey);
+    await submitOrder(request(mixedKey,ready,readySlot.id,[regularLine,preparedLine],"regular"));
+    const mixedId=String((await db.doc(`orderIdempotency/${mixedKey}`).get()).data()?.orderId);created.push(mixedId);
+    const mixedDoc=(await db.doc(`orders/${mixedId}`).get()).data();
+    assert.equal(mixedDoc?.catalogMode,"regular");assert.equal(mixedDoc?.selection.lines.length,2);
+    assert.equal(await heldOf(),startHeld+2);
+    const cancelledMixed=await transitionOrder({orderId:mixedId,action:"reject",expectedStatus:"requested",reason:"Integration test cleanup"},owner);
+    assert.equal(cancelledMixed.order.status,"cancelled");assert.equal(await heldOf(),startHeld);
     await assert.rejects(
       () => submitOrder(request(crypto.randomUUID(), soon, soonSlot.id, [preparedLine], "preorder")),
       (error: unknown) => error instanceof Error && /preparation/.test(error.message),
@@ -1013,7 +1015,7 @@ test("preorder preparation, shared flavor count, and revision", async (t) => {
     const preparedId = String((await db.doc(`orderIdempotency/${preparedKey}`).get()).data()?.orderId);
     created.push(preparedId);
     const preparedDoc = (await db.doc(`orders/${preparedId}`).get()).data();
-    assert.equal(preparedDoc?.catalogMode, "preorder");
+    assert.equal(preparedDoc?.catalogMode, "regular");
     assert.equal(preparedDoc?.preparationDays, 5);
     assert.equal((await readGuestOrder(prepared.token))?.preparationDays, 5);
     const regularKey = crypto.randomUUID();
@@ -1050,7 +1052,7 @@ test("preorder preparation, shared flavor count, and revision", async (t) => {
 test("reorder and reopen keep current rules", async (t) => {
   let reachable = false;
   try {
-    const probe = await fetch("http://127.0.0.1:8080", { signal: AbortSignal.timeout(800) });
+    const probe = await fetch(`http://${emulatorEnv.FIRESTORE_EMULATOR_HOST}`, { signal: AbortSignal.timeout(800) });
     reachable = probe.status > 0;
   } catch {
     reachable = false;

@@ -8,7 +8,8 @@ export const productImageSchema = z.object({
     try {
       const url = new URL(value);
       const cloud = url.protocol === "https:" && url.hostname === "firebasestorage.googleapis.com";
-      const emulator = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true" && process.env.NODE_ENV !== "production" && url.origin === "http://127.0.0.1:9199";
+      const storageEmulator = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_EMULATOR_HOST;
+      const emulator = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true" && process.env.NODE_ENV !== "production" && storageEmulator?.startsWith("127.0.0.1:") && url.origin === `http://${storageEmulator}`;
       return (cloud || emulator) && !url.username && !url.password && /^\/v0\/b\/[^/]+\/o\//.test(url.pathname);
     } catch { return false; }
   }, "Choose a product photo or upload a JPG, PNG, or WebP image."),
@@ -35,6 +36,8 @@ export type Product = ProductFields & {
   version: number;
   updatedAt: string | null;
   legacyPriceCentavos: number | null;
+  /** Shop menu section. Absent on older records and on the v1 product editor. */
+  menuCategoryId?: string | null;
 };
 export type ProductList = { initialized: boolean; products: Product[] };
 

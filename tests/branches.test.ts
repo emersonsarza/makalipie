@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { defaultCatalog } from "../src/lib/catalog/defaults";
-import { MIXED_CATALOG_MESSAGE, branchCatalog, branchSettingsSchema, catalogForSelection, defaultBranchSettings, parseBranchSettings, regularBranchCatalog, resolveBranch, selectionCatalogMode, visibleBranches, currentAssignments } from "../src/lib/branches/schema";
+import { branchCatalog, branchSettingsSchema, catalogForSelection, defaultBranchSettings, parseBranchSettings, regularBranchCatalog, resolveBranch, selectionCatalogMode, visibleBranches, currentAssignments } from "../src/lib/branches/schema";
 
 test("URL branch wins; missing, invalid and repeated parameters use admin default", () => {
   const settings = { ...defaultBranchSettings(), defaultBranch: "manila" as const };
+  settings.branches.find(branch => branch.id === "manila")!.visible = true;
   assert.equal(resolveBranch("cebu", settings), "cebu");
   for (const value of [undefined, "popup", "", ["cebu", "manila"]]) assert.equal(resolveBranch(value, settings), "manila");
 });
@@ -24,25 +25,26 @@ test("explicit assignment shares matching sizes and removes incompatible sizes f
   const scoped = regularBranchCatalog(catalog, settings, "manila");
   assert.equal(scoped.products.length, 1);
   assert.equal(scoped.products[0].id, first.productId);
+  delete catalog.products.find((product) => product.id === first.productId)!.variants.find((variant) => variant.id === first.variantId)!.orderMode;
   first.mode = "preorder";
   assert.equal(regularBranchCatalog(catalog, settings, "manila").products.length, 0);
   assert.equal(branchCatalog(catalog, settings, "manila", "preorder").products[0]?.id, first.productId);
 });
-test("a cart keeps one catalog, and the other catalog refuses those sizes", () => {
+test("one order accepts assigned sizes across internal catalog modes", () => {
   const catalog = defaultCatalog();
   const settings = defaultBranchSettings();
   const regular = catalog.products.find((product) => product.variants.some((variant) => variant.minLeadDays === 0))!;
   const prepared = catalog.products.find((product) => product.id !== regular.id)!;
-  prepared.variants[0].minLeadDays = 4;
+  prepared.variants[0].label = "Large"; delete prepared.variants[0].orderMode; prepared.variants[0].minLeadDays = 4;
   const regularLine = { productId: regular.id, variantId: regular.variants[0].id };
   const preparedLine = { productId: prepared.id, variantId: prepared.variants[0].id };
   assert.equal(selectionCatalogMode(settings, catalog, [regularLine, preparedLine]), "mixed");
   const mixed = catalogForSelection(catalog, settings, "cebu", [regularLine, preparedLine]);
   const regularRequest = catalogForSelection(catalog, settings, "cebu", [preparedLine], "regular");
   const preorderRequest = catalogForSelection(catalog, settings, "cebu", [regularLine], "preorder");
-  assert.equal("error" in mixed ? mixed.error : "", MIXED_CATALOG_MESSAGE);
-  assert.equal("error" in regularRequest ? regularRequest.error : "", MIXED_CATALOG_MESSAGE);
-  assert.equal("error" in preorderRequest ? preorderRequest.error : "", MIXED_CATALOG_MESSAGE);
+  assert.equal("catalog" in mixed, true);
+  assert.equal("catalog" in regularRequest, true);
+  assert.equal("catalog" in preorderRequest, true);
   const accepted = catalogForSelection(catalog, settings, "cebu", [preparedLine], "preorder");
   assert.equal("catalog" in accepted ? accepted.catalog.products.some((product) => product.id === prepared.id) : false, true);
 });

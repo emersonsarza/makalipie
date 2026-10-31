@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { clockTimeSchema } from "@/lib/scheduling/schema";
 import { readScheduleSettings } from "@/lib/scheduling/store";
-import { scheduleValidationError, slotsForDate } from "@/lib/scheduling/rules";
+import { preparationStartDate, scheduleValidationError, slotsForDate } from "@/lib/scheduling/rules";
 import { branchIdSchema, catalogForSelection, resolveBranch } from "@/lib/branches/schema";
 import { readBranchSettings } from "@/lib/branches/store";
 import { NextResponse } from "next/server";
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       const short = flavorQuantities(input.data.lines).flatMap((flavor) => flavorHasRoom(allocations.get(flavorCapacityKey(branch, input.data.date, flavor.productId)), flavor.quantity, input.data.date, today, false) ? [] : [names.get(flavor.productId) ?? flavor.productId]);
       if (short.length) return json({ error: flavorAvailabilityMessage(short), schedule: availability.schedule, openDates: availability.openDates, openProducts: availability.openProducts, serverNow: availability.serverNow }, 409);
     }
-    const quote = quoteSelection(scoped.catalog, selection);
+    const quote = quoteSelection(scoped.catalog, selection, manilaDate(now), {preparationStart:preparationStartDate(schedule,branch,now)});
     return quote.errors.length ? json({ error: quote.errors.join(" ") }, 400) : json({ ...quote, slot: slotsForDate(schedule, branch, input.data.date, now).find((slot) => slot.id === input.data.slotId) });
   } catch { return json({ error: "Could not check your selections. Please try again." }, 400); }
 }

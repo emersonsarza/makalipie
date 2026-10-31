@@ -1,73 +1,62 @@
 "use client";
+import Image from "next/image";
+import { ArrowUpRight, CalendarDays, Clock, MapPin } from "lucide-react";
+import { AddressLines } from "@/components/address-lines";
+import { DropNotice } from "@/components/customer-policy";
 import { usePublicShop } from "@/components/public-shop-provider";
-import { MapPin, Store, Sun } from "lucide-react";
+import { locationAnchor } from "@/lib/popups/locations";
+import { popupDateRange, type PopupListing } from "@/lib/popups/schema";
 
-import { KioskStatus } from "@/components/kiosk-status";
-import { buttonVariants } from "@/components/ui/button";
-import { site } from "@/lib/site";
-import { cn } from "@/lib/utils";
+function Directions({ href, name, className = "location-directions" }: { href: string; name: string; className?: string }) {
+  return <a href={href} target="_blank" rel="noreferrer" className={`brand-button outline-button ${className}`}>
+    Get directions <ArrowUpRight size={17} aria-hidden /><span className="sr-only">for {name} (opens in a new tab)</span>
+  </a>;
+}
 
+function Popups({ title, items }: { title: string; items: PopupListing[] }) {
+  if (!items.length) return null;
+  return <section className="location-popup-group" aria-label={title}>
+    <div className="section-heading popup-heading"><div><p className="eyebrow">A LITTLE PIE, AROUND TOWN</p><h3>{title}</h3></div></div>
+    <div className="location-popup-list">{items.map(popup => {
+      const [year, month, day] = popup.startDate.split("-");
+      const monthLabel = new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" }).format(new Date(`${year}-${month}-01T12:00:00Z`));
+      const sameMonth = popup.startDate.slice(0, 7) === popup.endDate.slice(0, 7);
+      const days = popup.startDate === popup.endDate ? Number(day) : sameMonth ? `${Number(day)}–${Number(popup.endDate.slice(-2))}` : Number(day);
+      return <article key={popup.id} id={locationAnchor(popup.id)} tabIndex={-1} className="location-popup-row location-anchor">
+        <div className="popup-date-mark" aria-hidden="true"><span>{monthLabel}</span><strong>{days}</strong><span>{year}</span></div>
+        <div className="popup-event-details">
+          <h4>{popup.name}</h4>
+          <p className="location-detail-line"><CalendarDays size={16} strokeWidth={1.5} aria-hidden /><span>{popupDateRange(popup.startDate, popup.endDate)}</span></p>
+          <p className="location-detail-line"><Clock size={16} strokeWidth={1.5} aria-hidden /><span>{popup.hours}</span></p>
+          <p className="location-detail-line"><MapPin size={16} strokeWidth={1.5} aria-hidden /><AddressLines address={popup.address} /></p>
+        </div>
+        {popup.mapUrl && <Directions href={popup.mapUrl} name={popup.name} className="popup-directions" />}
+      </article>;
+    })}</div>
+  </section>;
+}
 export function VisitSection() {
   const shop = usePublicShop();
-  return (
-    <section id="visit" className="scroll-mt-24 bg-butter/60 py-16 sm:py-20">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr]">
-        <div>
-          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Pie heaven on the 2nd floor.
-          </h2>
-          <p className="mt-4 text-lg text-charcoal/75">
-            Find us at Streetscape, Banilad. The kiosk is open every day, and
-            Sundays have a savory plot twist.
-          </p>
-
-          <div className="mt-8 space-y-4">
-            <div className="rounded-3xl bg-cream p-5 ring-1 ring-charcoal/8">
-              <p className="flex items-center gap-2 font-heading text-xl">
-                <Store className="size-5" aria-hidden />
-                {shop.branchName}
-              </p>
-              <p className="mt-2 flex items-start gap-2 text-charcoal/75">
-                <MapPin className="mt-1 size-4 shrink-0" aria-hidden />
-                {shop.address}
-              </p>
-              <p className="mt-3 text-charcoal">{shop.hoursLabel}</p>
-            </div>
-
-            <div className="rounded-3xl bg-charcoal p-5 text-cream">
-              <p className="flex items-center gap-2 font-heading text-xl">
-                <Sun className="size-5 text-crust" aria-hidden />
-                {site.sundayMarket.name}
-              </p>
-              <p className="mt-2 text-cream/80">
-                {site.sundayMarket.item} · {site.sundayMarket.hoursLabel}
-              </p>
-            </div>
-          </div>
-
-          <a
-            href={shop.mapUrl}
-            target="_blank"
-            rel="noreferrer"
-            className={cn(
-              buttonVariants({ variant: "default" }),
-              "mt-6 h-12 rounded-full px-6 text-base font-semibold"
-            )}
-          >
-            Open in Google Maps
-          </a>
-        </div>
-
-        <div className="overflow-hidden rounded-[2rem] ring-1 ring-charcoal/10">
-          <iframe
-            title={`Map of ${shop.branchName}`}
-            src={`https://maps.google.com/maps?q=${encodeURIComponent(shop.address)}&output=embed`}
-            className="h-[min(28rem,70vh)] w-full border-0 lg:h-full min-h-80"
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-          />
-        </div>
+  const branches = (shop.branches ?? []).filter(branch => branch.visible && branch.id === "cebu");
+  return <section id="visit" className="visit-section section-space location-section"><div className="wrap">
+    <div className="section-heading"><div><p className="eyebrow">YOUR LITTLE PIE STOP</p><h2>Visit us in Cebu.</h2></div>
+    </div>
+    {branches.map(branch => <article key={branch.id} id={locationAnchor(branch.id)} tabIndex={-1} className="visit-layout location-anchor">
+      <div className="visit-photo">
+        <Image src="/images/brand/table.webp" alt="Makalipie tarts on an outdoor café table surrounded by greenery" fill sizes="(max-width: 767px) 100vw, 55vw" />
       </div>
-    </section>
-  );
+      <div className="visit-details">
+        <h3>Makalipie Cebu</h3>
+        <p className="visit-location-intro">Come for a pie. Stay for a little while.</p>
+        {branch.address && <p className="location-detail-line"><MapPin size={16} strokeWidth={1.5} aria-hidden /><AddressLines address={branch.address} /></p>}
+        {branch.hoursLabel && <div className="opening-hours"><span className="location-detail-line"><Clock size={16} strokeWidth={1.5} aria-hidden />Opening hours</span><span>{branch.hoursLabel}</span></div>}
+        {branch.mapUrl && <Directions href={branch.mapUrl} name="Makalipie Cebu" />}
+        <DropNotice branchId={branch.id} />
+      </div>
+    </article>)}
+    <div className="location-content">
+      <Popups title="Popups" items={shop.locations?.upcoming ?? []} />
+      <Popups title="Recent popups" items={shop.locations?.recent ?? []} />
+    </div>
+  </div></section>;
 }

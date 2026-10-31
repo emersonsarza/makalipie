@@ -26,7 +26,8 @@ export async function POST(request: Request) {
     try {
       await file.save(output, { resumable: false, metadata: { contentType: "image/webp", cacheControl: "public,max-age=31536000,immutable", metadata: { firebaseStorageDownloadTokens: token } } });
       // The generated token grants public access to this product photo only.
-      const origin = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true" ? "http://127.0.0.1:9199" : "https://firebasestorage.googleapis.com";
+      const storageEmulator = process.env.FIREBASE_STORAGE_EMULATOR_HOST;
+      const origin = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true" && storageEmulator?.startsWith("127.0.0.1:") ? `http://${storageEmulator}` : "https://firebasestorage.googleapis.com";
       return adminJson({ url: `${origin}/v0/b/${file.bucket.name}/o/${encodeURIComponent(file.name)}?alt=media&token=${token}` }, 201);
     } catch { throw new ProductError(503, "Photo upload is unavailable. Check that Firebase Storage is enabled and the configured bucket is accessible, then try again."); }
   } catch (error) { return adminFailure(error); }

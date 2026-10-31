@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CalendarDays, Check, CheckCheck, CircleAlert, Clock3, ClipboardList, Package, RefreshCw, ShieldCheck, Store, Truck, WifiOff } from "lucide-react";
-import { useAdminBranch, useAdminWorkspace } from "@/components/admin/admin-shell";
+import { ArrowRight, CalendarDays, Check, CheckCheck, CircleAlert, Clock3, ClipboardList, Package, RefreshCw, ShieldCheck, Store, WifiOff } from "lucide-react";
+import { AdminHeaderTools, useAdminBranch, useAdminWorkspace } from "@/components/admin/admin-shell";
 import { useAdminResource } from "@/components/admin/live";
 import { issueLabels, statusLabels, type DashboardOrder } from "./model";
 import styles from "./dashboard.module.css";
@@ -52,7 +52,6 @@ export function Dashboard() {
   const data = resource.status === "ready" ? resource.snapshot : null;
   const stale = resource.status === "ready" && resource.freshness !== "current";
   const orders = (data?.fulfillment?.items ?? []).map((order) => ({ ...order, time: order.slotStartsAt }));
-  const active = orders.filter((order) => !["completed", "cancelled", "expired"].includes(order.status));
   const filtered = orders.filter((order) => tab === "all" || (tab === "active" ? !["completed", "cancelled", "expired"].includes(order.status) : order.fulfillment === tab));
   const href = (page: string, filter?: string) => `/admin/${page}?${new URLSearchParams({ branch, date, ...(filter ? { view: filter } : {}) })}`;
   const chooseDate = (value: string) => {
@@ -77,7 +76,7 @@ export function Dashboard() {
   const soldOut = (data?.availability ?? []).some((item) => item.state === "sold_out") && (data?.availability ?? []).every((item) => item.state === "sold_out" || item.state === "unconfigured");
 
   return <div className={styles.dashboard}>
-    <div className={styles.heading}><div><p className={styles.eyebrow}>YOUR DAY AT A GLANCE</p><h2>A little clarity for a busy day.</h2><p>See what needs you, then keep the pies moving.</p></div><div className={styles.dateControl}><label htmlFor="dashboard-date"><CalendarDays size={16} aria-hidden />Fulfillment date</label><input id="dashboard-date" type="date" value={date} onChange={(event) => { if (event.target.value) chooseDate(event.target.value); }} /></div></div>
+    <AdminHeaderTools><label htmlFor="dashboard-date">Fulfillment date<input id="dashboard-date" type="date" value={date} onChange={(event) => { if (event.target.value) chooseDate(event.target.value); }} /></label></AdminHeaderTools>
     <div className={styles.dayline}><span>{displayDate(date)} <span className={styles.muted}>· Manila time</span></span>{data && <span className={styles.muted}>Updated {clock(data.generatedAt)}</span>}</div>
 
     {resource.status === "forbidden" ? <div className={styles.fullState}><ShieldCheck size={32} aria-hidden /><h3>Dashboard access is restricted</h3><p>{resource.message || "Ask the owner to enable dashboard access for your account. You can still work on the orders available to you."}</p><Link href={href("orders")}>Go to Orders <ArrowRight size={16} aria-hidden /></Link></div>
@@ -90,14 +89,14 @@ export function Dashboard() {
       {data?.sections.summary?.state === "error" || !summary ? <div className={styles.fullState} role="alert"><CircleAlert size={32} aria-hidden /><h3>The day’s counts could not be loaded</h3><p>Missing counts are not zero. Try again, or open Orders.</p><button onClick={refresh}>Try again</button></div> : <section className={styles.metrics} aria-label="Daily summary">{metrics.map((metric) => <Link key={metric.label} href={href("orders", metric.view)} className={styles.metric}><span>{metric.label}<metric.icon size={18} aria-hidden /></span><strong>{metric.value}</strong><small>{metric.help}</small></Link>)}</section>}
       <div className={styles.columns}>
         <div className={styles.primary}>
-          <section className={styles.panel} aria-labelledby="attention-title"><div className={styles.panelHeading}><div><p className={styles.eyebrow}>FIRST THINGS FIRST</p><h3 id="attention-title">Needs your attention <span className={styles.count}>{data?.attention?.totalDistinctOrders ?? "—"}</span></h3></div><Link href={href("orders", "needs-action")}>View orders <ArrowRight size={15} aria-hidden /></Link></div>
-            <p className={styles.sectionHelp}>Each order appears once, with its most useful next step.{data?.attention?.overnightCount ? ` ${data.attention.overnightCount} came in while the shop was closed.` : ""}</p>
+          <section className={styles.panel} aria-labelledby="attention-title"><div className={styles.panelHeading}><h3 id="attention-title">Needs your attention <span className={styles.count}>{data?.attention?.totalDistinctOrders ?? "—"}</span></h3><Link href={href("orders", "needs-action")}>View orders <ArrowRight size={15} aria-hidden /></Link></div>
+            {data?.attention?.overnightCount ? <p className={styles.sectionHelp}>{data.attention.overnightCount} came in while the shop was closed.</p> : null}
             {data?.sections.attention?.state === "error" ? <div className={styles.empty} role="status"><CircleAlert size={24} aria-hidden /><h4>Attention couldn’t be loaded</h4><p>The order counts above stay available. This is not an empty queue.</p><button onClick={refresh}>Try again</button></div>
             : attention.length ? <ul className={styles.attention}>{attention.map((order) => <li key={order.id}><span className={order.reasons.includes("urgent") ? styles.urgentIcon : styles.issueIcon}><Clock3 size={17} aria-hidden /></span><div><strong>{order.nextAction}</strong><p>{order.number} · {order.customer || "Customer"}{branch === "all" ? ` · ${order.branchName}` : ""} · {issueLabels[order.reasons[0]]}</p></div><Link href={`/admin/orders?${new URLSearchParams({ branch, date, order: order.id, view: order.reasons.includes("overnight") ? "overnight" : "needs-action" })}`} aria-label={`Open ${order.number}`}>View <ArrowRight size={14} aria-hidden /></Link></li>)}</ul>
             : <div className={styles.empty}><Check size={25} aria-hidden /><h4>You’re all caught up</h4><p>There are no outstanding actions for this branch and date.</p></div>}
             {data?.attention?.nextCursor && <p className={styles.sectionHelp}>More orders need attention. Open Orders for the full queue.</p>}
           </section>
-          <section className={styles.panel} aria-labelledby="fulfillment-title"><div className={styles.panelHeading}><div><p className={styles.eyebrow}>ON THE COUNTER & ON THE WAY</p><h3 id="fulfillment-title">Fulfillment schedule</h3></div><span className={styles.muted}>{data?.fulfillment?.total ?? "—"} orders</span></div>
+          <section className={styles.panel} aria-labelledby="fulfillment-title"><div className={styles.panelHeading}><h3 id="fulfillment-title">Fulfillment schedule</h3><span className={styles.muted}>{data?.fulfillment?.total ?? "—"} orders</span></div>
             <div className={styles.filters} role="group" aria-label="Filter fulfillment">{(["active", "all", "pickup", "delivery"] as const).map((value) => <button key={value} aria-pressed={tab === value} onClick={() => setTab(value)}>{value === "all" ? "All statuses" : value === "active" ? "Active" : value === "pickup" ? "Pickup" : "Delivery"}</button>)}</div>
             {data?.sections.fulfillment?.state === "error" ? <div className={styles.empty} role="status"><CircleAlert size={24} aria-hidden /><h4>The schedule couldn’t be loaded</h4><button onClick={refresh}>Try again</button></div>
             : filtered.length ? <ol className={styles.schedule}>{filtered.map((order) => <li key={order.id}><time>{slotTime(order.time)}</time><details><summary><span className={styles.orderName}><strong>{order.number} <span>{order.customer || "Customer"}</span></strong><small>{order.quantity} pies · {order.fulfillment === "pickup" ? "Pickup" : "Delivery"}{branch === "all" ? ` · ${order.branchName}` : ""}</small></span><span className={styles.status} data-status={order.status}>{label(order)}</span></summary><div className={styles.orderDetails}><Link href={`/admin/orders?${new URLSearchParams({ branch, date, order: order.id, view: order.status })}`}>Open order <ArrowRight size={14} aria-hidden /></Link></div></details></li>)}</ol>
@@ -116,7 +115,6 @@ export function Dashboard() {
             : <div className={styles.capacity}>{data.availability.map((item) => <div key={`${item.productId}`}><div><strong>{item.name}</strong><span>{item.state === "unlimited" ? "Unlimited" : item.state === "unconfigured" ? "Not configured" : item.state === "sold_out" ? "Sold out" : `${item.remaining ?? 0} left`}</span></div>{item.allocated != null && item.remaining != null ? <meter min={0} max={Math.max(item.allocated, 1)} value={item.remaining} aria-label={`${item.name}: ${item.remaining} of ${item.allocated} pies remaining`} /> : null}<small>{item.state === "unlimited" ? "No pie cap is saved." : item.state === "unconfigured" ? "No quantity is saved for this flavor." : item.allocated == null ? "Saved quantity is unreadable." : `${item.remaining ?? 0} available of ${item.allocated} allocated`}</small></div>)}</div>}
             <Link className={styles.panelLink} href={href("allocation")}>View allocation <ArrowRight size={15} aria-hidden /></Link>
           </section>
-          <div className={styles.note}><Truck size={19} aria-hidden /><div><strong>Keep fulfillment moving</strong><p>Check delivery fees before approval. Missing rider details are a warning, not a payment or dispatch rule.</p></div></div>
         </aside>
       </div>
     </>}

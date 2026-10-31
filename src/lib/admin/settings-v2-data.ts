@@ -7,6 +7,7 @@ import { adminProfileSchema } from "../admin/schemas";
 import { isInvalidCredential, requireOwner, SESSION_COOKIE } from "../admin/session";
 import { parseBranchSettings } from "../branches/schema";
 import { getServerFirebase } from "../firebase/server";
+import { forget, publicCacheKeys } from "../public-cache";
 import { ProductError } from "../products/store";
 import {
   planSettingsSave, presentSettings, settingsAccess, settingsRevision, SettingsCommandError, type SettingsCommand, type StoredStaff,
@@ -50,6 +51,7 @@ export async function commitAdminSettings(request: Request, command: SettingsCom
     });
     completed = true;
     await db.collection(commands).doc(command.idempotencyKey).set({ completed: true }, { merge: true });
+    forget(publicCacheKeys.shop);
     return finish(owner);
   } catch (error) {
     if (!completed) await db.collection(commands).doc(command.idempotencyKey).delete().catch(() => undefined);

@@ -1,9 +1,10 @@
 import "server-only";
 import { FieldValue, Timestamp, type DocumentSnapshot } from "firebase-admin/firestore";
 import { getServerFirebase } from "@/lib/firebase/server";
+import { forget, publicCacheKeys } from "@/lib/public-cache";
 import { defaultVariant } from "@/lib/catalog/defaults";
 import { defaultProducts } from "./defaults";
-import { productFieldsSchema, type Product, type ProductFields, type ProductList } from "./schema";
+import { productFieldsSchema, productIdSchema, type Product, type ProductFields, type ProductList } from "./schema";
 
 export class ProductError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -20,7 +21,8 @@ export function decodeProduct(doc: DocumentSnapshot): Product {
       !(data.legacyPriceCentavos === null || (Number.isSafeInteger(data.legacyPriceCentavos) && data.legacyPriceCentavos >= 0))) {
     throw new Error("Invalid stored product.");
   }
-  return { ...fields, id: doc.id, version: data.version, legacyPriceCentavos: data.legacyPriceCentavos,
+  const menuCategoryId = typeof data.menuCategoryId === "string" && productIdSchema.safeParse(data.menuCategoryId).success ? data.menuCategoryId : null;
+  return { ...fields, id: doc.id, version: data.version, legacyPriceCentavos: data.legacyPriceCentavos, menuCategoryId,
     updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : null };
 }
 
@@ -71,6 +73,7 @@ export async function saveProduct(fields: ProductFields, uid: string, version?: 
       tx.update(ref, { ...fields, ...timestamps, version: version + 1 });
     }
   });
+  forget(publicCacheKeys.menu);
   return decodeProduct(await ref.get());
 }
 

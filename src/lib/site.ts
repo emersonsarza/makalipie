@@ -56,6 +56,7 @@ export type MenuItem = {
   availableWeekdays?: number[];
   unavailableDates?: string[];
   allowedAddonIds?: string[];
+  menuCategoryId?: string | null;
   allergens?: string[];
   image: {
     src: string;
@@ -160,8 +161,8 @@ export const menuItems: MenuItem[] = [
       "Homemade Indian butter chicken curry in our French all-butter flaky crust. Ask us about the current batch at Streetscape.",
     note: "Ask about availability at Streetscape",
     image: {
-      src: "/images/menu/butter-chicken.jpg",
-      alt: "Golden handcrafted crust, the shell for our Butter Chicken Curry pie",
+      src: "/images/brand/butter-chicken.webp",
+      alt: "A flaky Butter Chicken Curry pie broken open to show the chicken filling",
     },
   },
 ];
@@ -169,7 +170,7 @@ export const menuItems: MenuItem[] = [
 export const sweetItems = menuItems.filter((item) => item.kind === "sweet");
 export const savoryItems = menuItems.filter((item) => item.kind === "savory");
 
-export const featuredMenuSlugs = ["buko", "smores", "pecan"] as const;
+export const featuredMenuSlugs = ["buko", "smores", "pecan", "keylime"] as const;
 
 export const addons = [
   {

@@ -24,7 +24,7 @@ test("branch settings persist, reject stale/unauthorized saves, and constrain cu
   await scheduleRef.set({...fixture,updatedBy:user.uid});
   let latestVersion: number | undefined;
   try {
-    const login = await fetch("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-api-key", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: user.email, password: "Branches-demo-only!", returnSecureToken: true }) });
+    const login = await fetch(`http://${emulatorEnv.FIREBASE_AUTH_EMULATOR_HOST}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-api-key`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: user.email, password: "Branches-demo-only!", returnSecureToken: true }) });
     const { idToken } = await login.json();
     const session = await fetch(`${origin}/api/admin/session`, { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ idToken }) });
     assert.equal(session.status, 200, await session.clone().text());
@@ -54,7 +54,7 @@ test("branch settings persist, reject stale/unauthorized saves, and constrain cu
       const events = await db.collection("branchSettingsEvents").where("actorUid", "==", user.uid).get();
       assert.equal(events.size, 1);
     });
-    await t.test("trusted quote rejects items outside branch and excludes preorder", async () => {
+    await t.test("trusted quote enforces branch assignments without separating order types", async () => {
       const preview = (line: typeof shared, branchId: string, catalogMode?: "regular" | "preorder") => fetch(`${origin}/api/catalog/preview`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ branchId, catalogMode, date: addCalendarDays(manilaDate(),2), slotId:"10:00", lines: [{ ...line, quantity: 1, addons: [] }], addons: [] }) });
       assert.equal((await preview(shared, "manila")).status, 200);
       assert.equal((await preview(cebuOnly, "manila")).status, 400);
@@ -73,7 +73,7 @@ test("branch settings persist, reject stale/unauthorized saves, and constrain cu
       const current = (await (await get()).json()).settings;
       current.assignments = current.assignments.map((a: {productId:string;variantId:string;mode:string}) => a.productId === shared.productId && a.variantId === shared.variantId ? {...a, mode:"preorder"} : a);
       const result = await save(current); assert.equal(result.status, 200); latestVersion = (await result.json()).settings.version;
-      assert.equal((await preview(shared, "manila", "regular")).status, 400);
+      assert.equal((await preview(shared, "manila", "regular")).status, 200);
       assert.equal((await preview(shared, "manila", "preorder")).status, 200);
     });
     await t.test("revoked owner cannot mutate settings", async () => {

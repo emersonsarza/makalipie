@@ -2,9 +2,10 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { assertFails, initializeTestEnvironment } from "@firebase/rules-unit-testing";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import { emulatorPorts } from "../scripts/emulator-env.mjs";
 
 test("browser clients cannot read private data or grant owner access", async () => {
-  const environment = await initializeTestEnvironment({ projectId: "demo-makalipie", firestore: { host: "127.0.0.1", port: 8080, rules: readFileSync("firestore.rules", "utf8") } });
+  const environment = await initializeTestEnvironment({ projectId: "demo-makalipie", firestore: { host: "127.0.0.1", port: emulatorPorts.firestore, rules: readFileSync("firestore.rules", "utf8") } });
   try {
     for (const client of [environment.unauthenticatedContext(), environment.authenticatedContext("owner-test", { role: "owner" })]) {
       const db = client.firestore();

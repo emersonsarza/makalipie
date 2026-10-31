@@ -5,6 +5,7 @@ import { isAllowedMutationOrigin } from "../admin/access";
 import { requireOwner } from "../admin/session";
 import { parseBranchSettings, type BranchSettings } from "../branches/schema";
 import { getServerFirebase } from "../firebase/server";
+import { forget, publicCacheKeys } from "../public-cache";
 import { ProductError } from "../products/store";
 import {
   BranchCommandError, BranchQueryError, branchesAccess, branchesRevision, planBranchSave, presentBranches, type BranchCommand,
@@ -43,6 +44,7 @@ export async function commitAdminBranches(request: Request, command: BranchComma
     });
     completed = true;
     await db.collection(commands).doc(command.idempotencyKey).set({ completed: true }, { merge: true });
+    forget(publicCacheKeys.branches);
     return finish(owner);
   } catch (error) {
     if (!completed) await db.collection(commands).doc(command.idempotencyKey).delete().catch(() => undefined);

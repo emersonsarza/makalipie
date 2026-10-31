@@ -2,8 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, CalendarDays, Check, CircleAlert, Package, Pause, RefreshCw, Search, ShieldCheck, Store, WifiOff, X } from "lucide-react";
-import { useAdminBranch, useAdminWorkspace } from "@/components/admin/admin-shell";
+import { ArrowRight, Check, CircleAlert, Package, Pause, RefreshCw, Search, ShieldCheck, Store, WifiOff, X } from "lucide-react";
+import { AdminHeaderTools, useAdminBranch, useAdminWorkspace } from "@/components/admin/admin-shell";
 import { savePage, useAdminResource } from "@/components/admin/live";
 import type { AllocationAdapter, AllocationCommand, AllocationLimit, AllocationResource, AllocationRow, AllocationSnapshot } from "./types";
 import styles from "./allocation.module.css";
@@ -61,7 +61,7 @@ export function AllocationView({branchId,branches,date,today,resource,onScopeCha
  function refresh(){if(dirty){setConfirmation("refresh");return;}setAccepted(null);setFailure(null);onRefresh?.();}
  const link=(path:string)=>`/admin/${path}?${new URLSearchParams({branch:branchId,date})}`;
  return <div className={styles.page}>
-  <header className={styles.heading}><div><p className={styles.eyebrow}>PLAN THE DAY’S PIES</p><h2>Room for every order.</h2><p>Set online quantities by flavor, with existing reservations in view.</p></div><div className={styles.scope}><label><CalendarDays size={15} aria-hidden/>Fulfillment date<input type="date" value={date} disabled={dirty||busy} onChange={e=>{if(validDate(e.target.value))onScopeChange?.(branchId,e.target.value);}}/></label></div></header>
+  <AdminHeaderTools><label htmlFor="allocation-date">Fulfillment date<input id="allocation-date" type="date" value={date} disabled={dirty||busy} onChange={e=>{if(validDate(e.target.value))onScopeChange?.(branchId,e.target.value);}}/></label></AdminHeaderTools>
   <div className={styles.dateLine}><span>{dayLabel(date)} · Manila time</span>{ready&&snapshot?<span>Updated {timeLabel(snapshot.generatedAt)}</span>:<span>Allocation data not loaded</span>}</div>
   {dirty&&<p className={styles.scopeHint}>Save or discard edits before changing branch or date. You’ll be asked before leaving with unsaved work.</p>}
   {resource.status==="forbidden"?<State icon="lock" title="You don’t have access to Daily allocation." text="Ask the owner to enable this page for your account."/>:!branches.length?<State icon="branch" title="No branch assigned" text="Ask the owner to assign a branch before managing its allocation."/>:branchId==="all"?<State icon="branch" title="Choose a branch to plan its day" text="Allocation belongs to one branch and one fulfillment date. Choose a branch from the working branch menu."/>:!branch?<State icon="lock" title="Branch not available" text="Choose a branch you have access to. No allocation details are shown."/>:resource.status==="loading"||resource.status==="ready"&&!inScope?<div className={styles.loading} aria-busy="true"><p role="status">Loading allocation for this branch and date…</p><div className={styles.summary}>{[1,2,3,4].map(n=><div key={n}/>)}</div><div/></div>:resource.status==="error"?<State icon="alert" title="Allocation couldn’t be loaded" text={resource.message||"No quantities were changed. Try loading this date again."}>{onRefresh&&<button onClick={onRefresh}>Try again</button>}</State>:<>

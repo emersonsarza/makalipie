@@ -8,17 +8,19 @@ import { z } from "zod";
 import type { AdminIdentity } from "../admin/schemas";
 import { selectionSchema, type Catalog, type Selection } from "../catalog/schema";
 import { manilaDate, quoteSelection } from "../catalog/rules";
-import { branchById, branchCatalog as branchCatalogFor, catalogForSelection, resolveBranch } from "../branches/schema";
+import { branchById, branchCatalog as branchCatalogFor, orderingBranchCatalog, catalogForSelection, resolveBranch } from "../branches/schema";
 import { readBranchSettings } from "../branches/store";
 import { getServerFirebase } from "../firebase/server";
 import { popupClaimsBranch } from "../popups/schema";
 import { readPopupSettings } from "../popups/store";
 import { readPublicMenu } from "../products/public";
 import { ProductError } from "../products/store";
-import { addCalendarDays, scheduleValidationError, slotsForDate } from "../scheduling/rules";
+import { forget, publicCacheKeys, remember, stockCacheKey } from "../public-cache";
+import { addCalendarDays, preparationStartDate, scheduleValidationError, slotsForDate } from "../scheduling/rules";
 import { defaultScheduleSettings, scheduleSettingsSchema, type ScheduleSettings } from "../scheduling/schema";
 import { readScheduleSettings } from "../scheduling/store";
 import { allocationDaySchema, allocationRecordSchema, allocationSaveSchema, capacityOpen, flavorAvailabilityMessage, flavorCapacityKey, flavorHasRoom, flavorQuantities, type AllocationDay, type AllocationRecord, type AllocationSave } from "./allocation";
+import { dueHoldConstraints } from "./expiry";
 import { assertPaymentBeforePreparation, dailyCapacityKey, defaultOrderingPolicy } from "./policy";
 import { inboxOrderSchema, orderActionSchema, orderEventSchema, orderRequestSchema, ordersVisibleTo, paymentRecordSchema, type InboxOrder, type OrderAction, type OrderEvent, type PaymentRecord } from "./schema";
 import { orderStatusLabel } from "./status-display";
@@ -64,8 +66,20 @@ function allocationDayFromData(data: FirebaseFirestore.DocumentData | undefined)
   return parsed.success ? parsed.data : null;
 }
 
-export async function readAllocationMap() {
-  const snap = await getServerFirebase().db.collection("allocations").get();
+function allocationQuery(start?: string, end?: string) {
+  let query: FirebaseFirestore.Query = getServerFirebase().db.collection("allocations");
+  if (start && end) query = query.where("fulfillmentDate", ">=", start).where("fulfillmentDate", "<=", end);
+  return query;
+}
+
+function allocationDayQuery(start?: string, end?: string) {
+  let query: FirebaseFirestore.Query = getServerFirebase().db.collection("allocationDays");
+  if (start && end) query = query.where("fulfillmentDate", ">=", start).where("fulfillmentDate", "<=", end);
+  return query;
+}
+
+export async function readAllocationMap(start?: string, end?: string) {
+  const snap = await allocationQuery(start, end).get();
   const map = new Map<string, AllocationRecord>();
   for (const doc of snap.docs) {
     const parsed = allocationFromData(doc.data());
@@ -74,8 +88,8 @@ export async function readAllocationMap() {
   return map;
 }
 
-export async function readAllocationDayMap() {
-  const snap = await getServerFirebase().db.collection("allocationDays").get();
+export async function readAllocationDayMap(start?: string, end?: string) {
+  const snap = await allocationDayQuery(start, end).get();
   const map = new Map<string, AllocationDay>();
   for (const doc of snap.docs) {
     const parsed = allocationDayFromData(doc.data());
@@ -85,8 +99,13 @@ export async function readAllocationDayMap() {
 }
 
 export async function readOrderingAvailability(now = new Date()) {
-  const [schedule, branches, allocations, days, menu] = await Promise.all([readScheduleSettings(), readBranchSettings(), readAllocationMap(), readAllocationDayMap(), readPublicMenu()]);
+  const [schedule, branches, menu] = await Promise.all([readScheduleSettings(), readBranchSettings(), readPublicMenu()]);
   const today = manilaDate(now);
+  const horizon = addCalendarDays(today, schedule.bookingHorizonDays);
+  const { allocations, days } = await remember(stockCacheKey(today, horizon), async () => {
+    const [allocations, days] = await Promise.all([readAllocationMap(today, horizon), readAllocationDayMap(today, horizon)]);
+    return { allocations, days };
+  });
   const openDates: Record<string, string[]> = {};
   const openProducts: Record<string, Record<string, string[]>> = {};
   for (const branch of branches.branches) {
@@ -165,6 +184,7 @@ export async function saveBranchAllocations(input: AllocationSave, uid: string, 
       pause: parsed.pause ? { paused: parsed.pause.paused, fulfillmentDate: today } : null,
     });
   });
+  forget(publicCacheKeys.stock);
   const [allocations, pauses] = await Promise.all([readAllocationMap(), readAllocationDayMap()]);
   return { allocations, pauses };
 }
@@ -294,7 +314,7 @@ function withEvent(data: FirebaseFirestore.DocumentData, event: OrderEvent) {
 async function settleOrder(id: string, now: Date, actorUid: string, action: OrderEvent["action"], expectedStatus: InboxOrder["status"] | null, reason?: string) {
   const { db } = getServerFirebase();
   const orderRef = db.doc(`orders/${id}`);
-  return db.runTransaction(async (tx) => {
+  const settled = await db.runTransaction(async (tx) => {
     const snap = await tx.get(orderRef);
     if (!snap.exists) return { missing: true as const };
     const data = snap.data()!;
@@ -343,6 +363,8 @@ async function settleOrder(id: string, now: Date, actorUid: string, action: Orde
     if (expiring && action !== "expire") return { conflict: "That hold already expired.", order };
     return { order };
   });
+  if ("order" in settled && settled.order && (settled.order.status === "expired" || settled.order.status === "cancelled")) forget(publicCacheKeys.stock);
+  return settled;
 }
 
 function advanceFulfillment(
@@ -438,10 +460,11 @@ async function recordOrderPayment(input: OrderAction, actorUid: string, now: Dat
 
 export async function expireDueHolds(now = new Date()) {
   const { db } = getServerFirebase();
+  const bounds = dueHoldConstraints(now);
   let cursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
   let scanned = 0;
   for (;;) {
-    let query = db.collection("orders").where("status", "==", "requested").orderBy(FieldPath.documentId()).limit(100);
+    let query = db.collection("orders").where("status", "==", bounds.status).where("deadline", "<=", bounds.deadlineMax).orderBy("deadline").limit(100);
     if (cursor) query = query.startAfter(cursor);
     const snap = await query.get();
     for (const doc of snap.docs) {
@@ -596,16 +619,16 @@ async function reviseOrder(input: OrderAction, admin: Pick<AdminIdentity, "uid" 
     return { conflict: "Delivery is not available from this branch.", order: preview };
   }
   assertCustomerLimit(destination, nextSelection);
-  const mode = preview.catalogMode === "preorder" ? "preorder" as const : "regular" as const;
-  const branchCatalog = branchCatalogFor(catalog, branchSettings, input.branchId, mode);
-  const quote = quoteSelection(branchCatalog, nextSelection, today);
+  const branchCatalog = orderingBranchCatalog(catalog, branchSettings, input.branchId);
+  const preparationSchedule = await readScheduleSettings();
+  const quote = quoteSelection(branchCatalog, nextSelection, today, {preparationStart:preparationStartDate(preparationSchedule,input.branchId,now)});
   if (quote.errors.length) return { conflict: quote.errors.join(" "), order: preview };
   const nextHolds = flavorQuantities(nextSelection.lines);
   const flavorNames = new Map(branchCatalog.products.map((product) => [product.id, product.name]));
   const branchId = input.branchId;
   const slotId = input.slotId;
 
-  return db.runTransaction(async (tx) => {
+  const revised = await db.runTransaction(async (tx) => {
     const snap = await tx.get(orderRef);
     if (!snap.exists) return { missing: true as const };
     const data = snap.data()!;
@@ -636,6 +659,8 @@ async function reviseOrder(input: OrderAction, admin: Pick<AdminIdentity, "uid" 
     const refs = deltaList.map((item) => db.doc(`allocations/${flavorCapacityKey(item.branchId, item.fulfillmentDate, item.productId)}`));
     const snaps = [];
     for (const ref of refs) snaps.push(await tx.get(ref));
+    const preparationError = quoteSelection(branchCatalog,nextSelection,today,{preparationStart:preparationStartDate(liveSchedule,branchId,now)}).errors[0];
+    if(preparationError) return {conflict:preparationError,order};
     const liveError = scheduleValidationError(liveSchedule, branchId, nextSelection.date, slotId, now);
     const slot = slotsForDate(liveSchedule, branchId, nextSelection.date, now).find((item) => item.id === slotId);
     if (liveError || !slot) {
@@ -699,6 +724,8 @@ async function reviseOrder(input: OrderAction, admin: Pick<AdminIdentity, "uid" 
     tx.update(orderRef, next);
     return { order: decodeInboxOrder(input.orderId, { ...data, ...next }) };
   });
+  if ("order" in revised && revised.order && !("conflict" in revised)) forget(publicCacheKeys.stock);
+  return revised;
 }
 
 async function recordSettlement(input: OrderAction, actorUid: string, now: Date) {
@@ -918,7 +945,7 @@ function assessRecovery(input: {
   const scoped = catalogForSelection(input.catalog, input.branches, input.branchId, input.selection.lines, input.catalogMode);
   let quote: ReturnType<typeof quoteSelection> | null = null;
   if ("error" in scoped) {
-    addBlocker(blockers, scoped.error ?? "Regular pies and pre-order pies need separate requests.");
+    addBlocker(blockers, scoped.error ?? "A selected size is unavailable at this branch.");
   } else {
     for (const line of input.selection.lines) {
       const product = scoped.catalog.products.find((item) => item.id === line.productId);
@@ -933,7 +960,7 @@ function assessRecovery(input: {
       });
     }
     if (unavailableLines.length) addBlocker(blockers, "A selected product or size is no longer available.");
-    quote = quoteSelection(scoped.catalog, input.selection, today);
+    quote = quoteSelection(scoped.catalog, input.selection, today, {preparationStart:preparationStartDate(input.schedule,input.branchId,input.now)});
     for (const error of quote.errors) addBlocker(blockers, error);
     quote.lines.forEach((line, index) => {
       const selected = input.selection.lines[index];
@@ -1183,6 +1210,7 @@ async function commitReservedOrder(input: {
   catalogMode: "regular" | "preorder";
   selection: Selection;
   quote: ReturnType<typeof quoteSelection>;
+  catalog: Catalog;
   heldFlavors: { productId: string; quantity: number }[];
   flavorNames: Map<string, string>;
   schedule: ScheduleSettings;
@@ -1205,7 +1233,7 @@ async function commitReservedOrder(input: {
   const sourceRef = input.sourceId ? db.doc(`orders/${input.sourceId}`) : null;
   await expireDueHolds(input.now);
   try {
-    return await db.runTransaction(async (tx) => {
+    const saved = await db.runTransaction(async (tx) => {
       const idem = await tx.get(idemRef);
       if (idem.exists) {
         const existing = idem.data();
@@ -1229,6 +1257,8 @@ async function commitReservedOrder(input: {
         void _at; void _by;
         liveSchedule = scheduleSettingsSchema.parse(stored);
       }
+      const liveQuote = quoteSelection(input.catalog,input.selection,today,{preparationStart:preparationStartDate(liveSchedule,input.branchId,input.now)});
+      if(liveQuote.errors.length) throw new ProductError(409,liveQuote.errors.join(" "));
       const liveError = scheduleValidationError(liveSchedule, input.branchId, input.selection.date, input.slot.id, input.now);
       const paused = input.selection.date === today && daySnap.data()?.paused === true;
       if (liveError || paused) {
@@ -1306,6 +1336,8 @@ async function commitReservedOrder(input: {
       }
       return { orderNumber, token, deadline: order.deadline, orderId: orderRef.id, replayed: false };
     });
+    if (!saved.replayed) forget(publicCacheKeys.stock);
+    return saved;
   } catch (error) {
     if (error instanceof ProductError && error.status === 409 && (error.message.startsWith("That date") || error.message.includes("online availability"))) {
       const availability = await readOrderingAvailability(input.now);
@@ -1382,7 +1414,8 @@ export async function readGuestOrder(token: string, now = new Date()) {
     const selected = order.selection?.lines[index];
     if (!selected || order.selection?.lines.length !== order.lines.length) return null;
     const product = products.get(selected.productId);
-    return product ? { src: product.image.url, alt: product.image.alt } : null;
+    const photo = product?.variants.find((variant) => variant.id === selected.variantId)?.image ?? product?.image;
+    return photo ? { src: photo.url, alt: photo.alt } : null;
   });
   return {
     orderNumber: order.orderNumber,
@@ -1467,13 +1500,14 @@ async function preparedReservation(input: {
   if (!slot) throw new ProductError(409, "That date or time slot is no longer available. Choose another available date and time; your cart has been kept.");
   const scoped = catalogForSelection(catalog, branchSettings, branchId, input.selection.lines, input.catalogMode);
   if ("error" in scoped) throw new ProductError(400, scoped.error);
-  const quote = quoteSelection(scoped.catalog, input.selection, today);
+  const quote = quoteSelection(scoped.catalog, input.selection, today, {preparationStart:preparationStartDate(schedule,branchId,now)});
   if (quote.errors.length) throw new ProductError(400, quote.errors.join(" "));
   return {
     branchId,
     slot,
     schedule,
-    catalogMode: scoped.mode,
+    catalogMode: "regular" as const,
+    catalog: scoped.catalog,
     quote,
     heldFlavors: flavorQuantities(input.selection.lines),
     flavorNames: new Map(scoped.catalog.products.map((product) => [product.id, product.name])),
@@ -1482,7 +1516,7 @@ async function preparedReservation(input: {
 
 export async function submitOrder(raw: unknown, now = new Date()) {
   const input = orderRequestSchema.parse(raw);
-  const prepared = await preparedReservation(input, now);
+  const prepared = await preparedReservation({...input,catalogMode:"regular"}, now);
   let sourceId: string | undefined;
   if (input.recoveryToken) {
     const source = await orderByToken(input.recoveryToken);
@@ -1505,6 +1539,7 @@ export async function submitOrder(raw: unknown, now = new Date()) {
     catalogMode: prepared.catalogMode,
     selection: input.selection,
     quote: prepared.quote,
+    catalog: prepared.catalog,
     heldFlavors: prepared.heldFlavors,
     flavorNames: prepared.flavorNames,
     schedule: prepared.schedule,
@@ -1568,6 +1603,7 @@ async function reorderClosedOrder(input: OrderAction, admin: AdminIdentity, now:
     catalogMode: prepared.catalogMode,
     selection: nextSelection,
     quote: prepared.quote,
+    catalog: prepared.catalog,
     heldFlavors: prepared.heldFlavors,
     flavorNames: prepared.flavorNames,
     schedule: prepared.schedule,

@@ -2,16 +2,19 @@ import "server-only";
 import { FieldValue } from "firebase-admin/firestore";
 import { firebaseSetupReady, getServerFirebase } from "../firebase/server";
 import { ProductError } from "../products/store";
+import { forget, publicCacheKeys, remember } from "../public-cache";
 import { defaultBranchSchedule, defaultScheduleSettings, scheduleSettingsSchema } from "../scheduling/schema";
 import { defaultBranchSettings, parseBranchSettings, type BranchSettings } from "./schema";
 
 export async function readBranchSettings(): Promise<BranchSettings> {
   if (!firebaseSetupReady()) return defaultBranchSettings();
-  const doc = await getServerFirebase().db.doc("settings/branches").get();
-  if (!doc.exists) return defaultBranchSettings();
-  const { updatedAt: _at, updatedBy: _by, ...settings } = doc.data()!;
-  void _at; void _by;
-  return parseBranchSettings(settings);
+  return remember(publicCacheKeys.branches, async () => {
+    const doc = await getServerFirebase().db.doc("settings/branches").get();
+    if (!doc.exists) return defaultBranchSettings();
+    const { updatedAt: _at, updatedBy: _by, ...settings } = doc.data()!;
+    void _at; void _by;
+    return parseBranchSettings(settings);
+  });
 }
 
 export async function saveBranchSettings(input: BranchSettings, uid: string) {
@@ -30,7 +33,9 @@ export async function saveBranchSettings(input: BranchSettings, uid: string) {
     const variants = await Promise.all(settings.assignments.map((a) => tx.get(db.doc(`products/${a.productId}/variants/${a.variantId}`))));
     if (products.some((p) => !p.exists) || variants.some((v) => !v.exists)) throw new ProductError(409, "The catalog changed. Reload before assigning products.");
     settings.assignments.forEach((a, i) => {
-      if (a.mode === "regular" && variants[i].data()!.minLeadDays > 0) throw new ProductError(400, "Sizes needing preparation days must use Pre-order. Update preparation days in Catalog first if needed.");
+      const data = variants[i].data() ?? {};
+      const needsPreorder = data.orderMode === "preorder" || (data.orderMode !== "regular" && Number(data.minLeadDays) > 0);
+      if (a.mode === "regular" && needsPreorder) throw new ProductError(400, "Pre-order sizes stay in the pre-order catalog. Change that size in Catalog first.");
     });
     tx.set(ref, { ...settings, version: settings.version + 1, updatedAt: FieldValue.serverTimestamp(), updatedBy: uid });
     tx.create(db.collection("branchSettingsEvents").doc(), { actorUid: uid, at: FieldValue.serverTimestamp(), before: existing.exists ? existing.data() : null, after: settings });
@@ -44,4 +49,5 @@ export async function saveBranchSettings(input: BranchSettings, uid: string) {
     const sameKeys = Object.keys(previous.branches).sort().join("\0") === Object.keys(nextBranches).sort().join("\0");
     if (!sameKeys) tx.set(scheduleRef, { ...previous, branches: nextBranches, version: previous.version + 1, updatedAt: FieldValue.serverTimestamp(), updatedBy: uid });
   });
+  forget(publicCacheKeys.branches, publicCacheKeys.schedule);
 }

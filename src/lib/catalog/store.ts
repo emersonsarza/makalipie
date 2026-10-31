@@ -1,22 +1,28 @@
 import "server-only";
 import { FieldValue } from "firebase-admin/firestore";
 import { getServerFirebase } from "@/lib/firebase/server";
+import { forget, publicCacheKeys } from "@/lib/public-cache";
 import { decodeProduct, ProductError } from "@/lib/products/store";
-import { defaultProducts } from "@/lib/products/defaults";
-import { defaultAddons, defaultVariant } from "./defaults";
+import { defaultAddons, defaultCatalog, defaultVariant } from "./defaults";
 import { addonFieldsSchema, productCatalogSchema, variantSchema, type AddonFields, type Catalog, type ProductCatalog } from "./schema";
+import { applyCatalogMigration } from "./migrate";
+import { parseMenuSections } from "./sections";
+import { shopSettingsSchema } from "@/lib/settings/schema";
 const sorted = <T extends { sortOrder: number; id: string }>(rows: T[]) => rows.sort((a,b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id));
 export async function readCatalog(): Promise<Catalog> {
   const { db } = getServerFirebase();
   return db.runTransaction(async (tx) => {
-    const [marker, productsMarker, docs, addonDocs] = await Promise.all([tx.get(db.doc("privateSettings/catalogV2")), tx.get(db.doc("privateSettings/productCatalog")), tx.get(db.collection("products")), tx.get(db.collection("addons"))]);
-    const products = productsMarker.exists ? docs.docs.map(decodeProduct) : defaultProducts();
+    const [marker, productsMarker, docs, addonDocs, sectionsDoc, shopDoc] = await Promise.all([tx.get(db.doc("privateSettings/catalogV2")), tx.get(db.doc("privateSettings/productCatalog")), tx.get(db.collection("products")), tx.get(db.collection("addons")), tx.get(db.doc("settings/menuSections")), tx.get(db.doc("settings/shop"))]);
+    const shop = shopSettingsSchema.safeParse(shopDoc.exists ? shopDoc.data() : {});
+    const extras = shop.success ? { preorderLeadDays: shop.data.defaultPreorderLeadDays, featuredProductIds: shop.data.featuredProductIds } : undefined;
+    if (!productsMarker.exists) return applyCatalogMigration(defaultCatalog(), extras);
+    const products = docs.docs.map(decodeProduct);
     const variants = await Promise.all(products.map((p) => tx.get(db.collection(`products/${p.id}/variants`))));
-    return { initialized: marker.exists, products: sorted(products.map((p, i) => {
+    return applyCatalogMigration({ initialized: marker.exists, products: sorted(products.map((p, i) => {
       const data = docs.docs.find((d) => d.id === p.id)?.data();
       const advanced = productCatalogSchema.parse({ version: p.version, variants: variants[i].empty && !marker.exists ? [defaultVariant(p)] : variants[i].docs.map((d) => variantSchema.parse({ ...d.data(), id: d.id })), availableWeekdays: data?.availableWeekdays ?? (p.id === "buko" ? [5,6,0] : []), unavailableDates: data?.unavailableDates ?? [], allowedAddonIds: data?.allowedAddonIds ?? (!marker.exists ? defaultAddons().map((a) => a.id) : []) });
       return { ...p, ...advanced, variants: sorted(advanced.variants) };
-    })), addons: sorted(marker.exists ? addonDocs.docs.map((d) => { const { version, ...fields } = d.data(); if (!Number.isSafeInteger(version) || version < 1) throw new Error("Invalid add-on version"); return { ...addonFieldsSchema.parse(fields), id: d.id, version }; }) : defaultAddons()) };
+    })), addons: sorted(marker.exists ? addonDocs.docs.map((d) => { const { version, ...fields } = d.data(); if (!Number.isSafeInteger(version) || version < 1) throw new Error("Invalid add-on version"); return { ...addonFieldsSchema.parse(fields), id: d.id, version }; }) : defaultAddons()), sections: parseMenuSections(sectionsDoc.exists ? sectionsDoc.data() : undefined) }, extras);
   }, { readOnly: true });
 }
 export async function initializeCatalog(uid: string) {
@@ -36,6 +42,7 @@ export async function initializeCatalog(uid: string) {
     addons.forEach(({ id, ...fields }, i) => { if (!addonDocs[i].exists) tx.create(db.doc(`addons/${id}`), fields); });
     tx.create(marker, { initializedAt: FieldValue.serverTimestamp(), initializedBy: uid });
   });
+  forget(publicCacheKeys.menu);
 }
 export async function saveProductCatalog(id: string, input: ProductCatalog, uid: string) {
   const { db } = getServerFirebase(); const ref = db.doc(`products/${id}`);
@@ -50,6 +57,7 @@ export async function saveProductCatalog(id: string, input: ProductCatalog, uid:
     tx.update(ref, { ...fields, version: version + 1, updatedAt: FieldValue.serverTimestamp(), updatedBy: uid });
     rows.forEach(({ id: variantId, ...fields }) => tx.set(ref.collection("variants").doc(variantId), fields));
   });
+  forget(publicCacheKeys.menu);
 }
 export async function saveAddon(id: string, fields: AddonFields, version: number) {
   const { db } = getServerFirebase(); const ref = db.doc(`addons/${id}`);
@@ -59,4 +67,5 @@ export async function saveAddon(id: string, fields: AddonFields, version: number
     if ((version === 0 && existing.exists) || (version > 0 && (!existing.exists || existing.data()?.version !== version))) throw new ProductError(409, "This add-on changed or its ID is already used. Reload before editing again.");
     tx.set(ref, { ...fields, version: version + 1 });
   });
+  forget(publicCacheKeys.menu);
 }

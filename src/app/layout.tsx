@@ -1,5 +1,6 @@
-import { readBranchSettings } from "@/lib/branches/store";
-import { readPublicShop } from "@/lib/settings/store";
+import { publicLocations } from "@/lib/popups/locations";
+import { manilaDate } from "@/lib/catalog/rules";
+import { staticBranchSettings, staticPopups, staticPublicShop } from "@/lib/public/static-shop";
 import { PublicShopProvider } from "@/components/public-shop-provider";
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
@@ -117,9 +118,11 @@ const jsonLd = {
   },
 };
 
-export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const shop = await readPublicShop();
-  const branchSettings = await readBranchSettings();
+export default function RootLayout({ children }: LayoutProps<"/">) {
+  const shop = staticPublicShop();
+  const branchSettings = staticBranchSettings();
+  const popupSettings = staticPopups();
+  const locations = publicLocations(popupSettings.listings, manilaDate());
   const publicJsonLd = { ...jsonLd, hasMap: shop.mapUrl, sameAs: [shop.links.instagram, shop.links.messenger].filter(Boolean), address: { "@type": "PostalAddress", streetAddress: shop.address, addressCountry: "PH" }, openingHoursSpecification: undefined, openingHours: shop.hoursLabel };
   return (
     <html lang="en" className={`${garet.variable} h-full antialiased`}>
@@ -130,7 +133,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             __html: JSON.stringify(publicJsonLd).replace(/</g, "\\u003c"),
           }}
         />
-        <PublicShopProvider value={{...shop, links:{...shop.links,messenger:shop.links.messenger||"https://www.facebook.com/makalipie"}, branches: branchSettings.branches.filter(branch => branch.visible)}}>{children}</PublicShopProvider>
+        <PublicShopProvider value={{...shop, locations, links:{...shop.links,messenger:shop.links.messenger||"https://www.facebook.com/makalipie"}, branches: branchSettings.branches.filter(branch => branch.visible)}}>{children}</PublicShopProvider>
       </body>
     </html>
   );

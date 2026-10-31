@@ -17,6 +17,7 @@ import type { AdminIdentity } from "./schemas";
 import { requireAdmin } from "./session";
 import { variantAvailable } from "@/lib/branches/schema";
 import { readBranchSettings } from "@/lib/branches/store";
+import { forget, publicCacheKeys } from "@/lib/public-cache";
 import { readPublicMenu } from "@/lib/products/public";
 import { ProductError } from "@/lib/products/store";
 import { allocationDaySchema, allocationRecordSchema, flavorCapacityKey } from "@/lib/orders/allocation";
@@ -127,6 +128,7 @@ export async function commitAdminAllocation(request: Request, command: Allocatio
       });
     });
     await completeCommand(command.idempotencyKey);
+    forget(publicCacheKeys.stock);
     return { ok: true as const, snapshot: await readAdminAllocation({ branch: command.branchId, date: command.date }) };
   } catch (error) {
     await releaseCommand(command.idempotencyKey);

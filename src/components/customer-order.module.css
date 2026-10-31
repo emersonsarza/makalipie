@@ -1,0 +1,267 @@
+.page { --order-line: rgb(101 100 102 / 18%); padding-top: 38px; }
+.page :global(.order-intro) { margin-bottom: 28px; padding-bottom: 28px; border: 0; gap: 24px; }
+.page :global(.order-intro h1) { font-size: clamp(34px, 4.2vw, 58px); line-height: 1.14; letter-spacing: -.045em; max-width: 800px; }
+.page :global(.order-intro > img) { width: 130px; height: auto; margin-right: 24px; }
+.page :global(.order-intro > div > p:not(.eyebrow)) { font-size: 16px; line-height: 1.65; }
+.stepsSlot { margin-bottom: 32px; }
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.steps button { position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 0 18px; border-bottom: 2px solid var(--order-line); text-align: left; font-size: 15px; font-weight: 600; min-height: 60px; cursor: pointer; }
+.stepLabel { min-width: 0; }
+.stepIndex { display: grid; place-items: center; flex: 0 0 36px; height: 36px; background: var(--color-butter); border-radius: 50%; }
+.steps button[aria-current] { border-color: var(--color-crust); }
+.steps button[aria-current] .stepIndex { background: var(--color-crust); font-size: 24px; font-weight: 700; }
+.steps button:disabled { cursor: not-allowed; color: var(--color-charcoal); }
+.steps button:disabled .stepIndex { background: #eeece7; }
+.page :global(.order-layout) { grid-template-columns: minmax(0, 1.8fr) minmax(290px, 1fr); gap: 56px; }
+.page :global(.order-form) { padding: 0; border: 0; border-radius: 0; background: transparent; gap: 24px; }
+.page :global(.order-form > fieldset) { border: 0; padding: 0; }
+.sectionHeading h2 { font-size: clamp(24px, 2.5vw, 32px); font-weight: 700; letter-spacing: -.035em; margin: 8px 0 12px; }
+.sectionHeading { scroll-margin-top: 110px; }
+.sectionHeading > p:last-child { font-size: 15px; line-height: 1.7; }
+.menuGroup { display: flex; flex-direction: column; gap: 12px; }
+.menuGroup + .menuGroup { margin-top: 8px; }
+.menuGroup h4 { margin: 4px 0 0; font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
+.menuGroupNote { margin: 0; font-size: 14px; line-height: 1.6; }
+.stepContent { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.stepContent[hidden] { display: none; }
+.stepContent > fieldset { min-width: 0; padding: 0 0 24px; border-bottom: 1px solid var(--order-line); }
+.page .stepContent legend { font-size: 20px; margin-bottom: 12px; }
+.page .stepContent label { line-height: 1.5; }
+.page .stepContent input:not([type=radio]):not([type=checkbox]), .page .stepContent select, .page .stepContent :global(#preferred-date) { min-height: 48px; font-size: 16px; background: var(--color-cream); }
+.dateSection { padding-top: 0; }
+.explainer { display: flex; align-items: flex-start; gap: 14px; background: var(--color-butter); border-radius: 4px; padding: 20px; font-size: 14px; line-height: 1.7; }
+.explainer > svg { flex-shrink: 0; margin-top: 4px; }
+.explainer p { margin-top: 4px; }
+.actions { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 12px; border-top: 1px solid var(--order-line); padding-top: 20px; }
+.actions + .explainer { margin-top: 20px; }
+.page :global(.brand-button) { height: auto; white-space: normal; }
+.page :global(.brand-button:disabled) { opacity: 1; background: #eeece7; color: var(--color-charcoal); cursor: not-allowed; }
+.page :global(.order-summary) { border-radius: 4px; background: #f0eee7; padding: 28px; border: 0;  }
+.context { display: flex; gap: 8px; align-items: center; font-size: 14px; padding-bottom: 12px; }
+.context button { margin-left: auto; text-decoration: underline; text-underline-offset: 4px; min-height: 44px; cursor: pointer; }
+.summaryDate { display: flex; gap: 8px; align-items: center; font-size: 14px; margin-bottom: 24px; }
+.logisticsLine { display: flex; align-items: flex-start; gap: 8px; }
+.logisticsLine svg { flex: none; margin-top: 3px; }
+.page :global(.order-summary-heading h2) { font-size: 28px; }
+.page :global(.order-summary-heading > p:not(.eyebrow)), .page :global(.order-total-note), .page :global(.order-summary-logistics) { font-size: 14px; line-height: 1.7; }
+.page :global(.order-empty img) { border-radius: 4px; height: 170px; }
+.page :global(.order-flavor) { background: var(--color-cream); border: 1px solid var(--order-line); border-radius: 4px; padding: 16px; gap: 14px; }
+.page :global(.order-flavor.is-selected) { border-color: var(--color-crust); box-shadow: none; }
+.page :global(.order-thumb) { width: 76px; height: 76px; border-radius: 4px; object-fit: cover; }
+.page .unavailable { background: #f1f0ec; border-style: dashed; }
+.unavailable img { filter: none; }
+.page :global(.order-form .text-xs) { font-size: 13px; line-height: 1.6; }
+.page :is(button, a, input, textarea, select, summary):focus-visible { outline: 2px solid var(--color-charcoal); outline-offset: 5px; box-shadow: none; }
+@media (max-width: 959px) { .page :global(.order-layout) { display: block; } .page :global(.order-summary) { display: none; } .page :global(.order-intro > img) { width: 90px; margin: 0; } }
+@media (max-width: 600px) { .page { padding-top: 24px; } .stepsSlot { margin-bottom: 22px; } .steps { gap: 10px; } .page :global(.order-intro > img) { display: none; } .page :global(.order-intro h1) { font-size: 36px; } .page :global(.order-form) { padding: 0; border-radius: 0; } .page :global(.order-flavor) { padding: 12px; } .actions > :global(.brand-button) { flex: 1; } .page :global(.order-summary) { display: none; } }
+@media (prefers-reduced-motion: reduce) { .page *, .page *::before, .page *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
+
+.continueHelp { font-size: 14px; line-height: 1.7; padding: 12px 16px; border: 1px solid var(--order-line); background: var(--color-cream); }
+
+/* Match the storefront controls; avoid inheriting the legacy form's square fields. */
+.page :global(.order-intro h1 span) { text-decoration: none; background: linear-gradient(var(--color-crust), var(--color-crust)) left bottom / 100% 4px no-repeat; padding-bottom: 5px; }
+.page :global(.order-form) input:not([type=radio]):not([type=checkbox]),
+.page :global(.order-form) textarea,
+.page :global(.order-form) select,
+.page :global(.order-form #preferred-date) { border-radius: 4px; border: 1px solid var(--order-line); background: #fff; font-size: 16px; font-weight: 400; }
+.page :global(.order-form) textarea { padding: 12px; }
+.page :global(.order-form [role=radiogroup]) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.page :global(.order-form [role=radiogroup] label) { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 14px; border: 1px solid var(--order-line); border-radius: 4px; background: white; font-weight: 400; }
+.page :global(.order-form [role=radiogroup] label svg) { flex: none; }
+.page :global(.order-form [role=radiogroup] label:has([data-checked])) { background: var(--color-butter); border-color: var(--color-charcoal); }
+.page :global(.order-form [aria-pressed]) { border-radius: 4px; font-size: 14px; font-weight: 400; box-shadow: none; }
+.page :global(.order-flavor .font-heading) { font-size: 16px; font-weight: 400; }
+.page :global(.order-flavor .text-sm) { font-size: 14px; font-weight: 400; }
+.page :global(.order-stepper) { border-radius: 4px; overflow: visible; }
+.page :global(.order-stepper button) { min-width: 44px; min-height: 44px; }
+.page :global(.order-flavor) { align-items: center; }
+.page :global(.order-summary-lines) { font-size: 14px; line-height: 1.6; }
+.page :global(.order-summary-lines li) { gap: 16px; }
+.page :global(.order-summary-lines li > span:last-child) { white-space: nowrap; }
+.page :global(.order-summary-logistics) { padding-block: 18px; }
+.page :global(.order-subtotal strong) { font-size: 26px; }
+.page :global(.order-next) { margin-top: 20px; }
+.selectionContext { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 12px 16px; border-radius: 4px; background: var(--color-cream); font-size: 13px; }
+.selectionContext span { display: flex; align-items: center; gap: 6px; }
+.selectionContext button { min-height: 44px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.page :global(.order-form .sr-only) { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+@media (max-width: 700px) {
+ .page :global(.order-intro) { margin-bottom: 16px; padding-bottom: 12px; }
+ .page :global(.order-intro > img) { display: none; }
+ .steps { gap: 12px; }
+ .steps button { flex-direction: row; align-items: center; font-size: 13px; gap: 8px; font-weight: 400; min-height: 44px; }
+ .steps button[aria-current] { font-weight: 600; }
+ .stepIndex { flex: 0 0 30px; height: 30px; font-size: 14px; }
+ .steps button[aria-current] .stepIndex { font-size: 15px; }
+ .page :global(.order-form [role=radiogroup]) { grid-template-columns: 1fr; }
+ .page :global(.order-flavor) { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; align-items: center; }
+ .page :global(.order-thumb) { width: 64px; height: 64px; }
+}
+@media (max-width: 767px) {
+  .sectionHeading { scroll-margin-top: 148px; }
+  .stepsPinned { position: fixed; left: 20px; right: 20px; z-index: 40; background: var(--color-cream); box-shadow: 0 10px 24px rgb(101 100 102 / 8%); }
+  .stepsPinned button { justify-content: center; gap: 0; min-height: 0; padding: 10px 0 12px; }
+  .stepsPinned .stepLabel { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+}
+
+.timeSlots { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11.5rem), 1fr)); gap: 10px; width: 100%; min-width: 0; }
+.page .timeSlots button,
+.timeSlot { width: 100%; padding: 10px 8px; white-space: normal; height: auto; min-height: 48px; line-height: 1.4; border-radius: 4px; border: 1px solid var(--order-line); background: #fff; color: var(--color-charcoal); font-size: 14px; font-weight: 400; box-shadow: none; }
+.page .timeSlots button:hover:not(.timeSlotOn) { background: var(--color-butter); }
+.page .timeSlots button.timeSlotOn { background: var(--color-butter); color: var(--color-charcoal); border-color: var(--color-charcoal); box-shadow: inset 0 -3px 0 var(--color-crust); }
+
+/* One focus indicator, distinct from the pie's selected state. Also applies in the mobile lineup portal. */
+.stepper { overflow: visible; }
+.stepper button { position: relative; border-color: transparent; }
+.stepper button:focus-visible { outline: 2px solid var(--color-charcoal); outline-offset: -4px; box-shadow: none; border-color: transparent; border-radius: 4px; z-index: 1; }
+.page :global(.order-stepper) button:focus-visible { outline-offset: -4px; border-color: transparent; box-shadow: none; }
+.page :is(input, textarea, select, button):focus-visible { --tw-ring-shadow: 0 0 #0000; --tw-ring-offset-shadow: 0 0 #0000; }
+.page :global([data-slot=button]):focus-visible { border-color: transparent; }
+
+.calendarPopover { width: auto; max-width: calc(100vw - 24px); max-height: min(480px, var(--available-height, 80dvh)); overflow-y: auto; border-radius: 4px; padding: 4px; }
+.calendar { --cell-size: min(40px, calc((100vw - 48px) / 7)); --cell-radius: 4px; }
+.page :is(input, textarea, select, button) { scroll-margin-block: 120px; }
+@media (max-width: 400px) { .actions { gap: 8px; } .actions > :global(.brand-button) { gap: 10px; padding-inline: 14px; } }
+
+/* Compact categorized menu: shared separators and one consistent ordering action. */
+.menuGroup { gap: 0; }
+.menuGroup + .menuGroup { margin-top: 28px; }
+.menuGroup h4 { margin-bottom: 6px; }
+.menuGroupNote { margin-bottom: 12px; }
+.page :global(.order-flavor) { display: grid; grid-template-columns: 64px minmax(0, 1fr) 116px; gap: 6px 14px; padding: 18px 0; border: 0; border-bottom: 1px solid var(--order-line); border-radius: 0; background: transparent; }
+.page :global(.order-flavor.is-selected) { border-color: var(--order-line); background: transparent; }
+.page :global(.order-thumb) { grid-row: 1 / 3; align-self: start; width: 64px; height: 64px; }
+.productCopy { grid-column: 2; grid-row: 1; min-width: 0; }
+.productInfo { display: contents; }
+.productName { font-size: 16px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+.productSize { font-size: 13px; line-height: 1.6; margin-top: 3px; color: var(--color-charcoal); }
+.productPrice { grid-column: 2; grid-row: 2; font-size: 15px; font-weight: 650; color: #353436; font-variant-numeric: tabular-nums; margin: 0; }
+.productNote, .productWarning { font-size: 12px; line-height: 1.6; margin-top: 6px; }
+.productWarning { color: var(--color-berry); }
+.productDetails { font-size: 12px; line-height: 1.6; margin-top: 6px; }
+.productDetails summary { cursor: pointer; padding-block: 12px; text-decoration: underline; text-underline-offset: 3px; }
+.page :global(.order-flavor > .order-stepper), .page :global(.order-flavor) > .addButton { grid-column: 3; grid-row: 1 / 3; align-self: center; justify-self: end; margin: 0; }
+.page :global(.order-flavor > .order-stepper), .stepper { flex-direction: row; display: flex; align-items: center; padding: 0; }
+.page :global(.order-flavor > .order-stepper button), .stepper button { width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; }
+.page :global(.order-flavor > .order-stepper .w-7) { width: 28px; height: auto; line-height: 1.5; }
+.addButton { min-height: 44px; min-width: 82px; border: 1px solid var(--order-line); border-radius: 4px; background: white; }
+.page :global(.order-flavor) > .mobileZeroStepper { display: none; }
+.orderNotes { display: grid; gap: 8px; margin-top: 24px; }
+.orderNotes textarea { width: 100%; min-height: 88px; background: white; border: 1px solid var(--border); border-radius: 4px; padding: 12px; font-size: 16px; }
+@media (min-width: 960px) {
+ .page :global(.order-layout) { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(290px, 1fr); gap: 32px; }
+ .page :global(.order-summary) { display: block; position: sticky; top: 110px; align-self: start; max-height: calc(100dvh - 130px); overflow-y: auto; }
+ .page :global(.order-flavor) { grid-template-columns: 80px minmax(0, 1fr) 90px 116px; gap: 14px; }
+ .page :global(.order-thumb) { width: 80px; height: 80px; grid-row: 1; }
+ .productPrice { grid-column: 3; grid-row: 1; text-align: right; }
+ .page :global(.order-flavor > .order-stepper), .page :global(.order-flavor) > .addButton { grid-column: 4; grid-row: 1; }
+}
+@media (max-width: 767px) {
+ .page :global(.order-flavor) { grid-template-columns: 64px minmax(0, 1fr) 44px; grid-template-rows: auto; align-items: center; }
+ .page :global(.order-thumb) { grid-row: 1; align-self: center; }
+ .productInfo { display: flex; flex-direction: column; gap: 8px; grid-column: 2; grid-row: 1; min-width: 0; }
+ .page :global(.order-flavor > .order-stepper), .page :global(.order-flavor) > .addButton { grid-column: 3; grid-row: 1; align-self: center; justify-self: end; margin: 0; }
+ .page :global(.order-flavor > .order-stepper) { flex-direction: column-reverse; width: 44px; border: 0; box-shadow: inset 0 0 0 1px var(--order-line); }
+ .page :global(.order-flavor > .order-stepper button) { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+ .page :global(.order-flavor > .order-stepper .w-7) { width: 100%; height: 24px; line-height: 24px; }
+ .page :global(.order-flavor) > .mobileZeroStepper { display: flex; }
+ .page :global(.order-flavor) > .desktopAddButton { display: none; }
+}
+
+/* Availability is information until it affects an existing selection. */
+.unavailableSection { margin-top: 28px; border-top: 1px solid var(--order-line); padding-top: 24px; }
+.unavailableSection > h3 { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.availabilityCount { font-size: 13px; font-variant-numeric: tabular-nums; font-weight: 400; }
+.unavailableGroup { margin-top: 20px; }
+.availabilityHeading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 16px; }
+.availabilityHeading h4 { font-size: 14px; font-weight: 600; }
+.availabilityHeading button, .retryAvailability { min-height: 44px; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+@media (max-width: 767px) {
+ .page :global(.order-flavor).unavailable { grid-template-columns: 64px minmax(0, 1fr); }
+}
+
+/* Phone ordering: prioritize the lineup over repeated introductory copy. */
+@media (max-width: 767px) {
+ .page :global(.order-form) { gap: 16px; }
+ .sectionHeading h2 { font-size: 24px; line-height: 1.25; margin-bottom: 8px; }
+ .sectionHeading > p:last-child { font-size: 14px; line-height: 1.55; }
+ .selectionHelp { display: none; }
+ .selectionContext { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 10px 12px; }
+ .selectionContext span { min-width: 0; font-size: 12px; }
+ .selectionContext span svg { flex: none; }
+ .selectionContext span:first-child { grid-column: 1; grid-row: 1; }
+ .selectionContext span:nth-child(2) { grid-column: 1; grid-row: 2; }
+ .selectionContext button { grid-column: 2; grid-row: 1 / 3; font-size: 13px; padding-inline: 4px; }
+ .page :global(.order-flavor) { padding-block: 12px; gap: 6px 12px; }
+ .unavailableSection { margin-top: 20px; padding-top: 20px; }
+ .unavailableGroup { margin-top: 12px; }
+ .availabilityHeading { gap: 0 8px; }
+ .availabilityHeading h4 { font-size: 13px; }
+ .availabilityHeading button { font-size: 12px; }
+ .page :global(.order-flavor).unavailable .productInfo { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 12px; }
+ .page :global(.order-flavor).unavailable .productCopy { display: contents; }
+ .page :global(.order-flavor).unavailable .productName { grid-column: 1 / -1; grid-row: 1; }
+ .page :global(.order-flavor).unavailable .productSize { grid-column: 1; grid-row: 2; margin: 0; }
+ .page :global(.order-flavor).unavailable .productPrice { grid-column: 2; grid-row: 2; align-self: center; font-size: 14px; text-align: right; }
+ .page :global(.order-flavor).unavailable .productNote,
+ .page :global(.order-flavor).unavailable .productDetails { grid-column: 1 / -1; margin-top: 2px; }
+}
+
+/* Category → size → compact product rows, shared across ordering modes. */
+.menuGroup > h3 { font-size: 21px; margin-bottom: 16px; }
+.sizeGroup + .sizeGroup { margin-top: 24px; }
+.sizeHeading h4 { font-size: 15px; margin-bottom: 0; }
+.sizeHeading p { font-size: 12px; line-height: 1.5; margin-top: 3px; }
+.chooseDate, .switchModeButton { font-size: 13px; min-height: 44px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.unavailableSection > summary { cursor: pointer; min-height: 44px; font-size: 16px; font-weight: 600; padding-block: 10px; }
+.excludedHelp { font-size: 13px; line-height: 1.6; margin: 8px 0 20px; }
+.page :global(.order-flavor) { grid-template-columns: 64px minmax(0, 1fr); grid-template-rows: auto; align-items: center; }
+.page :global(.order-thumb) { grid-column: 1; grid-row: 1 / 3; align-self: center; }
+.productInfo { grid-column: 2; grid-row: 1; display: block; min-width: 0; }
+.productCopy { display: contents; }
+.productInfo { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 4px 12px; }
+.productName { grid-column: 1; grid-row: 1; }
+.productPrice { grid-column: 2; grid-row: 1; text-align: right; white-space: nowrap; }
+.productInfo .productNote, .productInfo .productWarning, .productInfo .productDetails { grid-column: 1 / -1; }
+.page :global(.order-flavor > .order-stepper) { grid-column: 2; grid-row: 2; justify-self: start; flex-direction: row; width: auto; border: 1px solid var(--order-line); box-shadow: none; }
+.page :global(.order-flavor > .order-stepper .w-7) { width: 28px; height: auto; line-height: 1.5; }
+.page :global(.order-flavor) > .switchModeButton { grid-column: 2; grid-row: 2; justify-self: start; }
+.page :global(.order-flavor).unavailable .productInfo { display: grid; grid-template-columns: minmax(0,1fr) auto; }
+.page :global(.order-flavor).unavailable .productName { grid-column: 1; grid-row: 1; }
+.page :global(.order-flavor).unavailable .productPrice { grid-column: 2; grid-row: 1; }
+@media(max-width:767px) { .menuGroup > h3 { font-size: 20px; } .page :global(.order-flavor > .order-stepper button) { width:44px; height:44px; } }
+.draftDateNotice { padding:12px; background:var(--color-butter); font-size:13px; line-height:1.6; }
+.menuGroup > h3 { font-weight: 700; }
+
+/* Mobile ordering preference: photo | name + price | vertical quantity. */
+@media (max-width:767px) {
+ .page :global(.order-flavor):not(.unavailable) { grid-template-columns:64px minmax(0,1fr) 44px; grid-template-rows:auto; }
+ .page :global(.order-flavor):not(.unavailable) .productInfo { grid-column:2; grid-row:1 / 3; display:flex; flex-direction:column; gap:4px; }
+ .page :global(.order-flavor):not(.unavailable) .productPrice { text-align:left; font-size:15px; }
+ .page :global(.order-flavor > .order-stepper) { grid-column:3; grid-row:1 / 3; align-self:center; justify-self:end; flex-direction:column-reverse; width:44px; border:0; box-shadow:inset 0 0 0 1px var(--order-line); }
+ .page :global(.order-flavor > .order-stepper .w-7) { width:100%; height:24px; line-height:24px; }
+}
+@media (min-width:768px) {
+ .page :global(.order-flavor) { grid-template-columns:64px minmax(0,1fr) max-content 118px; grid-template-rows:auto; gap:8px 16px; }
+ .page :global(.order-flavor).unavailable { grid-template-columns:64px minmax(0,1fr) max-content; }
+ .page :global(.order-thumb) { grid-row:1; align-self:center; }
+ .productInfo, .page :global(.order-flavor).unavailable .productInfo { display:contents; }
+ .productName, .page :global(.order-flavor).unavailable .productName { grid-column:2; grid-row:1; }
+ .productPrice, .page :global(.order-flavor).unavailable .productPrice { grid-column:3; grid-row:1; align-self:center; text-align:right; }
+ .productInfo .productNote, .productInfo .productWarning, .productInfo .productDetails { grid-column:2; grid-row:auto; }
+ .page :global(.order-flavor > .order-stepper) { grid-column:4; grid-row:1; justify-self:end; align-self:center; flex-direction:row; width:auto; }
+}
+@media (max-width:767px) {
+ .page :global(.order-flavor > .order-stepper) { height:64px; }
+ .page :global(.order-flavor > .order-stepper button) { width:44px; min-width:44px; height:24px; min-height:24px; padding:0; }
+ .page :global(.order-flavor > .order-stepper .w-7) { height:16px; line-height:16px; font-size:12px; }
+}
+@media (min-width:768px) { .page :global(.order-thumb) { width:64px; height:64px; } }
+@media (max-width:767px) {
+ .page :global(.order-flavor).unavailable .productInfo { grid-column:2; grid-row:1 / 3; align-self:center; align-items:center; }
+}
+.preparationNotice { font-size:13px; line-height:1.6; padding:12px; background:var(--color-cream); }
+.preorderCalendarDay button { position:relative; }
+.preorderCalendarDay button:not(:disabled)::after { content:""; position:absolute; bottom:4px; left:50%; width:4px; height:4px; border-radius:50%; background:currentColor; transform:translateX(-50%); }
+.calendarLegend { display:flex; align-items:center; gap:8px; margin:6px 8px 8px; font-size:12px; line-height:1.5; color:var(--color-charcoal); }
+.calendarLegend > span { width:5px; height:5px; flex:none; border-radius:50%; background:currentColor; }

@@ -1,12 +1,12 @@
 import { ChatLinks } from "@/components/public-shop-provider";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LegalPage, LegalPending } from "@/components/legal-page";
+import { LegalPage } from "@/components/legal-page";
 import { LegalSection } from "@/components/legal-section";
 
 export const metadata: Metadata = {
   title: "Terms and Conditions",
-  description: "How ordering, payment, pickup, and cancellations work at Makalipie.",
+  description: "How to send a Makalipie order from this website, and how confirmation, payment, pickup, and changes work.",
   alternates: { canonical: "/terms" },
 };
 
@@ -15,78 +15,76 @@ export default function TermsPage() {
     <LegalPage
       policy="terms"
       title="Terms and Conditions"
-      intro="These Terms and Conditions explain how Makalipie manages order requests, confirmation, payment, pickup, customer-booked couriers, and cancellations."
+      intro="These Terms and Conditions explain how to send an order from this website, and how confirmation, payment, pickup, delivery, and changes work after we reply in chat."
     >
       <LegalSection n={1} title="About Makalipie">
         <p>
           Makalipie is a bakery based in Cebu, Philippines. Our registered address is Unit C2, Cedar Place, 12 Dagohoy St, Barangay Apas, Cebu City, Philippines. For inquiries, email <a href="mailto:makalipie@gmail.com">makalipie@gmail.com</a>.
         </p>
       </LegalSection>
-      <LegalSection n={2} title="Placing an order request">
+      <LegalSection n={2} title="Sending an order">
         <p>
-          Choose your branch and date, select eligible items, and submit an order request through our website. Your order page will display an order number and the status of your request. When contacting us through <ChatLinks />, include your order number so our team can assist with availability, payment, and pickup arrangements.
+          Fill in the <Link href="/order">order form</Link>, copy it, and send it to us through <ChatLinks />. This website does not save the order. Copying the message does not reserve the pies.
         </p>
       </LegalSection>
-      <LegalSection n={3} title="Order confirmation">
+      <LegalSection n={3} title="Confirmation">
         <p>
-          Submitting an order request does not confirm your order. Our team must review and approve the request, including availability and pickup arrangements. Your order page shows the current status. Payment and fulfillment arrangements are communicated separately through <ChatLinks />.
+          Sending the copied order does not confirm it. The order is final only when our team confirms it on Instagram or Messenger.
         </p>
       </LegalSection>
-      <LegalSection n={4} title="Temporary holds and availability">
+      <LegalSection n={4} title="Availability">
         <p>
-          Order requests are subject to available baking capacity and are handled on a first-come, first-served basis. A submitted request may temporarily reserve capacity while awaiting review. Refer to the hold deadline shown on your order page. An unreviewed request may expire when that deadline passes. After-hours requests use the next opening time for their hold, capped before the fulfillment slot; the displayed deadline is the one that applies.
+          The dates on the form are preferences. We confirm what we can bake when we reply. Messages sent outside business hours are read the next morning.
         </p>
       </LegalSection>
       <LegalSection n={5} title="Payment">
         <p>
-          Payment is arranged after we confirm your order. When full payment is required for your order, your order page will say so and preparation starts only after it is recorded. We accept GCash and bank transfer. Payments are arranged separately; this website does not process payment transactions. You are responsible for checking that the payment amount and recipient account match the instructions provided by Makalipie before sending payment. Official receipts are available upon request.
+          We accept GCash and bank transfer. Payment details are sent in the chat and are never shown on this website. This website does not take payment. Only big orders must be paid in full before we start baking. Other orders can pay later. We will say which applies in chat. Official receipts are available upon request. Check that the amount and the account match the instructions we send before you pay.
         </p>
       </LegalSection>
-      <LegalSection n={6} title="Pickup and customer-booked couriers">
+      <LegalSection n={6} title="Pickup and delivery">
         <p>
-          The pickup address and available time slots for your selected bakery or outlet are displayed on the order form and your order page. After confirmation, you may collect your order or book your own courier to collect it from that address. When your branch offers delivery, you can provide a delivery address and ask Makalipie to book the rider; the delivery fee is confirmed in chat. Booking your own rider counts as Pickup. Please coordinate courier collection with our team.
+          Manila is pickup only. Cebu can be pickup or delivery. We book the rider for delivery. You pay the delivery fee with your order or directly to the driver. A rider you send yourself counts as pickup. The pickup address is the one shown on the order form.
         </p>
       </LegalSection>
       <LegalSection n={7} title="Courier responsibility">
         <p>
-          Provide accurate collection and destination details. You can book your own courier for pickup or choose bakery-booked delivery where available. Courier problems, including incorrect details, an unreachable courier, and damage, delays, or mishandling after handover, do not qualify for a refund from Makalipie. We recommend using an insulated bag during transport. Please refer to our <Link href="/refund">Refund Policy</Link> for information about refund eligibility.
+          Once a third-party courier has the order, we are not responsible for a wrong address, an unreachable customer, or courier trouble. Those count as a no-show. Please refer to our <Link href="/refund">Refund Policy</Link>.
         </p>
       </LegalSection>
-      <LegalSection n={8} title="Cancellation">
+      <LegalSection n={8} title="Changes">
         <p>
-          You may cancel an order request before confirmation, after confirmation, or after payment, subject to any cancellation cutoff published for your scheduled pickup. Refund eligibility is described in our <Link href="/refund">Refund Policy</Link>.
-        </p>
-        <LegalPending>The cancellation cutoff has not yet been finalized. This policy will be updated when it is confirmed.</LegalPending>
-      </LegalSection>
-      <LegalSection n={9} title="Rescheduling">
-        <p>
-          To request a change to your pickup schedule, contact our team through <ChatLinks />. If Makalipie must change the scheduled date due to capacity constraints, an emergency, or weather conditions, you may choose a new date or a refund.
+          You cannot cancel an order yourself. Change requests are handled case by case in chat. You can ask to change the order or the pickup time until we confirm it, if we allow that change. Big pre-orders cannot be cancelled and must be paid in full before we start baking. Refund eligibility is described in our <Link href="/refund">Refund Policy</Link>.
         </p>
       </LegalSection>
-      <LegalSection n={10} title="No-shows and missed pickup">
+      <LegalSection n={9} title="If we need to reschedule">
         <p>
-          If you miss your scheduled pickup window, we will attempt to contact you. If we are unable to reach you, your order may be offered to customers on the waiting list. The treatment of any payment in these circumstances remains pending, as noted in our <Link href="/refund">Refund Policy</Link>.
+          If we cannot fulfill your order or must move the date, you choose a new date or a full refund.
+        </p>
+      </LegalSection>
+      <LegalSection n={10} title="No-shows">
+        <p>
+          There is no refund for a no-show. We try to reach you first. After that, the slot can go to the waitlist.
         </p>
       </LegalSection>
       <LegalSection n={11} title="Products and photos">
-        <LegalPending>Guidance on how website product photographs represent the finished products has not yet been finalized. This section will be updated when confirmed.</LegalPending>
+        <p>Product photos are accurate.</p>
       </LegalSection>
       <LegalSection n={12} title="Allergens">
         <p>
-          Where available, product-specific allergen information is provided on our menu and ordering pages.
+          Our kitchen also handles nuts and gluten, so cross-contact is possible. Allergens for a specific pie stay on the menu and the order form.
         </p>
-        <LegalPending>Any applicable information about shared-kitchen allergen cross-contact will be added once confirmed.</LegalPending>
       </LegalSection>
       <LegalSection n={13} title="Custom toppers">
         <p>Available extras are shown at checkout, with their prices, preparation time, and message requirements.</p>
       </LegalSection>
       <LegalSection n={14} title="Complaints">
-        <p>For questions or complaints, contact us through <ChatLinks /> or email <a href="mailto:makalipie@gmail.com">makalipie@gmail.com</a>. Include your order number, where applicable, and a description of your concern.</p>
+        <p>For questions or complaints, contact us through <ChatLinks /> or email <a href="mailto:makalipie@gmail.com">makalipie@gmail.com</a>. Tell us what you ordered and the pickup date.</p>
       </LegalSection>
       <LegalSection n={15} title="Governing law">
-        <p>These terms are governed by the laws of the Philippines.</p>
+        <p>These terms are governed by the laws of the Philippines, with Cebu as the venue.</p>
       </LegalSection>
-      <LegalSection n={16} title="Changes">
+      <LegalSection n={16} title="Changes to these terms">
         <p>We may update these Terms and Conditions. The “Last updated” date at the top of this page identifies the current version.</p>
       </LegalSection>
     </LegalPage>

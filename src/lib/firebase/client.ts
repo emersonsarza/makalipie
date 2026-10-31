@@ -28,7 +28,9 @@ export function getBrowserAuth() {
       if (!config.projectId.startsWith("demo-") || process.env.NODE_ENV === "production") {
         throw new Error("Emulators require a demo project and development mode.");
       }
-      if (!auth.emulatorConfig) connectAuthEmulator(auth, "http://127.0.0.1:9099");
+      const authEmulator = process.env.NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST;
+      if (!authEmulator?.startsWith("127.0.0.1:")) throw new Error("The Auth emulator must stay on this machine.");
+      if (!auth.emulatorConfig) connectAuthEmulator(auth, `http://${authEmulator}`);
     }
     // Firebase tokens are only used to establish the server's HttpOnly session.
     await setPersistence(auth, inMemoryPersistence);

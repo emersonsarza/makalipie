@@ -1,26 +1,18 @@
-import { VisibleBranches } from "@/components/customer-policy";
-import { readPublicShop } from "@/lib/settings/store";
+import { VisitSection } from "@/components/sections/visit";
 import { ChatLinks } from "@/components/public-shop-provider";
-import { readPublicMenu } from "@/lib/products/public";
-import { manilaDate } from "@/lib/catalog/rules";
-import { openPopups, popupDateRange } from "@/lib/popups/schema";
-import { readPopupSettings } from "@/lib/popups/store";
-export const dynamic = "force-dynamic";
+import { staticPublicMenu, staticPublicShop } from "@/lib/public/static-shop";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, MapPin } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { InstagramIcon } from "@/components/icons";
 import { PieSelection } from "@/components/sections/pie-selection";
 import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { getSiteUrl, site } from "@/lib/site";
 
-export default async function Home() {
-  const shop = await readPublicShop();
-  const [{ items }, popups] = await Promise.all([
-    readPublicMenu(),
-    readPopupSettings().then((settings) => openPopups(settings.listings, manilaDate())),
-  ]);
+export default function Home() {
+  const shop = staticPublicShop();
+  const { items } = staticPublicMenu();
   return (
     <SiteShell>
       <script
@@ -175,79 +167,7 @@ export default async function Home() {
           </div>
         </Reveal>
       </section>
-      <section id="visit" className="visit-section section-space">
-        <div className="wrap">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">YOUR LITTLE PIE STOP</p>
-              <h2>Find your nearest branch.</h2>
-            </div>
-            <a
-              className="text-link"
-              href={shop.mapUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Get directions <ArrowUpRight size={18} aria-hidden />
-            </a>
-          </div>
-          <div className="visit-layout">
-            <div className="visit-photo">
-              <Image
-                src="/images/brand/table.webp"
-                alt="Makalipie tarts on an outdoor café table surrounded by greenery"
-                fill
-                sizes="(max-width: 767px) 100vw, 55vw"
-              />
-            </div>
-            <div className="visit-details">
-              <MapPin size={28} strokeWidth={1.4} aria-hidden />
-              <h3>
-                Come for a pie.
-                <br />
-                Stay for a little while.
-              </h3>
-              <VisibleBranches />
-              <div className="opening-hours">
-                <span>Opening hours</span>
-                <span>Branch details above follow the shop’s visibility settings.</span>
-              </div>
-              <a
-                href={shop.mapUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="brand-button outline-button"
-              >
-                Find your way here <ArrowUpRight size={18} aria-hidden />
-              </a>
-              <p className="visit-market">
-                Catch us at local pop-ups, too. Check Instagram for the next
-                market, seasonal pie, or special drop.
-              </p>
-              {popups.length > 0 ? (
-                <ul className="visit-popups">
-                  {popups.map((popup) => (
-                    <li key={popup.id} className="visit-popup">
-                      <p className="visit-popup-name">{popup.name}</p>
-                      <p>{popup.address}</p>
-                      <p>{popupDateRange(popup.startDate, popup.endDate)}</p>
-                      <p>{popup.hours}</p>
-                      <ul className="visit-popup-items">
-                        {popup.items.map((item) => <li key={item}>{item}</li>)}
-                      </ul>
-                      {popup.mapUrl ? (
-                        <a href={popup.mapUrl} target="_blank" rel="noreferrer">
-                          Directions <ArrowUpRight size={14} aria-hidden />
-                        </a>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      </section>
+      <VisitSection />
       <section className="faq-section wrap section-space">
         <div>
           <p className="eyebrow">BEFORE YOUR FIRST BITE</p>
@@ -261,13 +181,13 @@ export default async function Home() {
           <details>
             <summary>How do I order a box?</summary>
             <p>
-              Choose your branch and date in our <Link href="/order">order form</Link>, then choose from the pies available for that day. Send your order number through <ChatLinks /> so we can confirm it. No payment is collected on the website.
+              Fill in our <Link href="/order">order form</Link>, copy it, and send it through <ChatLinks />. We confirm the order there. Nothing is reserved until we reply. No payment is collected on the website.
             </p>
           </details>
           <details>
             <summary>Can I have my pies delivered?</summary>
             <p>
-              {shop.deliveryAvailable ? "Choose delivery when your selected branch offers it. We arrange the rider and confirm the delivery fee in chat. " : "Delivery is not currently available from our branches. "}You can also book your own courier to collect a confirmed order; choose Pickup for this option.
+              {shop.deliveryAvailable ? "Cebu orders can be pickup or delivery. We book the rider. You pay the delivery fee with your order or directly to the driver. " : "Delivery is not currently available from our branches. "}You can also book your own courier; choose Pickup for that. Manila, when we offer it, is pickup only.
             </p>
             <div className="delivery-app-actions">
               <a
@@ -295,9 +215,9 @@ export default async function Home() {
             </p>
           </details>
           <details>
-            <summary>Do you deliver to Manila?</summary>
+            <summary>Where can I pick up my pies?</summary>
             <p>
-              We do occasional Makalipie drops in Manila! We announce upcoming dates and open pre-order slots through our Instagram, so stay tuned.
+              Pick up your pies at {shop.address}. Choose your date and time when placing your order.
             </p>
           </details>
           <details>

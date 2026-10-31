@@ -3,6 +3,7 @@ import "server-only";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
+import { emulatorEnv } from "../../../scripts/emulator-env.mjs";
 
 export function firebaseSetupReady() {
   const emulator = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true";
@@ -25,9 +26,9 @@ export function getServerFirebase() {
   const emulator = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true";
   if (emulator) {
     if (process.env.NODE_ENV === "production" || !projectId.startsWith("demo-") ||
-        process.env.FIREBASE_AUTH_EMULATOR_HOST !== "127.0.0.1:9099" ||
-        process.env.FIRESTORE_EMULATOR_HOST !== "127.0.0.1:8080" ||
-        (process.env.FIREBASE_STORAGE_EMULATOR_HOST && process.env.FIREBASE_STORAGE_EMULATOR_HOST !== "127.0.0.1:9199")) {
+        process.env.FIREBASE_AUTH_EMULATOR_HOST !== emulatorEnv.FIREBASE_AUTH_EMULATOR_HOST ||
+        process.env.FIRESTORE_EMULATOR_HOST !== emulatorEnv.FIRESTORE_EMULATOR_HOST ||
+        (process.env.FIREBASE_STORAGE_EMULATOR_HOST && process.env.FIREBASE_STORAGE_EMULATOR_HOST !== emulatorEnv.FIREBASE_STORAGE_EMULATOR_HOST)) {
       throw new Error("Emulators require development mode, a demo project, and local emulator hosts.");
     }
   } else if (process.env.FIREBASE_AUTH_EMULATOR_HOST || process.env.FIRESTORE_EMULATOR_HOST || process.env.FIREBASE_STORAGE_EMULATOR_HOST || process.env.STORAGE_EMULATOR_HOST) {

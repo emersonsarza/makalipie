@@ -1,10 +1,11 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowUpRight, CalendarDays, ChefHat, ChevronRight, ClipboardList, LayoutDashboard, MapPin, Menu, Package, Search, Settings2, SlidersHorizontal, Store, Tags } from "lucide-react";
+import { ArrowUpRight, CalendarDays, ChefHat, ClipboardList, LayoutDashboard, MapPin, Menu, Package, Settings2, SlidersHorizontal, Store, Tags } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetDescription, SheetTrigger } from "@/components/ui/sheet";
 import { SessionControls } from "@/components/admin/session-controls";
 import styles from "./admin-shell.module.css";
@@ -21,11 +22,19 @@ const groups = [
   { label: "Shop", items: [{ slug: "settings", label: "Settings", icon: Settings2 }] },
 ];
 const shopWide = new Set(["catalog", "branches", "popups", "settings"]);
+const flushPages = new Set(["catalog", "packages", "orders", "kitchen", "branches", "popups", "settings"]);
+const HeaderSlotContext = createContext<HTMLElement | null>(null);
+export function AdminHeaderTools({ children }: { children: ReactNode }) {
+  const slot = useContext(HeaderSlotContext);
+  if (!slot) return null;
+  return createPortal(children, slot);
+}
 
 export function AdminShell({ name, role, branches, children }: { name: string; role: "owner" | "staff"; branches: Branch[]; children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [headerSlot, setHeaderSlot] = useState<HTMLDivElement | null>(null);
   const [branch, setBranch] = useState(role === "owner" ? "all" : branches[0]?.id ?? "");
   const slug = pathname.split("/")[2] || "";
   const page = groups.flatMap((group) => group.items.map((item) => ({ ...item, group: group.label }))).find((item) => item.slug === slug);
@@ -56,7 +65,7 @@ export function AdminShell({ name, role, branches, children }: { name: string; r
   const navigation = (mobile: boolean) => <>
     <Link href={`/admin?branch=${encodeURIComponent(branch)}`} className={styles.brand} onClick={() => setMobileOpen(false)} aria-label="Makalipie admin home">
       <Image src="/brand/seal.png" alt="" width={44} height={44} />
-      <span><strong>makalipie</strong><small>THE BAKERY WORKSPACE</small></span>
+      <span><strong>makalipie</strong></span>
     </Link>
     <div className={styles.tools}>
       <label className={styles.branchLabel} htmlFor={mobile ? "mobile-admin-branch" : "admin-branch"}>Working branch</label>
@@ -65,7 +74,6 @@ export function AdminShell({ name, role, branches, children }: { name: string; r
         {!branches.length && role !== "owner" && <option value="">No branch assigned</option>}
         {branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
       </select></div>
-      <div className={styles.search} aria-label="Order search coming next"><Search size={17} aria-hidden /><span>Search orders</span><small>Coming next</small></div>
     </div>
     <nav className={styles.navigation} aria-label="Admin navigation">
       {groups.map((group) => {
@@ -81,7 +89,7 @@ export function AdminShell({ name, role, branches, children }: { name: string; r
     </div>
   </>;
 
-  return <WorkspaceContext.Provider value={{ role, branches, selectBranch }}><BranchContext.Provider value={branch}><div className={styles.shell}>
+  return <WorkspaceContext.Provider value={{ role, branches, selectBranch }}><BranchContext.Provider value={branch}><HeaderSlotContext.Provider value={headerSlot}><div className={styles.shell}>
     <a className={styles.skip} href="#admin-content">Skip to page content</a>
     <aside className={styles.sidebar}>{navigation(false)}</aside>
     <div className={styles.workspace}>
@@ -94,11 +102,11 @@ export function AdminShell({ name, role, branches, children }: { name: string; r
               {navigation(true)}
             </SheetContent>
           </Sheet>
-          <div><div className={styles.breadcrumb}><span>{page?.group || "Admin"}</span><ChevronRight size={12} aria-hidden /><span>{title}</span></div><h1>{title}</h1></div>
+          <h1>{title}</h1>
         </div>
-        <div className={styles.headerEnd}><span className={styles.scope}><Store size={15} aria-hidden /><span>{shopWide.has(slug) ? "Shop-wide" : branchName}</span></span><span className={styles.headerAvatar} title={`${name} · ${role}`} aria-label={`Signed in as ${name}, ${role}`}>{initials}</span></div>
+        <div className={styles.headerEnd}><div ref={setHeaderSlot} className={styles.headerTools} /><span className={styles.scope}><Store size={15} aria-hidden /><span>{shopWide.has(slug) ? "Shop-wide" : branchName}</span></span></div>
       </header>
-      <main id="admin-content" tabIndex={-1} className={styles.content} aria-label={`${title} page`}>{children}</main>
+      <main id="admin-content" tabIndex={-1} className={flushPages.has(slug) ? `${styles.content} ${styles.contentFlush}` : `${styles.content} ${styles.contentInset}`} aria-label={`${title} page`}>{children}</main>
     </div>
-  </div></BranchContext.Provider></WorkspaceContext.Provider>;
+  </div></HeaderSlotContext.Provider></BranchContext.Provider></WorkspaceContext.Provider>;
 }

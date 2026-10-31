@@ -15,7 +15,7 @@ test("saved schedules constrain customer requests and remain owner protected",as
  await db.doc(`admins/${user.uid}`).set({role:"owner",active:true,email:user.email});
  let latestVersion:number|undefined;
  try {
-  const login=await fetch("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-api-key",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:user.email,password:"Schedule-demo-only!",returnSecureToken:true})});
+  const login=await fetch(`http://${emulatorEnv.FIREBASE_AUTH_EMULATOR_HOST}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-api-key`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:user.email,password:"Schedule-demo-only!",returnSecureToken:true})});
   const {idToken}=await login.json();
   const session=await fetch(`${origin}/api/admin/session`,{method:"POST",headers:{Origin:origin,"Content-Type":"application/json"},body:JSON.stringify({idToken})}); assert.equal(session.status,200);
   const cookie=session.headers.get("set-cookie")!.split(";")[0];

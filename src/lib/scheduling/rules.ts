@@ -1,7 +1,8 @@
 import { businessDateSchema } from "../admin/schemas";
 import type { BranchId } from "../branches/schema";
 import type { Catalog, Selection } from "../catalog/schema";
-import { manilaDate, quoteSelection } from "../catalog/rules";
+import { availabilityReason, manilaDate, quoteSelection } from "../catalog/rules";
+import { variantOrderMode } from "../catalog/mode";
 import { minutesOfDay, type BranchSchedule, type ScheduleSettings } from "./schema";
 
 export type TimeSlot = { id: string; label: string; startsAt: string; endsAt: string };
@@ -34,13 +35,25 @@ export function slotsForDate(settings: ScheduleSettings, branch: BranchId, date:
   return configuredSlots(schedule, date).filter((slot) => Date.parse(slot.startsAt) > now.getTime());
 }
 
-// Caller scopes the catalog to the branch and ordering mode first.
+/** The preparation clock starts at the next date with an orderable branch slot. */
+export function preparationStartDate(settings: ScheduleSettings, branch: BranchId, now = new Date()) {
+  const today = manilaDate(now);
+  for (let offset = 0; offset <= settings.bookingHorizonDays; offset++) {
+    const date = addCalendarDays(today, offset);
+    if (slotsForDate(settings, branch, date, now).length) return date;
+  }
+  // No open date in the horizon: positive preparation cannot fit inside it.
+  return addCalendarDays(today, settings.bookingHorizonDays + 1);
+}
+
+// Caller scopes the catalog to the branch first; it may contain every size.
 export function availableOrderDates(settings: ScheduleSettings, branch: BranchId, catalog: Catalog, selection: Omit<Selection, "date">, now = new Date()): AvailableDate[] {
   const today = manilaDate(now), dates: AvailableDate[] = [];
+  const preparationStart = preparationStartDate(settings,branch,now);
   for (let offset = 0; offset <= settings.bookingHorizonDays; offset++) {
     const date = addCalendarDays(today, offset), slots = slotsForDate(settings, branch, date, now);
     if (!slots.length) continue;
-    if (quoteSelection(catalog, { ...selection, date }, today).errors.length) continue;
+    if (quoteSelection(catalog, { ...selection, date }, today, {preparationStart}).errors.length) continue;
     dates.push({ date, slots });
   }
   return dates;
@@ -51,4 +64,17 @@ export function scheduleValidationError(settings: ScheduleSettings, branch: Bran
   if (date > addCalendarDays(manilaDate(now), settings.bookingHorizonDays)) return `Choose a date within ${settings.bookingHorizonDays} days ahead.`;
   if (!slotsForDate(settings, branch, date, now).some((slot) => slot.id === slotId)) return "That date or time slot is no longer available. Choose another available date and time; your cart has been kept.";
   return null;
+}
+
+/** Calendar and catalog share eligibility; markers never promise sold-out or closed dates. */
+export function orderingDateOptions(settings: ScheduleSettings, branch: BranchId, catalog: Catalog, now = new Date(), options: {intakeEnabled?:boolean; openProducts?:Record<string,string[]>; editingDate?:string} = {}) {
+  const preparationStart=preparationStartDate(settings,branch,now);
+  const today=manilaDate(now);
+  return availableOrderDates(settings,branch,catalog,{lines:[],addons:[]},now).flatMap(date=>{
+    const variants=catalog.products.flatMap(product=>product.variants.filter(variant=>{
+      if(options.intakeEnabled && !options.openProducts?.[date.date]?.includes(product.id)) return false;
+      return !availabilityReason(product,variant,date.date,0,today,{categoryWeekdays:catalog.sections.find(section=>section.id===product.menuCategoryId)?.availableWeekdays,preorderLeadDays:catalog.preorderLeadDays ?? 3,preparationStart});
+    }));
+    return variants.length || date.date===options.editingDate ? [{...date,preorderAvailable:variants.some(variant=>variantOrderMode(variant)==="preorder")}] : [];
+  });
 }

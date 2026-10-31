@@ -49,6 +49,7 @@ export const settingsCommandSchema = z.object({
     links: z.object({ instagram: linkValue, instagramDm: linkValue, messenger: linkValue, grabFood: linkValue, foodpanda: linkValue }).strict(),
     holdMinutes: z.string().trim().max(8),
     confirmBeforeSlotMinutes: z.string().trim().max(8),
+    defaultPreorderLeadDays: z.string().trim().max(8).default("3"),
     requireFullPaymentDefault: z.boolean().nullable(),
     customerEditDefault: z.boolean().nullable(),
     themeId: z.string().trim().max(40).nullable(),
@@ -111,6 +112,7 @@ export function presentSettings(input: { shop: Record<string, unknown> | null; s
       },
       holdMinutes: numberText(shop.holdMinutes),
       confirmBeforeSlotMinutes: numberText(shop.confirmBeforeSlotMinutes),
+      defaultPreorderLeadDays: typeof shop.defaultPreorderLeadDays === "number" ? String(shop.defaultPreorderLeadDays) : "3",
       requireFullPaymentDefault: typeof shop.requireFullPaymentDefault === "boolean" ? shop.requireFullPaymentDefault : null,
       customerEditDefault: typeof shop.customerEditDefault === "boolean" ? shop.customerEditDefault : null,
       themeId: null,
@@ -159,6 +161,7 @@ function shopChanges(shop: Record<string, unknown> | null, current: SettingsSnap
   if (linksChanged) writes.links = nextLinks;
   if (draft.holdMinutes !== current.holdMinutes) writes.holdMinutes = wholeMinutes(draft.holdMinutes, 1, "Hold length must be 1–1440 whole minutes.");
   if (draft.confirmBeforeSlotMinutes !== current.confirmBeforeSlotMinutes) writes.confirmBeforeSlotMinutes = wholeMinutes(draft.confirmBeforeSlotMinutes, 0, "Confirmation buffer must be 0–1440 whole minutes.");
+  if (draft.defaultPreorderLeadDays !== current.defaultPreorderLeadDays) writes.defaultPreorderLeadDays = wholeDays(draft.defaultPreorderLeadDays);
   if (draft.requireFullPaymentDefault !== current.requireFullPaymentDefault) {
     if (draft.requireFullPaymentDefault !== true) throw new SettingsCommandError(400, "validation", "Full payment is required before preparation.");
     writes.requireFullPaymentDefault = true;
@@ -235,6 +238,11 @@ function branchChoices(branches: { id: string; name: string }[], staff: StoredSt
   const known = new Set(choices.map((branch) => branch.id));
   for (const person of staff) for (const id of person.branchIds) if (!known.has(id)) { choices.push({ id, name: id }); known.add(id); }
   return choices;
+}
+
+function wholeDays(value: string) {
+  if (!/^\d+$/.test(value) || Number(value) > 365) throw new SettingsCommandError(400, "validation", "Pre-order preparation must be 0–365 whole days.");
+  return Number(value);
 }
 
 function wholeMinutes(value: string, minimum: number, message: string) {

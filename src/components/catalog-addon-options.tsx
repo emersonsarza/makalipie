@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { AddonMark, hasAddonMark } from "@/components/addon-mark";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,7 +42,7 @@ export function CatalogAddonOptions({
                 onCheckedChange={() => toggle(addon.id)}
               />
               <Label htmlFor={checkId} className="h-auto cursor-pointer items-center gap-3 font-normal">
-                <Image src={addon.image.url} alt="" unoptimized width={36} height={36} className="rounded-md object-cover" />
+                {hasAddonMark(addon.id) ? <span className="grid size-9 place-items-center rounded-md bg-butter text-charcoal"><AddonMark id={addon.id} /></span> : <Image src={addon.image.url} alt="" unoptimized width={36} height={36} className="rounded-md object-cover" />}
                 <span className="text-sm">
                   <strong>{addon.name}</strong>
                   <span className="block text-charcoal/70">

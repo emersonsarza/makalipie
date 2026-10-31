@@ -1,5 +1,6 @@
-import { readPublicMenu } from "@/lib/products/public";
-export const dynamic = "force-dynamic";
+import { menuSizes } from "@/lib/catalog/menu-view";
+import { customerSizeLabel } from "@/lib/catalog/size";
+import { staticPublicMenu } from "@/lib/public/static-shop";
 import type { Metadata } from "next";
 import { getSiteUrl } from "@/lib/site";
 
@@ -9,11 +10,11 @@ import { SiteShell } from "@/components/site-shell";
 export const metadata: Metadata = {
   title: "Tarts & Pies Menu in Cebu",
   description:
-    "Explore handmade sweet tarts, Friday-to-Sunday Buko pie, and Butter Chicken Curry. Find your favourites and check availability with Makalipie in Cebu.",
+    "Browse Makalipie 4-inch pies and larger pre-order sizes. Choose your branch and date to check availability.",
   openGraph: {
     title: "Tarts & Pies Menu in Cebu · Makalipie",
     description:
-      "Explore handmade sweet tarts, Friday-to-Sunday Buko pie, and Butter Chicken Curry. Find your favourites and check availability with Makalipie in Cebu.",
+      "Browse Makalipie 4-inch pies and larger pre-order sizes. Choose your branch and date to check availability.",
     url: "/menu",
     type: "website",
     locale: "en_PH",
@@ -23,17 +24,20 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Tarts & Pies Menu in Cebu · Makalipie",
     description:
-      "Explore handmade sweet tarts, Friday-to-Sunday Buko pie, and Butter Chicken Curry. Find your favourites and check availability with Makalipie in Cebu.",
+      "Browse Makalipie 4-inch pies and larger pre-order sizes. Choose your branch and date to check availability.",
   },
   alternates: {
     canonical: "/menu",
   },
 };
 
-export default async function MenuPage() {
-  const { items, unavailable } = await readPublicMenu();
+export default async function MenuPage({ searchParams }: { searchParams: Promise<{ view?: string | string[] }> }) {
+  const view = (await searchParams).view;
+  const preorder = view === "preorders";
+  const { items: allItems, unavailable, sections } = staticPublicMenu();
+  const items = menuSizes(allItems, preorder);
   return (
-    <SiteShell>
+    <SiteShell menuView={preorder ? "preorders" : "menu"}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -48,12 +52,12 @@ export default async function MenuPage() {
               "@type": "MenuItem",
               name: item.name,
               description: item.description,
-              offers: (item.variants ?? []).filter((v) => v.active && v.pricingMode === "fixed").map((v) => ({ "@type": "Offer", name: v.label, price: v.priceCentavos! / 100, priceCurrency: "PHP", url: `${getSiteUrl()}/order` })),
+              offers: (item.variants ?? []).filter((v) => v.active && v.pricingMode === "fixed").map((v) => ({ "@type": "Offer", name: customerSizeLabel(v.label) ?? item.name, price: v.priceCentavos! / 100, priceCurrency: "PHP", url: `${getSiteUrl()}/order` })),
             })),
           }).replace(/</g, "\\u003c"),
         }}
       />
-      <MenuCatalog items={items} unavailable={unavailable} />
+      <MenuCatalog preorder={preorder} items={items} sections={sections} unavailable={unavailable} />
     </SiteShell>
   );
 }

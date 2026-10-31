@@ -3,14 +3,15 @@ import { usePublicShop } from "@/components/public-shop-provider";
 import { ArrowUpRight } from "lucide-react";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { site } from "@/lib/site";
 
 export function SiteShell({
   children,
   showBanner = true,
+  menuView,
 }: {
   children: React.ReactNode;
   showBanner?: boolean;
+  menuView?: "menu" | "preorders";
 }) {
   const shop = usePublicShop();
   return (
@@ -23,7 +24,7 @@ export function SiteShell({
           </a>
         </div>
       )}
-      <SiteHeader />
+      <SiteHeader menuView={menuView} />
       <main id="main" className="flex-1">
         {children}
       </main>

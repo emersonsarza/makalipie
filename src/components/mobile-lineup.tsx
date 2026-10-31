@@ -9,7 +9,7 @@ export function MobileLineup({ count, subtotal, hasUnpriced, children }: { count
   const [open, setOpen] = useState(false);
   const [keyboard, setKeyboard] = useState(false);
   useEffect(() => {
-    const media = window.matchMedia("(max-width: 900px)");
+    const media = window.matchMedia("(max-width: 959px)");
     const resize = () => { if (!media.matches) setOpen(false); };
     const viewport = window.visualViewport;
     const detectKeyboard = () => {
@@ -28,19 +28,24 @@ export function MobileLineup({ count, subtotal, hasUnpriced, children }: { count
       document.removeEventListener("focusout", detectKeyboard);
     };
   }, []);
+  useEffect(() => {
+    if (count === 0) setOpen(false);
+  }, [count]);
   const summary = `${count} ${count === 1 ? "pc" : "pcs"} · ${formatPrice(subtotal)}`;
-  return <Sheet open={open} onOpenChange={setOpen}>
+  return <>
+    {count > 0 ? <Sheet open={open} onOpenChange={setOpen}>
     <div className="mobile-lineup-bar" hidden={keyboard}>
       <SheetTrigger className="mobile-lineup-trigger">
         <span><small>{hasUnpriced ? "Known subtotal" : "Subtotal"}</small><strong>{summary}</strong></span>
-        <span>View lineup <ChevronUp size={18} aria-hidden /></span>
+        <span>View order <ChevronUp size={18} aria-hidden /></span>
       </SheetTrigger>
     </div>
     <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">{summary}{hasUnpriced ? ". Some prices are to confirm." : ""}</span>
     <SheetContent side="bottom" className="mobile-lineup-sheet" showCloseButton={false}>
-      <header className="mobile-lineup-header"><div><SheetTitle>Your lineup</SheetTitle><SheetDescription>{count} {count === 1 ? "piece" : "pieces"} in your box</SheetDescription></div><SheetClose className="mobile-lineup-close">Close</SheetClose></header>
+      <header className="mobile-lineup-header"><div><SheetTitle>Your order</SheetTitle><SheetDescription>{count} {count === 1 ? "piece" : "pieces"} in your box</SheetDescription></div><SheetClose className="mobile-lineup-close">Close</SheetClose></header>
       <div className="mobile-lineup-scroll">{count === 0 ? <p className="mobile-lineup-empty">Your box is waiting. Choose your favourite pies to get started.</p> : children}</div>
-      <footer className="mobile-lineup-footer"><div><span>{hasUnpriced ? "Known subtotal" : "Subtotal"}</span><strong>{formatPrice(subtotal)}</strong></div><SheetClose className="mobile-lineup-continue">Continue ordering</SheetClose></footer>
+      <footer className="mobile-lineup-footer"><div><span>{hasUnpriced ? "Known subtotal" : "Subtotal"}</span><strong>{formatPrice(subtotal)}</strong></div><SheetClose className="mobile-lineup-continue brand-button">Continue ordering</SheetClose></footer>
     </SheetContent>
-  </Sheet>;
+  </Sheet> : <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">{summary}{hasUnpriced ? ". Some prices are to confirm." : ""}</span>}
+  </>;
 }

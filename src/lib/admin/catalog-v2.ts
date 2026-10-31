@@ -4,6 +4,10 @@ import type { AdminIdentity } from "./schemas";
 import { branchIdSchema, CEBU_BRANCH_ID } from "../branches/schema";
 import { addonFieldsSchema, dateSchema, productCatalogSchema, variantSchema, type AddonFields, type Variant } from "../catalog/schema";
 import { pesosToCentavos } from "../catalog/schema";
+import { type MenuSection } from "../catalog/sections";
+import { displayCategorySchedules } from "../catalog/migrate";
+import { variantOrderMode } from "../catalog/mode";
+import { storedSizeLabel } from "../catalog/size";
 import { productFieldsSchema, productIdSchema, productImageSchema, slugify } from "../products/schema";
 
 /**
@@ -47,6 +51,9 @@ const sizeSchema = z.object({
   pricing: z.enum(["fixed", "quote_required"]),
   leadDays: z.string().max(10),
   weekdays: z.array(z.number()).nullable(),
+  preorder: z.boolean().optional(),
+  imageUrl: z.string().max(2000).optional(),
+  imageAlt: z.string().max(200).optional(),
 }).strict();
 
 const entrySchema = z.object({
@@ -63,6 +70,9 @@ const entrySchema = z.object({
   weekdays: z.array(z.number()).max(7),
   blockedDates: z.array(z.string()).max(366),
   branchIds: z.array(z.string()).max(24),
+  menuCategoryId: z.string().max(80).optional(),
+  category: z.enum(["sweet", "savory"]).optional(),
+  featured: z.boolean().optional(),
   sizes: z.array(sizeSchema).max(30),
   price: z.string().max(40),
   leadDays: z.string().max(10),
@@ -73,16 +83,29 @@ const entrySchema = z.object({
   messageMax: z.string().max(10),
 }).strict();
 
-export const catalogCommandSchema = z.object({
+const entryCommandSchema = z.object({
   entry: entrySchema,
   expectedRevision: z.string().regex(/^[a-f0-9]{16}$/),
   idempotencyKey: z.string().uuid(),
   managedBranchIds: z.array(branchIdSchema).max(24),
 }).strict();
+const sectionInputSchema = z.object({
+  id: z.string().max(80),
+  name: z.string().max(80),
+  note: z.string().max(200),
+  sortOrder: z.number().int().min(0).max(9999),
+  availableWeekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
+}).strict();
+const sectionsCommandSchema = z.object({
+  sections: z.array(sectionInputSchema).max(24),
+  expectedRevision: z.string().regex(/^[a-f0-9]{16}$/),
+  idempotencyKey: z.string().uuid(),
+}).strict();
+export const catalogCommandSchema = z.union([entryCommandSchema, sectionsCommandSchema]);
 export type CatalogCommand = z.infer<typeof catalogCommandSchema>;
 export type CatalogEntry = z.infer<typeof entrySchema>;
 
-export type CatalogSnapshot = { revision: string; entries: CatalogEntry[]; canEdit: boolean };
+export type CatalogSnapshot = { revision: string; entries: CatalogEntry[]; sections: MenuSection[]; canEdit: boolean };
 
 export type StoredVariant = Variant;
 export type StoredProduct = {
@@ -98,6 +121,7 @@ export type StoredProduct = {
   active: boolean;
   sortOrder: number;
   legacyPriceCentavos: number | null;
+  menuCategoryId: string | null;
   availableWeekdays: number[];
   unavailableDates: string[];
   allowedAddonIds: string[];
@@ -117,11 +141,13 @@ export function catalogRevision(input: {
   addons: { id: string; version: number }[];
   branchVersion: number;
   assignments: StoredAssignment[];
+  sections?: MenuSection[];
 }) {
   const body = JSON.stringify({
     products: [...input.products].sort((a, b) => a.id.localeCompare(b.id)),
     addons: [...input.addons].sort((a, b) => a.id.localeCompare(b.id)),
     branchVersion: input.branchVersion,
+    sections: [...(input.sections ?? [])].sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id)),
     assignments: [...input.assignments]
       .map((assignment) => ({ ...assignment, branchIds: [...assignment.branchIds].sort() }))
       .sort((a, b) => `${a.productId}:${a.variantId}`.localeCompare(`${b.productId}:${b.variantId}`)),
@@ -135,16 +161,20 @@ export function presentCatalog(input: {
   assignments: StoredAssignment[];
   knownBranchIds: readonly string[];
   branchVersion: number;
+  sections?: MenuSection[];
   canEdit: boolean;
+  featuredProductIds?: readonly string[];
 }): CatalogSnapshot {
   const known = new Set(input.knownBranchIds);
+  const sections = displayCategorySchedules([...(input.sections ?? [])], input.products).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
   const entries = [
-    ...input.products.map((product) => productEntry(product, input.assignments, known)),
+    ...input.products.map((product) => productEntry(product, input.assignments, known, input.featuredProductIds)),
     ...input.addons.map(addonEntry),
   ].sort((a, b) => Number(a.sortOrder) - Number(b.sortOrder) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
   const snapshot = {
-    revision: catalogRevision({ products: input.products, addons: input.addons, branchVersion: input.branchVersion, assignments: input.assignments }),
+    revision: catalogRevision({ products: input.products, addons: input.addons, branchVersion: input.branchVersion, assignments: input.assignments, sections }),
     entries,
+    sections,
     canEdit: input.canEdit,
   };
   return snapshot;
@@ -167,9 +197,11 @@ export function planCatalogSave(input: {
   knownBranchIds: readonly string[];
   branchVersion: number;
   canEdit: boolean;
+  sections?: MenuSection[];
   manageableBranchIds: readonly string[];
-}): { ok: true; product?: ProductWrite; addon?: AddonWrite; assignments: AssignmentWrite[] } | { ok: false; error: CatalogCommandError } {
+}): { ok: true; product?: ProductWrite; addon?: AddonWrite; assignments: AssignmentWrite[]; sections?: MenuSection[]; categoryClears?: { id: string; version: number }[]; featured?: { productId: string; featured: boolean } } | { ok: false; error: CatalogCommandError } {
   if (!input.canEdit) return { ok: false, error: new CatalogCommandError(403, "permission", "You have view-only access to Catalog.") };
+  if ("sections" in input.command) return planSections(input);
   const managed = [...new Set(input.command.managedBranchIds)];
   if (managed.length !== input.command.managedBranchIds.length) return fail("Each branch can be listed once.");
   const known = new Set(input.knownBranchIds);
@@ -182,6 +214,7 @@ export function planCatalogSave(input: {
 }
 
 function planProduct(input: Parameters<typeof planCatalogSave>[0], managed: Set<string>, known: Set<string>) {
+  if (!("entry" in input.command)) return fail("Choose a product.");
   const entry = input.command.entry;
   if (entry.branchIds.some((id) => !managed.has(id))) return fail("Choose a branch from the branches you can edit.");
   if (!entry.sizes.length) return fail("Add at least one size.");
@@ -192,8 +225,8 @@ function planProduct(input: Parameters<typeof planCatalogSave>[0], managed: Set<
   if (!id) return fail("Enter a product name.");
   const image = productImageSchema.safeParse({ url: entry.imageUrl.trim(), alt: entry.imageAlt.trim() });
   if (!image.success) return fail(image.error.issues[0]?.message ?? "Choose a product photo and describe it.");
-  const weekdays = dayList(entry.weekdays);
-  if (!weekdays) return fail("Choose valid selling days.");
+  const fallbackDays = dayList(entry.weekdays);
+  if (!fallbackDays) return fail("Choose valid selling days.");
   const blocked = dateList(entry.blockedDates);
   if (!blocked) return fail("Choose valid blocked dates without repeats.");
   const allergens = allergenList(entry.allergens);
@@ -203,23 +236,31 @@ function planProduct(input: Parameters<typeof planCatalogSave>[0], managed: Set<
   const used = new Set<string>();
   const variants: Variant[] = [];
   for (const [index, size] of entry.sizes.entries()) {
-    const sizeId = existingId(size.key, existing) ?? createId(size.key, size.name, used);
-    if (!sizeId || !size.name.trim()) return fail(`Size ${index + 1}: enter a name.`);
+    const label = storedSizeLabel(size.name);
+    const sizeId = existingId(size.key, existing) ?? createId(size.key, label ?? size.name, used);
+    if (!sizeId || !label) return fail(`Size ${index + 1}: enter the size in inches.`);
     used.add(sizeId);
-    const days = size.weekdays === null ? null : dayList(size.weekdays);
-    if (size.weekdays !== null && !days) return fail(`Size ${index + 1}: choose valid selling days.`);
-    if (size.active && days && days.length === 0) return fail(`Size ${index + 1}: choose selling days or make the size inactive.`);
     const leadDays = whole(size.leadDays, 365);
     if (leadDays === null) return fail(`Size ${index + 1}: preparation must be 0–365 whole days.`);
+    const preorder = size.preorder ?? leadDays > 0;
+    const days = preorder || size.weekdays === null ? null : dayList(size.weekdays);
+    if (!preorder && size.weekdays !== null && !days) return fail(`Size ${index + 1}: choose valid selling days.`);
+    if (!preorder && size.active && days && days.length === 0) return fail(`Size ${index + 1}: choose selling days or make the size inactive.`);
     const priceCentavos = size.pricing === "quote_required" ? null : pesosToCentavos(size.price);
     if (size.pricing === "fixed" && !Number.isSafeInteger(priceCentavos)) return fail(`Size ${index + 1}: enter a valid peso price, including zero if intentional.`);
+    const imageUrl = size.imageUrl?.trim() ?? "";
+    const imageAlt = size.imageAlt?.trim() ?? "";
+    const sizeImage = imageUrl || imageAlt ? productImageSchema.safeParse({ url: imageUrl, alt: imageAlt }) : null;
+    if (sizeImage && !sizeImage.success) return fail(`Size ${index + 1}: ${sizeImage.error.issues[0]?.message ?? "Choose a size photo and describe it."}`);
     variants.push({
       id: sizeId,
-      label: size.name.trim(),
+      label,
       pricingMode: size.pricing,
       priceCentavos,
-      minLeadDays: leadDays,
+      minLeadDays: preorder ? leadDays : 0,
+      orderMode: preorder ? "preorder" : "regular",
       ...(days ? { availableWeekdays: days } : {}),
+      ...(sizeImage?.success ? { image: sizeImage.data } : {}),
       active: size.active,
       sortOrder: index,
     });
@@ -232,12 +273,17 @@ function planProduct(input: Parameters<typeof planCatalogSave>[0], managed: Set<
     const parsed = variantSchema.safeParse(variant);
     if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Check the sizes.");
   }
+  const menuCategoryId = (entry.menuCategoryId ?? "").trim();
+  if (menuCategoryId && !(input.sections ?? []).some((section) => section.id === menuCategoryId)) return fail("Choose a category that still exists.");
+  if (menuCategoryId && !productIdSchema.safeParse(menuCategoryId).success) return fail("Choose a category that still exists.");
+  const sectionDays = (input.sections ?? []).find((section) => section.id === menuCategoryId)?.availableWeekdays;
+  const categoryDays = sectionDays && sectionDays.length && sectionDays.length < 7 ? [...sectionDays].sort((a, b) => a - b) : null;
   const fields = {
     slug: id,
     name: entry.name.trim(),
     blurb: existing?.blurb || entry.description.trim().slice(0, 180),
     description: entry.description.trim(),
-    category: existing?.category ?? "sweet" as const,
+    category: entry.category ?? existing?.category ?? "sweet" as const,
     image: image.data,
     allergens: allergens,
     publicNotes: existing?.publicNotes ?? "",
@@ -249,7 +295,7 @@ function planProduct(input: Parameters<typeof planCatalogSave>[0], managed: Set<
   const catalog = productCatalogSchema.safeParse({
     version: (existing?.version ?? 0) + 1,
     variants: nextVariants,
-    availableWeekdays: weekdays,
+    availableWeekdays: categoryDays ?? fallbackDays,
     unavailableDates: blocked,
     allowedAddonIds: existing?.allowedAddonIds ?? [],
   });
@@ -265,14 +311,16 @@ function planProduct(input: Parameters<typeof planCatalogSave>[0], managed: Set<
     product: {
       id,
       create: !existing,
-      data: { ...parsedFields.data, ...catalogFields, legacyPriceCentavos: existing?.legacyPriceCentavos ?? null, version: catalog.data.version },
+      data: { ...parsedFields.data, ...catalogFields, menuCategoryId: menuCategoryId || null, legacyPriceCentavos: existing?.legacyPriceCentavos ?? null, version: catalog.data.version },
       variants: rows.map(({ id: variantId, ...data }) => ({ id: variantId, data })),
     },
     assignments,
+    ...(typeof entry.featured === "boolean" ? { featured: { productId: id, featured: entry.featured } } : {}),
   };
 }
 
 function planAddon(input: Parameters<typeof planCatalogSave>[0]) {
+  if (!("entry" in input.command)) return fail("Choose an add-on.");
   const entry = input.command.entry;
   if (entry.description.trim()) return fail("Add-on descriptions are not stored.");
   if (entry.sizes.length) return fail("Add-ons do not have sizes.");
@@ -311,15 +359,15 @@ function planAddon(input: Parameters<typeof planCatalogSave>[0]) {
 function assignmentWrite(productId: string, variant: Variant, current: StoredAssignment | undefined, managed: Set<string>, known: Set<string>, desired: Set<string>): AssignmentWrite[] {
   const base = current ? current.branchIds : [CEBU_BRANCH_ID];
   const next = [...new Set([...base.filter((id) => known.has(id) && !managed.has(id)), ...desired])].sort();
-  const mode: StoredAssignment["mode"] = variant.minLeadDays > 0 ? "preorder" : current?.mode ?? "regular";
+  const mode: StoredAssignment["mode"] = variant.orderMode ?? (variant.minLeadDays > 0 ? "preorder" : current?.mode ?? "regular");
   const sameBranches = next.join("\0") === [...base].filter((id) => known.has(id)).sort().join("\0");
-  const sameMode = (current?.mode ?? (variant.minLeadDays > 0 ? "preorder" : "regular")) === mode;
+  const sameMode = (current?.mode ?? mode) === mode;
   if (sameBranches && sameMode && !current) return [];
   if (sameBranches && sameMode && current) return [];
   return [{ productId, variantId: variant.id, branchIds: next, mode }];
 }
 
-function productEntry(product: StoredProduct, assignments: StoredAssignment[], known: Set<string>): CatalogEntry {
+function productEntry(product: StoredProduct, assignments: StoredAssignment[], known: Set<string>, featuredProductIds?: readonly string[]): CatalogEntry {
   const branches = new Set<string>();
   for (const variant of product.variants) {
     const assignment = assignments.find((item) => item.productId === product.id && item.variantId === variant.id);
@@ -339,6 +387,9 @@ function productEntry(product: StoredProduct, assignments: StoredAssignment[], k
     weekdays: [...product.availableWeekdays].sort((a, b) => a - b),
     blockedDates: [...product.unavailableDates].sort(),
     branchIds: [...branches].sort(),
+    menuCategoryId: product.menuCategoryId ?? "",
+    category: product.category,
+    ...(featuredProductIds ? { featured: featuredProductIds.includes(product.id) } : {}),
     sizes: [...product.variants].sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id)).map((variant) => ({
       key: variant.id,
       name: variant.label,
@@ -346,7 +397,10 @@ function productEntry(product: StoredProduct, assignments: StoredAssignment[], k
       price: variant.pricingMode === "quote_required" || variant.priceCentavos === null ? "" : formatPesos(variant.priceCentavos),
       pricing: variant.pricingMode,
       leadDays: String(variant.minLeadDays),
+      preorder: variantOrderMode(variant) === "preorder",
       weekdays: variant.availableWeekdays ? [...variant.availableWeekdays].sort((a, b) => a - b) : null,
+      imageUrl: variant.image?.url ?? "",
+      imageAlt: variant.image?.alt ?? "",
     })),
     price: "",
     leadDays: "0",
@@ -388,6 +442,38 @@ export function formatPesos(cents: number) {
   const whole = Math.trunc(cents / 100);
   const fraction = Math.abs(cents) % 100;
   return fraction ? `${whole}.${String(fraction).padStart(2, "0")}` : String(whole);
+}
+
+function planSections(input: Parameters<typeof planCatalogSave>[0]) {
+  if (!("sections" in input.command)) return fail("Choose menu sections.");
+  const revision = catalogRevision({ ...input, sections: input.sections ?? [] });
+  if (revision !== input.command.expectedRevision) return { ok: false as const, error: new CatalogCommandError(409, "conflict", "The catalog changed. Refresh before saving.") };
+  const keptIds = input.command.sections.map((section) => section.id.trim()).filter((id) => (input.sections ?? []).some((section) => section.id === id));
+  const used = new Set(keptIds);
+  const names = new Set<string>();
+  const sections: MenuSection[] = [];
+  for (const [index, section] of input.command.sections.entries()) {
+    const name = section.name.trim();
+    if (!name || name.length > 60) return fail(`Section ${index + 1}: enter a name.`);
+    const key = name.toLowerCase();
+    if (names.has(key)) return fail("Each menu section needs a different name.");
+    names.add(key);
+    const note = section.note.trim();
+    if (note.length > 160) return fail(`Section ${index + 1}: keep the note to 160 characters.`);
+    const existing = (input.sections ?? []).find((item) => item.id === section.id.trim());
+    const id = existing?.id ?? createId("", name, used);
+    if (!id) return fail(`Section ${index + 1}: enter a name.`);
+    if (sections.some((item) => item.id === id)) return fail("Each category can be saved once.");
+    const supplied = section.availableWeekdays;
+    const stored = supplied ?? existing?.availableWeekdays;
+    const days = stored ? dayList(stored) : [];
+    if (!days) return fail(`Category ${index + 1}: choose valid selling days.`);
+    sections.push({ id, name, note, sortOrder: section.sortOrder, ...(stored ? { availableWeekdays: days } : {}) });
+  }
+  const kept = new Set(sections.map((section) => section.id));
+  const referenced = input.products.filter((product) => product.menuCategoryId && !kept.has(product.menuCategoryId));
+  if (referenced.length) return fail(`Move ${referenced.map((product) => product.name).slice(0, 3).join(", ")} to another category before removing this one.`);
+  return { ok: true as const, assignments: [] as AssignmentWrite[], sections, categoryClears: [] as { id: string; version: number }[] };
 }
 
 function fail(message: string) {

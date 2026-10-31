@@ -17,7 +17,7 @@ test("owner sessions, access revocation, and mutation boundaries through the run
     const user = await auth.createUser({ email, password });
     created.push(user.uid);
     if (profile) await db.doc(`admins/${user.uid}`).set({ ...profile, email, displayName: "Test Owner" });
-    const response = await fetch("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-api-key", {
+    const response = await fetch(`http://${emulatorEnv.FIREBASE_AUTH_EMULATOR_HOST}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-api-key`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password, returnSecureToken: true }),
     });
     assert.equal(response.status, 200);

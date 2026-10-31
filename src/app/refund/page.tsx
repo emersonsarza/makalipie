@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LegalPage, LegalPending } from "@/components/legal-page";
+import { ChatLinks } from "@/components/public-shop-provider";
+import { LegalPage } from "@/components/legal-page";
 import { LegalSection } from "@/components/legal-section";
 
 export const metadata: Metadata = {
   title: "Refund Policy",
-  description: "When Makalipie offers refunds and how they are processed.",
+  description: "When Makalipie offers a refund for an order confirmed in chat.",
   alternates: { canonical: "/refund" },
 };
 
@@ -14,36 +15,37 @@ export default function RefundPage() {
     <LegalPage
       policy="refund"
       title="Refund Policy"
-      intro="This Refund Policy explains when a refund may be available, how approved refunds are processed, and how to request assistance with your order."
+      intro="This Refund Policy explains refunds for an order we have confirmed in chat, and how to ask for help."
     >
       <LegalSection n={1} title="Refund eligibility">
-        <p>Refunds may apply when:</p>
-        <ul>
-          <li>You cancel in accordance with our <Link href="/terms">Terms and Conditions</Link>, subject to any published cancellation cutoff</li>
-          <li>Makalipie is unable to fulfill your order or cancels it</li>
-          <li>An issue caused by the bakery affects your order, such as an incorrect item or a product damaged before handover</li>
-        </ul>
-        <LegalPending>The cancellation cutoff has not yet been finalized. This policy will be updated when it is confirmed.</LegalPending>
+        <p>If we reschedule your order or cannot fulfill it, you choose a new date or a full refund.</p>
+        <p>
+          You cannot cancel an order yourself. Big pre-orders cannot be cancelled. See our <Link href="/terms">Terms and Conditions</Link>.
+        </p>
       </LegalSection>
       <LegalSection n={2} title="Courier issues and missed pickup">
         <p>
-          Customers may book their own courier for pickup, or choose bakery-booked delivery where available. Courier problems, including incorrect collection or destination details, an unreachable courier, and damage, delays, or mishandling after handover, do not qualify for a refund from Makalipie. If you miss your scheduled pickup window and we are unable to reach you, your order may be offered to customers on the waiting list.
+          There is no refund for a no-show. We try to reach you first. After that, the slot can go to the waitlist.
         </p>
-        <p>Refunds for paid, uncollected orders are assessed case by case. Contact the team with your order number; a refund is not automatic.</p>
+        <p>
+          There is no refund for courier trouble, a wrong address, or an unreachable customer. Those count as a no-show. We are not responsible once a third-party courier has the order.
+        </p>
       </LegalSection>
-      <LegalSection n={3} title="Partial refunds">
-        <p>A partial refund may be available when an issue affects only part of an order, such as one incorrect item.</p>
+      <LegalSection n={3} title="Part of an order">
+        <p>If we got part of the order wrong before it left the bakery, message us. We will agree the next step in chat. A refund is not automatic.</p>
       </LegalSection>
       <LegalSection n={4} title="Refund method and processing">
         <p>
-          Approved refunds are returned through the original payment channel, GCash or bank transfer, with the arrangements confirmed on Instagram. We process approved refunds as soon as possible.
+          An approved refund goes back by GCash or bank transfer. We arrange it in the same chat, and we send it as soon as we can.
         </p>
       </LegalSection>
       <LegalSection n={5} title="Schedule changes initiated by Makalipie">
-        <p>If Makalipie must change your scheduled pickup date, you may choose a new date or a refund.</p>
+        <p>If we must change your date, you choose a new date or a full refund.</p>
       </LegalSection>
       <LegalSection n={6} title="Requesting a refund">
-        <p>To request a refund, contact us on Instagram or email <a href="mailto:makalipie@gmail.com">makalipie@gmail.com</a>. Provide your order number and a description of the issue so our team can review your request. Information provided with your request is handled as described in our <Link href="/privacy">Privacy Policy</Link>.</p>
+        <p>
+          To ask, message us through <ChatLinks /> or email <a href="mailto:makalipie@gmail.com">makalipie@gmail.com</a>. Describe the order and the date. Information you send is handled as described in our <Link href="/privacy">Privacy Policy</Link>.
+        </p>
       </LegalSection>
       <LegalSection n={7} title="Updates">
         <p>We may update this Refund Policy. The “Last updated” date at the top of this page identifies the current version.</p>
