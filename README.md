@@ -47,10 +47,10 @@ Production `.env` on the server (same names as `.env.example`):
 
 | Name | Purpose |
 | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | Canonical URL (e.g. `https://makalipie.by1002.com`) |
+| `NEXT_PUBLIC_SITE_URL` | Canonical URL (e.g. `https://makalipie.com`) |
 | `NEXT_PUBLIC_FIREBASE_*` | Firebase web app config (embedded at **build** time) |
 | `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | Service account (runtime only; not baked into the image) |
-| `ADMIN_APP_ORIGIN` | Exact admin URL origin, e.g. `https://makalipie.by1002.com` (no path) |
+| `ADMIN_APP_ORIGIN` | Exact admin URL origin, e.g. `https://makalipie.com` (no path) |
 | `NEXT_PUBLIC_USE_FIREBASE_EMULATORS` | Must stay `false` in production |
 | `ORDER_INTAKE_ENABLED` | Set to `true` only when public ordering should be open |
 

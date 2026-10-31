@@ -274,7 +274,7 @@ export function itemPriceText(item: Pick<MenuItem, "price" | "priceLabel">) {
 
 export function getSiteUrl() {
   return new URL(
-    process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://makalipie.by1002.com",
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://makalipie.com",
   ).origin;
 }
 
@@ -283,7 +283,7 @@ export function getOrderSummarySource() {
     const url = new URL(getSiteUrl());
     return `${url.host}/order`;
   } catch {
-    return "makalipie.by1002.com/order";
+    return "makalipie.com/order";
   }
 }
 
