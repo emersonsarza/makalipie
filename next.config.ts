@@ -11,7 +11,8 @@ const legacyWorkspaceSections = ["products"];
 
 const nextConfig: NextConfig = {
   distDir: process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true" ? ".next-emulator" : ".next",
-  output: "standalone",
+  // Docker copies .next/standalone. Vercel’s build step expects the default trace file instead.
+  ...(process.env.VERCEL ? {} : { output: "standalone" as const }),
   poweredByHeader: false,
   async redirects() {
     return legacyWorkspaceSections.map((section) => ({
