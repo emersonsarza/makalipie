@@ -106,7 +106,7 @@ export function SiteHeader({ menuView }: { menuView?: "menu" | "preorders" }) {
     ...(shop.branches ?? []).filter((branch) => branch.visible && branch.id === "cebu").map((branch) => ({
       key: branch.id,
       href: `/#${locationAnchor(branch.id)}`,
-      label: branch.name,
+      label: branch.id === "cebu" ? "Makalipie Cebu" : branch.name,
     })),
     ...(shop.locations?.upcoming ?? []).map((popup) => ({
       key: popup.id,
