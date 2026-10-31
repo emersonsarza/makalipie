@@ -113,7 +113,7 @@ export async function seedAdmin() {
       updatedBy: uid,
     });
     const stored = await ref.collection("variants").get();
-    const wanted = new Set(product.sizes.map((size) => size.id));
+    const wanted = new Set<string>(product.sizes.map((size) => size.id));
     for (const doc of stored.docs) if (!wanted.has(doc.id)) batch.delete(doc.ref);
     for (const size of product.sizes) {
       const { id, ...fields } = seedVariantRecord(size);

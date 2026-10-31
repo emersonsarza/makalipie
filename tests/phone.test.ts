@@ -21,7 +21,7 @@ test("accepts local numbers and any country code", () => {
 });
 
 test("rejects numbers that are not a local or country-code phone", () => {
-  assert.match(phoneNumberError(""), /contact number/i);
+  assert.match(phoneNumberError("") ?? "", /contact number/i);
   assert.match(phoneNumberError("12345") ?? "", /start with 0 or 9/i);
   assert.match(phoneNumberError("0917") ?? "", /start with 0 or 9/i);
   assert.match(phoneNumberError("917123") ?? "", /start with 0 or 9/i);
