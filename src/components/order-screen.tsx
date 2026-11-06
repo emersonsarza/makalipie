@@ -5,16 +5,19 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { OrderForm } from "@/components/order-form";
 import { SiteShell } from "@/components/site-shell";
 
-export async function OrderScreen({ mode, searchParams }: { mode: CatalogMode; searchParams: Promise<{ branch?: string | string[] }> }) {
+export async function OrderScreen({ mode, searchParams }: { mode: CatalogMode; searchParams: Promise<{ branch?: string | string[]; product?: string | string[]; size?: string | string[] }> }) {
   const { items, addons, unavailable, sections } = staticPublicMenu();
   const branches = staticBranchSettings();
   const schedule = staticSchedule();
-  const initialBranch = resolveBranch((await searchParams).branch, branches);
+  const params = await searchParams;
+  const initialBranch = resolveBranch(params.branch, branches);
+  const requested = items.find(item => item.slug === params.product);
+  const requestedSize = requested?.variants?.find(variant => variant.id === params.size && variant.active)?.id;
   const orderable = items.filter((item) => item.variants?.some((v) => v.active));
   return (
     <SiteShell>
       {!unavailable ? (
-        <OrderForm mode={mode} items={orderable} sections={sections} catalogAddons={addons} branches={branches} initialBranch={initialBranch} schedule={schedule} serverNow={new Date().toISOString()} intakeEnabled={false} />
+        <OrderForm requestedProduct={requested?.slug} requestedSize={requestedSize} mode={mode} items={orderable} sections={sections} catalogAddons={addons} branches={branches} initialBranch={initialBranch} schedule={schedule} serverNow={new Date().toISOString()} intakeEnabled={false} />
       ) : (
         <section className="wrap section-space">
           <Alert>

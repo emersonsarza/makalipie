@@ -26,6 +26,6 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function OrderPage({ searchParams }: { searchParams: Promise<{ branch?: string | string[] }> }) {
+export default async function OrderPage({ searchParams }: { searchParams: Promise<{ branch?: string | string[]; product?: string | string[]; size?: string | string[] }> }) {
   return <OrderScreen mode="regular" searchParams={searchParams} />;
 }

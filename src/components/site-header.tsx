@@ -3,8 +3,8 @@
 import { usePublicShop } from "@/components/public-shop-provider";
 import { locationAnchor } from "@/lib/popups/locations";
 import { ArrowUpRight, ChevronDown, Menu, X } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
+import { BrandSeal } from "@/components/brand-seal";
+import { ThemeLink as Link } from "@/components/site-theme";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type Dispatch, type MouseEvent, type RefObject, type SetStateAction } from "react";
 
@@ -173,7 +173,7 @@ export function SiteHeader({ menuView }: { menuView?: "menu" | "preorders" }) {
       </a>
       <div className="brand-nav wrap">
         <Link href="/" className="brand-lockup" aria-label="Makalipie home" onClick={closeMobile}>
-          <Image src="/brand/seal.png" alt="" width={72} height={72} priority />
+          <BrandSeal alt="" width={72} height={72} priority />
           <span>
             makalipie<span>TARTS & PIES · CEBU</span>
           </span>

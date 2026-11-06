@@ -52,3 +52,10 @@
 }
 
 .section a { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+
+.summary { margin-top: 28px; padding: 20px 24px; background: var(--color-butter); border: 1px solid var(--border); border-radius: 4px; }
+.summary h2 { margin: 0 0 12px; font-size: 20px; font-weight: 700; }
+.summary ul { padding-left: 20px; list-style: disc; }
+.summary li { margin-top: 8px; font-size: 15px; line-height: 1.7; }
+.summary p { margin-top: 12px; font-size: 13px; }
+.summary a { text-decoration: underline; text-underline-offset: 3px; }

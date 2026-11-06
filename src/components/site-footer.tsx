@@ -1,17 +1,17 @@
 "use client";
+import { ThemeSwitch } from "@/components/site-theme";
 import { VisibleBranches } from "@/components/customer-policy";
 import { usePublicShop } from "@/components/public-shop-provider";
 import { ArrowUpRight } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
-import { site } from "@/lib/site";
+import { BrandSeal } from "@/components/brand-seal";
+import { ThemeLink as Link } from "@/components/site-theme";
 
-export function SiteFooter() {
+export function SiteFooter({ showCta = true }: { showCta?: boolean }) {
   const shop = usePublicShop();
   return (
     <footer className="brand-footer">
       <div className="wrap">
-        <div className="footer-top">
+        {showCta && <div className="footer-top">
           <div>
             <p className="eyebrow">MADE IN CEBU. MEANT TO BE SHARED.</p>
             <h2>
@@ -23,15 +23,10 @@ export function SiteFooter() {
           <Link href="/order" className="brand-button">
             Bring home a pie <ArrowUpRight size={18} aria-hidden />
           </Link>
-        </div>
+        </div>}
         <div className="footer-links">
           <Link href="/" className="footer-brand" aria-label="Makalipie home">
-            <Image
-              src="/brand/seal.png"
-              alt="Makalipie Tarts & Pies"
-              width={90}
-              height={90}
-            />
+            <BrandSeal alt="Makalipie Tarts & Pies" width={90} height={90} />
           </Link>
           <div>
             <p className="eyebrow">COME BY</p>
@@ -63,6 +58,7 @@ export function SiteFooter() {
             </a>
           </div>
         </div>
+        <ThemeSwitch />
         <div className="footer-bottom">
           <span>© {new Date().getFullYear()} Makalipie</span>
           <span>Making people happy, one pie at a time.</span>

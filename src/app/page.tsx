@@ -1,9 +1,10 @@
 import { VisitSection } from "@/components/sections/visit";
 import { ChatLinks } from "@/components/public-shop-provider";
 import { staticPublicMenu, staticPublicShop } from "@/lib/public/static-shop";
-import Image from "next/image";
-import Link from "next/link";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { BrandSeal } from "@/components/brand-seal";
+import { ThemeImage as Image } from "@/components/theme-image";
+import { ThemeLink as Link } from "@/components/site-theme";
+import { ArrowRight, ArrowUpRight, Gift } from "lucide-react";
 import { InstagramIcon } from "@/components/icons";
 import { PieSelection } from "@/components/sections/pie-selection";
 import { Reveal } from "@/components/reveal";
@@ -114,12 +115,7 @@ export default function Home() {
               Because at the heart of Makalipie is still that same simple idea: to make you happy.
             </p>
             <div className="story-signoff">
-              <Image
-                src="/brand/seal.png"
-                alt="Makalipie original seal, established 2020"
-                width={82}
-                height={82}
-              />
+              <BrandSeal alt="Makalipie seal, established 2020" width={82} height={82} />
               <span>
                 Small-batch. Cebuana-made.
                 <br />
@@ -145,7 +141,7 @@ export default function Home() {
               <br />A box of pies says it pretty well.
             </p>
             <Link href="/order" className="brand-button">
-              Put together a box <ArrowUpRight size={18} aria-hidden />
+              Put together a box <Gift data-theme-icon="christmas" size={18} aria-hidden /><ArrowUpRight data-theme-icon="original" size={18} aria-hidden />
             </Link>
             <a
               href={shop.links.instagramDm}

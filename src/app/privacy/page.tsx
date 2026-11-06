@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { ThemeLink as Link } from "@/components/site-theme";
 import { ChatLinks } from "@/components/public-shop-provider";
 import { LegalPage } from "@/components/legal-page";
 import { LegalSection } from "@/components/legal-section";

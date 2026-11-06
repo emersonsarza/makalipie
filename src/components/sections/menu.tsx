@@ -1,5 +1,5 @@
 import Image from "next/image";
-import Link from "next/link";
+import { ThemeLink as Link } from "@/components/site-theme";
 
 import { OrderChannelLine } from "@/components/order-channel-line";
 import { Reveal } from "@/components/reveal";

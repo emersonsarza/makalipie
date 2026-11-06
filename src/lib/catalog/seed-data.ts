@@ -46,7 +46,7 @@ const everyDay = [0, 1, 2, 3, 4, 5, 6];
 export const seedSections = [
   { id: "classic-flavors", name: "Classic flavors", note: "", sortOrder: 0, availableWeekdays: everyDay },
   { id: "weekend-specials", name: "Weekend specials", note: "Friday to Sunday", sortOrder: 1, availableWeekdays: weekend },
-  { id: "october-special", name: "October special", note: "", sortOrder: 2, availableWeekdays: everyDay },
+  { id: "october-special", name: "Seasonal favorites", note: "", sortOrder: 2, availableWeekdays: everyDay },
 ];
 
 export const seedProducts: SeedProduct[] = [
@@ -124,7 +124,7 @@ export const seedProducts: SeedProduct[] = [
     availableWeekdays: weekend,
     publicNotes: "Friday to Sunday.",
     blurb: "Spiced apple and a buttery oat crumble in our handcrafted crust.",
-    description: "A warm apple filling under a golden oat crumble, baked in our handcrafted crust. This description is a placeholder until it is replaced.",
+    description: "A warm apple filling under a golden oat crumble, baked in our handcrafted crust.",
     image: { url: "/images/brand/apple.webp", alt: "An apple tart with oat crumble and caramel on a gold board" },
     sizes: [fourInch(280, 0, "regular", weekend), tenInch(2800, "apple-10", "A large apple tart with oat crumble and caramel")],
   },
@@ -161,9 +161,9 @@ export const seedProducts: SeedProduct[] = [
     menuCategoryId: "october-special",
     sortOrder: 8,
     availableWeekdays: daily,
-    publicNotes: "October special.",
-    blurb: "Warm pumpkin filling, cream, and a leaf cookie. Our October special.",
-    description: "Smooth pumpkin filling finished with cream and a leaf cookie. This description is a placeholder until it is replaced.",
+    publicNotes: "",
+    blurb: "Warm pumpkin filling, cream, and a leaf cookie.",
+    description: "Smooth pumpkin filling finished with cream and a leaf cookie.",
     image: { url: "/images/brand/pumpkin-spice.webp", alt: "A small pumpkin tart with cream and a leaf cookie on a gold board" },
     sizes: [fourInch(260, 0, "regular", daily), tenInch(2600, "pumpkin-spice-10", "A large pumpkin tart with a whipped-cream border and leaf cookies on a white board")],
   },

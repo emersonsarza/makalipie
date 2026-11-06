@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { ThemeLink as Link } from "@/components/site-theme";
 import { ChatLinks } from "@/components/public-shop-provider";
 import { SiteShell } from "@/components/site-shell";
 
@@ -11,16 +11,16 @@ export const metadata: Metadata = {
 
 export default function OrderStatusPage() {
   return (
-    <SiteShell>
-      <section className="wrap section-space">
+    <SiteShell showFooterCta={false}>
+      <section className="wrap order-confirmation" aria-labelledby="confirmation-heading">
         <p className="eyebrow">MAKALIPIE</p>
-        <h1>Orders are confirmed in chat</h1>
+        <h1 id="confirmation-heading">Orders are confirmed in chat</h1>
         <p>
           This page does not show an order status. Copy your order from the order form and send it through <ChatLinks />. The order is final only when we confirm it there.
         </p>
-        <p>
+        <div className="confirmation-action">
           <Link href="/order" className="brand-button">Back to the order form</Link>
-        </p>
+        </div>
       </section>
     </SiteShell>
   );

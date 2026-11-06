@@ -1,3 +1,5 @@
+import { themeBootstrap } from "@/lib/site-theme";
+import { SiteThemeController } from "@/components/site-theme";
 import { publicLocations } from "@/lib/popups/locations";
 import { manilaDate } from "@/lib/catalog/rules";
 import { staticBranchSettings, staticPopups, staticPublicShop } from "@/lib/public/static-shop";
@@ -8,6 +10,8 @@ import localFont from "next/font/local";
 import { getSiteUrl, site } from "@/lib/site";
 
 import "./globals.css";
+import "./christmas.css";
+import "./storefront-polish.css";
 
 const garet = localFont({
   src: [
@@ -125,7 +129,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   const locations = publicLocations(popupSettings.listings, manilaDate());
   const publicJsonLd = { ...jsonLd, hasMap: shop.mapUrl, sameAs: [shop.links.instagram, shop.links.messenger].filter(Boolean), address: { "@type": "PostalAddress", streetAddress: shop.address, addressCountry: "PH" }, openingHoursSpecification: undefined, openingHours: shop.hoursLabel };
   return (
-    <html lang="en" className={`${garet.variable} h-full antialiased`}>
+    <html suppressHydrationWarning lang="en" className={`${garet.variable} h-full antialiased`}>
+      <head><script dangerouslySetInnerHTML={{ __html: themeBootstrap }} /></head>
       <body className="flex min-h-full flex-col">
         <script
           type="application/ld+json"
@@ -133,6 +138,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             __html: JSON.stringify(publicJsonLd).replace(/</g, "\\u003c"),
           }}
         />
+        <SiteThemeController />
         <PublicShopProvider value={{...shop, locations, links:{...shop.links,messenger:shop.links.messenger||"https://www.facebook.com/makalipie"}, branches: branchSettings.branches.filter(branch => branch.visible)}}>{children}</PublicShopProvider>
       </body>
     </html>

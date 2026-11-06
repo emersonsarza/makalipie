@@ -116,18 +116,19 @@ Use a supported current Node 22 LTS release (22.13 or newer) or Node 24 for the 
 
 ### Local emulators (optional; no cloud credentials)
 
-The emulator setup uses only the isolated `demo-makalipie` project. A current Java runtime (Java 21+) is required for Firestore. It does not change `.env.local` or contact the real project.
+The emulator setup uses only the isolated `demo-makalipie` project. Firestore needs Java 21 or newer. `pnpm emulators` uses Homebrew OpenJDK when it is installed but not on your PATH. It does not change `.env.local` or contact the real project.
 
 ```bash
 # Terminal 1
-npm run emulators
+pnpm emulators
 
 # Terminal 2, after the emulators are ready
-npm run emulators:seed
-npm run dev:emulators
+pnpm seed account
+pnpm seed admin
+pnpm dev -p 3001
 ```
 
-Open `http://localhost:3001/admin` and sign in with the **emulator-only** account `owner@example.test` / `Makalipie-demo-only!`. The emulator UI is at `http://127.0.0.1:4000`. Fake emulator data is ephemeral and can be reseeded. Do not run emulator mode in production.
+Port 3001 uses the local emulators. `pnpm dev` without a port stays on the live project at `http://localhost:3000`. Open `http://localhost:3001/admin` and sign in with the **emulator-only** account `owner@example.test` / `Makalipie-demo-only!`. The emulator UI is at `http://127.0.0.1:14000`. Auth is on 19099, Firestore on 18080, and Storage on 19199, so this project does not take the default emulator ports. Fake emulator data is ephemeral and can be reseeded. Do not run emulator mode in production.
 
 ### Verification
 
@@ -196,3 +197,12 @@ Open `/admin/schedule` to enable dates for each branch, set start/cutoff times, 
 The customer form picks the earliest valid date until the customer selects a date or slot. Later schedule changes preserve that selection and cart, explain invalid dates/slots, and block continuing until corrected. Dates refresh every minute, on focus, or using Refresh available dates. The server rechecks schedule and catalog before returning a chat summary. No allocation or durable order is created yet.
 
 Run `npm run test:scheduling` for date/slot rules. Run `npm run test:scheduling:integration` with the local demo emulators and initialized catalog; it defaults to port 3002 (override `SCHEDULE_TEST_ORIGIN`). Run it sequentially with branch integration tests because they temporarily modify and restore the same settings. The older catalog integration suite resets demo catalog data; use it only in a disposable fixture environment.
+
+### Update location labels and popup directions
+
+Run `node --env-file=.env.local --conditions=react-server --import tsx scripts/update-locations.ts`
+to rename Cebu, hide Manila publicly, backfill empty Cebu location details, and update the
+two sample popup addresses/directions in the configured database. Existing branch IDs,
+custom popup dates/hours/items, product assignments, schedules, catalog and orders are retained.
+The update is repeatable and does not reset data. Add `--emulator` to target the local demo instead.
+Past popup listings remain visible as “Recent popups” for 30 days after their end date.

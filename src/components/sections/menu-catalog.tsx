@@ -2,28 +2,31 @@
 import { VisibleBranches } from "@/components/customer-policy";
 import { usePublicShop, ChatLinks } from "@/components/public-shop-provider";
 import { FlippingMenuListings } from "@/components/sections/flipping-menu-listings";
-import Image from "next/image";
-import Link from "next/link";
+import { ThemeImage as Image } from "@/components/theme-image";
+import { ThemeLink as Link, useSiteTheme } from "@/components/site-theme";
 import { ArrowUpRight } from "lucide-react";
-import { Fragment, useRef } from "react";
+import { Fragment, useLayoutEffect, useRef } from "react";
 import { MobileMenuCategories } from "@/components/sections/mobile-menu-categories";
 import { groupBySection, type MenuSection } from "@/lib/catalog/sections";
+import { orderProductHref } from "@/lib/order-intent";
+import { seasonalPhoto } from "@/lib/seasonal-images";
 import { menuSizes } from "@/lib/catalog/menu-view";
 import { itemPriceText, type MenuItem } from "@/lib/site";
 
-function PieCard({ item }: { item: MenuItem }) {
+function PieCard({ item, seasonal }: { item: MenuItem; seasonal: boolean }) {
   return (
     <article id={item.slug} className="catalog-item">
       <Link
-        href="/order"
+        href={orderProductHref(item)}
         className="catalog-photo"
         aria-label={`Order ${item.name}`}
       >
         <Image
           key={item.image.src}
+          seasonal={seasonal}
           src={item.image.src}
           unoptimized
-          loading="eager"
+          loading="lazy"
           alt={item.image.alt}
           fill
           sizes="(max-width: 767px) 45vw, (max-width: 1099px) 30vw, 23vw"
@@ -34,7 +37,7 @@ function PieCard({ item }: { item: MenuItem }) {
       </Link>
       <div className="catalog-title">
         <h3>
-          <Link href="/order">{item.name}</Link>
+          <Link href={orderProductHref(item)}>{item.name}</Link>
         </h3>
         <span>{itemPriceText(item)}</span>
       </div>
@@ -55,7 +58,43 @@ export function MenuCatalog({
   preorder?: boolean;
 }) {
   const shop = usePublicShop();
+  const theme = useSiteTheme();
   const listingsRef = useRef<HTMLDivElement>(null);
+  const heroCopyRef = useRef<HTMLDivElement>(null);
+  const heroAnimations = useRef<Animation[]>([]);
+
+  useLayoutEffect(() => {
+    const root = heroCopyRef.current;
+    if (!root) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const nodes = [...root.querySelectorAll<HTMLElement>("[data-menu-copy]")];
+    const interrupted = heroAnimations.current.some(animation => animation.playState === "running");
+    const current = nodes.map(node => {
+      const style = getComputedStyle(node);
+      return { opacity: style.opacity, transform: style.transform };
+    });
+    heroAnimations.current.forEach(animation => animation.cancel());
+    heroAnimations.current = [];
+    if (reduced.matches) return;
+    const easing = getComputedStyle(root).getPropertyValue("--ease-out").trim();
+    heroAnimations.current = nodes.map((node, index) => node.animate([
+      interrupted ? current[index] : { opacity: 0, transform: "translateY(12px)" },
+      { opacity: 1, transform: "translateY(0)" },
+    ], { duration: 200, delay: interrupted ? 0 : index * 40, easing, fill: "backwards" }));
+  }, [preorder]);
+
+  useLayoutEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const stop = () => {
+      if (reduced.matches) heroAnimations.current.forEach(animation => animation.cancel());
+    };
+    reduced.addEventListener("change", stop);
+    return () => {
+      reduced.removeEventListener("change", stop);
+      heroAnimations.current.forEach(animation => animation.cancel());
+    };
+  }, []);
+
   const sized = menuSizes(menuItems, preorder);
   const grouped = groupBySection(sized, sections);
   const groups = [
@@ -77,23 +116,58 @@ export function MenuCatalog({
   return (
     <div className="menu-page menu-catalog-page">
       <section className="menu-intro wrap">
-        <div>
-          <p className="eyebrow hero-enter">THE MAKALIPIE MENU</p>
-          <h1 className="hero-enter hero-delay-1">
-            A little of
-            <br />
-            what makes you <span>happy.</span>
+        <div ref={heroCopyRef}>
+          <p data-menu-copy className="eyebrow">
+            {preorder
+              ? "LARGE PIES · PRE-ORDERS"
+              : "THE MAKALIPIE MENU · 4-INCH PIES"}
+          </p>
+          <h1 data-menu-copy>
+            {preorder ? (
+              <>
+                Bigger pies.
+                <br />
+                More to <span>share.</span>
+              </>
+            ) : (
+              <>
+                A little of
+                <br />
+                what makes you <span>happy.</span>
+              </>
+            )}
           </h1>
-          <p className="hero-enter hero-delay-2">
-            Something bright. Something chocolatey.
-            <br />
-            Always a crust worth saving the last bite for.
+          <p data-menu-copy>
+            {preorder ? (
+              <>
+                Made for sharing and planned ahead.
+                <br />
+                Check each size’s preparation time, then choose an available
+                date.
+              </>
+            ) : (
+              <>
+                Something bright. Something chocolatey.
+                <br />
+                Find your favorite small pie below.
+              </>
+            )}
           </p>
         </div>
         <div className="menu-intro-photo hero-enter hero-delay-2">
           <Image
-            src="/images/brand/gift.webp"
-            alt="A box of four Makalipie tarts on a wooden table"
+            seasonalKey={preorder ? undefined : "menu-hero"}
+            seasonal={!preorder}
+            src={
+              preorder
+                ? (sized[0]?.image.src ?? "/images/brand/gift.webp")
+                : "/images/brand/gift.webp"
+            }
+            alt={
+              preorder
+                ? (sized[0]?.image.alt ?? "A box of Makalipie pies")
+                : "A box of four Makalipie tarts on a wooden table"
+            }
             fill
             priority
             sizes="(max-width: 767px) 100vw, 40vw"
@@ -119,56 +193,77 @@ export function MenuCatalog({
           </div>
         </div>
       </div>
-      <div ref={listingsRef} className="menu-listing-region" data-has-categories={groups.length ? "" : undefined}>
-      <FlippingMenuListings view={preorder ? "preorder" : "regular"} imageSources={sized.map(item => item.image.src)}>
-        {groups.length ? (
-          groups.map(({ section, items }) => (
-            <section
-              key={section.id}
-              id={`menu-${section.id}`}
-              className="menu-classics wrap section-space"
-            >
-              <div className="section-heading">
-                <div>
-                  <h2 tabIndex={-1}>{section.name}</h2>
+      <div
+        ref={listingsRef}
+        className="menu-listing-region"
+        data-has-categories={groups.length ? "" : undefined}
+      >
+        <FlippingMenuListings
+          view={preorder ? "preorder" : "regular"}
+          imageSources={sized.flatMap((item) => {
+            const photo = seasonalPhoto(item.image.src, !preorder);
+            return [
+              photo && theme === "christmas" ? photo.src : item.image.src,
+            ];
+          })}
+        >
+          {groups.length ? (
+            groups.map(({ section, items }) => (
+              <section
+                key={section.id}
+                id={`menu-${section.id}`}
+                className="menu-classics wrap section-space"
+              >
+                <div className="section-heading">
+                  <div>
+                    <h2 tabIndex={-1}>{section.name}</h2>
+                  </div>
+                  {section.note && (
+                    <p className="menu-section-note">{section.note}</p>
+                  )}
                 </div>
-                {section.note && (
-                  <p className="menu-section-note">{section.note}</p>
-                )}
-              </div>
-              <div className="catalog-grid">
-                {items.map((item) => (
-                  <PieCard key={item.slug} item={item} />
-                ))}
-              </div>
+                <div className="catalog-grid">
+                  {items.map((item) => (
+                    <PieCard seasonal={!preorder} key={item.slug} item={item} />
+                  ))}
+                </div>
+              </section>
+            ))
+          ) : (
+            <section className="wrap section-space" role="status">
+              <h2>
+                {unavailable
+                  ? "Our menu is temporarily unavailable."
+                  : preorder
+                    ? "No pre-orders are listed right now."
+                    : "No regular pies are listed right now."}
+              </h2>
+              <p>
+                {unavailable
+                  ? "Please check back soon, or contact us for help."
+                  : "Browse the other menu or contact us for availability."}{" "}
+                <ChatLinks />
+              </p>
             </section>
-          ))
-        ) : (
-          <section className="wrap section-space" role="status">
-            <h2>
-              {unavailable
-                ? "Our menu is temporarily unavailable."
-                : preorder
-                  ? "No pre-orders are listed right now."
-                  : "No regular pies are listed right now."}
-            </h2>
-            <p>
-              {unavailable
-                ? "Please check back soon, or contact us for help."
-                : "Browse the other menu or contact us for availability."}{" "}
-              <ChatLinks />
-            </p>
-          </section>
-        )}
-      </FlippingMenuListings>
+          )}
+        </FlippingMenuListings>
       </div>
-      <MobileMenuCategories preorder={preorder} key={preorder ? "preorder" : "regular"} categories={groups.map(({ section }) => ({ id: section.id, name: section.name }))} regionRef={listingsRef} />
+      <MobileMenuCategories
+        preorder={preorder}
+        key={preorder ? "preorder" : "regular"}
+        categories={groups.map(({ section }) => ({
+          id: section.id,
+          name: section.name,
+        }))}
+        regionRef={listingsRef}
+      />
       <section className="menu-order-note wrap section-space">
         <div>
           <p className="eyebrow">FROM OUR KITCHEN TO YOUR TABLE</p>
           <h2>Picked your favourites?</h2>
           <p>
-            Choose a branch and date, then copy your order and send it through <ChatLinks /> so we can confirm the details.
+            Choose a branch and date, then copy your order and send it through{" "}
+            <ChatLinks /> so we can confirm the details.
           </p>
           <Link href="/order" className="brand-button">
             Put together your order <ArrowUpRight size={18} aria-hidden />
@@ -210,7 +305,8 @@ export function MenuCatalog({
               {shop.deliveryAvailable
                 ? "In Cebu, choose pickup or delivery. We book the rider, and you pay the delivery fee with your order or directly to the driver."
                 : "Delivery is not currently offered."}{" "}
-              You can also book your own courier; choose Pickup. Manila, when offered, is pickup only.
+              You can also book your own courier; choose Pickup. Manila, when
+              offered, is pickup only.
               <br />
               Use the pickup address shown on the order form.
             </p>
@@ -218,7 +314,8 @@ export function MenuCatalog({
           <div>
             <span>Something we should know?</span>
             <p>
-              Our kitchen also handles nuts and gluten, so cross-contact is possible. For allergies or dietary questions,{" "}
+              Our kitchen also handles nuts and gluten, so cross-contact is
+              possible. For allergies or dietary questions,{" "}
               <a href={shop.links.instagramDm} target="_blank" rel="noreferrer">
                 talk to us
               </a>{" "}

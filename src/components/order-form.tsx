@@ -2,11 +2,13 @@
 
 import { ArrowLeft, ArrowRight, ArrowUpRight, CalendarDays, Check, Landmark, MapPin, Minus, Plus, Store, Truck, Wallet, type LucideIcon } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { BrandSeal } from "@/components/brand-seal";
 import { PackageChoices } from "@/components/customer-packages";
 import { DropNotice } from "@/components/customer-policy";
 
-import Image from "next/image";
-import Link from "next/link";
+import { customerSizeLabel } from "@/lib/catalog/size";
+import { ThemeImage as Image } from "@/components/theme-image";
+import { ThemeLink as Link } from "@/components/site-theme";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Calendar } from "@/components/ui/calendar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -152,8 +154,8 @@ function FlavorRow({
 
 
   return (
-    <div className={cn("order-flavor", selected ? "is-selected" : "", reason && !selected ? design.unavailable : "")}>
-      <Image src={item.image.src} unoptimized alt="" width={72} height={72} className="order-thumb" />
+    <div id={`order-${item.slug}`} className={cn("order-flavor", selected ? "is-selected" : "", reason && !selected ? design.unavailable : "")}>
+      <Image seasonal={customerSizeLabel(item.variant.label) === '4"'} src={item.image.src} unoptimized alt="" width={72} height={72} className="order-thumb" />
       <div className={design.productInfo}>
       <div className={design.productCopy}>
         <p className={design.productName}>{item.displayName}</p>
@@ -174,7 +176,7 @@ function FlavorRow({
 }
 
 type OrderItem = MenuItem & { catalogMode: CatalogMode; displayName: string; productId: string; price: number; variant: Variant };
-export function OrderForm({ items, catalogAddons, branches, initialBranch, schedule, serverNow, openDates = {}, openProducts = {}, intakeEnabled = false, mode = "regular", sections = [] }: { items: MenuItem[]; catalogAddons: Addon[]; branches: BranchSettings; initialBranch: BranchId; schedule: ScheduleSettings; serverNow: string; openDates?: Record<string, string[]>; openProducts?: Record<string, Record<string, string[]>>; intakeEnabled?: boolean; mode?: CatalogMode; sections?: MenuSection[] }) {
+export function OrderForm({ requestedProduct, requestedSize, items, catalogAddons, branches, initialBranch, schedule, serverNow, openDates = {}, openProducts = {}, intakeEnabled = false, mode = "regular", sections = [] }: { requestedProduct?: string; requestedSize?: string; items: MenuItem[]; catalogAddons: Addon[]; branches: BranchSettings; initialBranch: BranchId; schedule: ScheduleSettings; serverNow: string; openDates?: Record<string, string[]>; openProducts?: Record<string, Record<string, string[]>>; intakeEnabled?: boolean; mode?: CatalogMode; sections?: MenuSection[] }) {
   const [step, setStep] = useState(0);
   const stepHeading = useRef<HTMLHeadingElement>(null);
   const stepsSlot = useRef<HTMLDivElement>(null);
@@ -188,6 +190,18 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
       (heading?.parentElement ?? heading)?.scrollIntoView({ block: "start", behavior: "instant" });
     });
   }
+  const requestedItem = items.find(item => item.slug === requestedProduct);
+  const requestedVariant = requestedItem?.variants?.find(variant => variant.id === requestedSize);
+  const focusedIntent = useRef(false);
+  useEffect(() => {
+    if (step !== 1 || !requestedProduct || focusedIntent.current) return;
+    const frame = requestAnimationFrame(() => {
+      const rows = [...document.querySelectorAll<HTMLElement>(".order-flavor[id]")];
+      const target = rows.find(row => requestedSize ? row.id === `order-${requestedProduct}:${requestedSize}` : row.id.startsWith(`order-${requestedProduct}:`));
+      if (target) { target.scrollIntoView({ block: "center", behavior: "instant" }); focusedIntent.current = true; }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [step, requestedProduct, requestedSize]);
   const publicShop = usePublicShop();
   const packages = (publicShop.experience?.packages ?? []).filter((pack): pack is typeof pack & { priceCentavos: number } => pack.priceCentavos != null);
   const [packageQuantities,setPackageQuantities] = useState<Record<string,number>>({});
@@ -337,6 +351,8 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
     return blockers;
   }
   function itemReason(item: OrderItem) { return itemBlockers(item).map((blocker) => blocker.message).join(" ") || null; }
+  const requestedOrderItem = menuItems.find(item => item.productId === requestedProduct && (!requestedSize || item.variant.id === requestedSize));
+  const requestedIssue = requestedOrderItem && selectedDate ? itemReason(requestedOrderItem) : null;
   function row(item: OrderItem) {
     const primary = itemBlockers(item)[0];
     const label = primary?.code === "weekday" ? "" : primary?.code === "date_exception" ? "Unavailable on this date" : primary?.message;
@@ -542,12 +558,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
              We’ll confirm the details together in chat.
           </p>
         </div>
-        <Image
-          src="/brand/seal.png"
-          alt="Makalipie Tarts & Pies"
-          width={145}
-          height={145}
-        />
+        <BrandSeal alt="Makalipie Tarts & Pies" width={145} height={145} />
       </header>
       <div ref={stepsSlot} className={design.stepsSlot} style={stepsPin ? { minHeight: stepsPin.height } : undefined}>
       <nav ref={stepsBar} className={stepsPin ? `${design.steps} ${design.stepsPinned}` : design.steps} style={stepsPin ? { top: stepsPin.top } : undefined} aria-label="Order steps">
@@ -565,7 +576,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
       {recovery ? (
         <section className="mb-6 max-w-xl space-y-2" aria-label={`Reorder ${recovery.orderNumber}`}>
           <p className="text-sm font-medium">{editing ? "Editing" : "Reordering"} {recovery.orderNumber}</p>
-          {editing && <p className="text-sm">You can change existing pie quantities, the date, and time. Your original hold deadline stays the same. For other changes, contact <ChatLinks />. <a className="underline" href={`/order/status#${editing.token}`}>Return without saving</a>.</p>}
+          {editing && <p className="text-sm">You can change existing pie quantities, the date, and time. Your original hold deadline stays the same. For other changes, contact <ChatLinks />. <Link className="underline" href={`/order/status#${editing.token}`}>Return without saving</Link>.</p>}
           {recovery.priceChanges.map((change) => <p key={change.from} className="text-sm text-charcoal/70">{change.from} is now {change.to}</p>)}
           {pendingUnavailable.map((line) => (
             <div key={`${line.productId}:${line.variantId}`} className="flex flex-wrap items-center gap-2">
@@ -578,6 +589,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
       <div className="order-layout">
         <div>
           <form id="pie-order" noValidate onSubmit={(event) => { if (step !== 2) { event.preventDefault(); return; } if (!event.currentTarget.reportValidity()) { event.preventDefault(); return; } void handleSubmit(event); }} onInvalidCapture={(event) => { const target = event.target as HTMLElement; const targetStep = Number(target.closest("[data-order-step]")?.getAttribute("data-order-step") ?? 2); if (step !== targetStep) { setStep(targetStep); requestAnimationFrame(() => target.focus()); } }} className="order-form">
+            {requestedItem && step < 2 && <div className={design.requestedPie} role="status"><p>You’re choosing <strong>{requestedItem.name}{requestedVariant ? ` · ${customerSizeLabel(requestedVariant.label) ?? requestedVariant.label}` : ""}</strong>.</p>{step === 0 ? <p>Choose your branch and date to check availability.</p> : requestedIssue ? <><p>{requestedIssue}</p><button type="button" onClick={() => goToStep(0)}>Choose another date</button></> : <p>Choose an available size below. Nothing is added until you select a quantity.</p>}</div>}
             {draftDateNotice && step === 0 && <p role="status" className={design.draftDateNotice}>{draftDateNotice}</p>}
 
             <div className={design.sectionHeading}><p className="eyebrow">STEP {step + 1} OF 3</p><h2 ref={stepHeading} tabIndex={-1}>{["First, where and when?", "A few for you. A few to share.", "The last little details."][step]}</h2><p>{["Every branch and date has its own lineup. Let’s find yours.", "Choose your favourites, then make your box a little more personal.", "Tell us who it’s for and how you’d like to receive it."][step]}</p></div>
@@ -995,7 +1007,7 @@ export function OrderForm({ items, catalogAddons, branches, initialBranch, sched
             const extras = catalogAddons.filter((addon) => form.lineAddons[item.slug]?.includes(addon.id));
             return <li key={item.slug}>
               <div className="mobile-lineup-item">
-                <Image src={item.image.src} alt="" width={56} height={56} unoptimized />
+                <Image seasonal={customerSizeLabel(item.variant.label) === '4"'} src={item.image.src} alt="" width={56} height={56} unoptimized />
                 <div><strong>{item.name}</strong><p>{quantity} {quantity === 1 ? "pc" : "pcs"} · {formatPrice(item.price)} each</p></div>
                 <strong>{formatPrice(item.price * quantity)}</strong>
               </div>

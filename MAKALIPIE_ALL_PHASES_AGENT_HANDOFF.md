@@ -22,7 +22,7 @@ The real application is `/Users/emerson/makalipie`. The Documents/Codex director
 | 5 — Basic pickup | Not started | Finish straightforward paid pickup before advanced edits |
 | 6 — Advanced edits | Not started | Atomic transfers, financial adjustments, preserved fulfillment |
 | 7 — Delivery | Not started | Existing Lalamove preference is only legacy chat-summary UI |
-| 8 — Preorders | Not started | Shared pool, separate cart, preparation validation |
+| 8 — Preorders | Not started | Shared pool, unified cart, per-size preparation validation |
 | 9 — Reorder/reopen | Not started | Both customer and admin recovery |
 | 10 — Visit-only pop-ups | Not started | Can run after Phase 1 independently of order lifecycle |
 | 11 — Verification/release | Not started | Eight complete journeys, exceptions, staff rehearsal, recovery |
@@ -51,7 +51,7 @@ The real application is `/Users/emerson/makalipie`. The Documents/Codex director
 - Initial reservation: 30 minutes, admin configurable. Processing stops the initial expiration timer.
 - Full verified payment is required before preparation. Approval, payment, and fulfillment are separate concepts.
 - Admin edits require no customer acceptance. Preserve payments, expose extra/refund amounts due, preserve fulfillment progress, and record changes.
-- Multiple preorder products use the longest preparation requirement. Preorders support both main branches and pickup/delivery. Do not mix regular and preorder items in a submitted order.
+- Multiple preorder products use the longest preparation requirement. Preorders support both main branches and pickup/delivery. Customer ordering uses one cart: regular and advance-preparation sizes may be submitted together when every line is eligible for the chosen branch/date. Internal variant modes retain preparation/weekday behavior; historical order modes remain readable, while new orders use regular metadata. The calendar marks dates with at least one actually orderable advance-preparation size.
 - Both customer and admin must eventually support reorder and eligible reopen, with current-rule validation.
 - Pop-ups are temporary visit-only listings, never online pickup/delivery destinations.
 
@@ -104,7 +104,7 @@ Paths below are relative to `/Users/emerson/makalipie`.
 ## Local development and test handoff
 
 - Use Node satisfying `package.json`: `^22.13.0 || >=24.0.0`. The host's default Node 22.8 was too old. This installation passed with `/Users/emerson/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node` (Node 24.19); rediscover the runtime on another machine.
-- Demo project: `demo-makalipie`. Local emulator environment is defined in `scripts/emulator-env.mjs`; Auth 9099, Firestore 8080, Storage 9199 if required. Do not run fixture tests against production.
+- Demo project: `demo-makalipie`. Local emulator environment is defined in `scripts/emulator-env.mjs`; Auth 19099, Firestore 18080, Storage 19199, UI 14000. These are not the Firebase defaults. Do not run fixture tests against production.
 - Last verified preview was `http://localhost:3002` with matching `ADMIN_APP_ORIGIN`. It may no longer be running. Port 3001 was occupied by another app during verification.
 - `scripts/dev-emulators.mjs` starts port 3001 and sets the matching origin. If using it, configure integration test origin overrides accordingly. For port 3002, use the same launcher pattern with port and origin both changed; preserve its emulator environment.
 - The configured emulator build directory is `.next-emulator`; normal builds use `.next`. Do not assume old documentation about output directories is accurate without checking `next.config.ts`.
@@ -192,6 +192,7 @@ These fill the remaining implementation details; they are not claimed as earlier
 ### Scheduling boundaries for Phase 2
 
 - Asia/Manila dates; UTC event timestamps; calendar preparation days.
+- Pre-order preparation starts from the next branch date with an orderable configured time slot, including today if a future slot remains. Add the full preparation period in calendar days: Monday after ordering hours → Tuesday start + 3 days → Friday earliest fulfillment. Closed weekdays/dates shift the starting date; the final fulfillment date must also have an open slot. Use saved branch hours and slots, never a fixed example cutoff time.
 - Today is day zero. The latest selectable date is today plus the configured horizon, inclusive.
 - Preparation lead days are added to today's local date. The same-day cutoff does not shift the base date for future orders.
 - Generate only complete one-hour slots inside the configured online start/cutoff window. No partial final slot.

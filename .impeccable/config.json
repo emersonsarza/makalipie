@@ -10,6 +10,15 @@
           "src/app/order/status/status.module.css"
         ],
         "createdAt": "2026-09-29T18:08:49.286Z"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/app/globals.css"
+        ],
+        "createdAt": "2026-10-31T08:08:12.418Z",
+        "reason": "Incumbent brand marks already in the file: the popup date rail and the current category marker. This header change does not add them."
       }
     ]
   }

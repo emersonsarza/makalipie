@@ -2,8 +2,8 @@
 
 import { usePublicShop } from "@/components/public-shop-provider";
 import { useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
+import { ThemeImage as Image } from "@/components/theme-image";
+import { ThemeLink as Link } from "@/components/site-theme";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { type MenuItem } from "@/lib/site";
 import { variantOrderMode } from "@/lib/catalog/mode";

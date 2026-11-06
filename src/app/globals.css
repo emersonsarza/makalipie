@@ -527,6 +527,17 @@ summary:focus-visible {
   font-weight: 400;
   margin-top: 1px;
 }
+.brand-seal {
+  display: inline-grid;
+  line-height: 0;
+}
+.brand-seal > img {
+  grid-area: 1 / 1;
+}
+html[data-site-theme="original"] .brand-seal > .seal-christmas,
+html:not([data-site-theme="original"]) .brand-seal > .seal-original {
+  display: none;
+}
 .brand-lockup img {
   width: 65px;
   height: 65px;
@@ -981,7 +992,7 @@ summary:focus-visible {
 }
 .visit-photo img {
   object-fit: cover;
-  object-position: center 55%;
+  object-position: center bottom;
 }
 .visit-details {
   padding: 45px 50px;
@@ -2001,7 +2012,7 @@ summary:focus-visible {
   font-size: 15px;
   line-height: 1.9;
 }
-.order-intro > img {
+.order-intro > .brand-seal {
   margin-right: 45px;
   transform: rotate(8deg);
 }
@@ -2259,7 +2270,8 @@ summary:focus-visible {
   .order-empty {
     display: none;
   }
-  .order-intro > img {
+  .order-intro > .brand-seal,
+  .order-intro > .brand-seal img {
     width: 110px;
     height: 110px;
     margin: 0;
@@ -2282,7 +2294,7 @@ summary:focus-visible {
     margin-bottom: 30px;
     padding-bottom: 30px;
   }
-  .order-intro > img {
+  .order-intro > .brand-seal {
     display: none;
   }
   .order-intro h1 {
@@ -2633,4 +2645,21 @@ summary:focus-visible {
 .mobile-category-popup a:focus-visible { outline: 2px solid var(--brand-slate); outline-offset: -2px; }
 @media (prefers-reduced-motion: reduce) { .mobile-category-popup[data-slot="popover-content"] { animation: none; } }
 
-.mobile-category-popup .mobile-category-switch { border-bottom: 1px solid var(--brand-line); border-radius: 0; margin-bottom: 3px; padding-block: 12px; font-weight: 700; }
+.mobile-category-popup .mobile-category-switch {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--primary-action, var(--brand-slate));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--primary-action, var(--brand-slate)) 4%, var(--brand-white));
+  color: var(--primary-action, var(--brand-slate));
+  font-weight: 700;
+}
+.mobile-category-popup .mobile-category-switch:hover {
+  background: color-mix(in srgb, var(--primary-action, var(--brand-slate)) 9%, var(--brand-white));
+}
+.mobile-category-popup .mobile-category-switch:focus-visible {
+  outline: 2px solid var(--primary-action, var(--brand-slate));
+  outline-offset: 2px;
+}

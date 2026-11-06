@@ -1,5 +1,5 @@
 import { Children, isValidElement, type ReactNode } from "react";
-import Link from "next/link";
+import { ThemeLink as Link } from "@/components/site-theme";
 import { SiteShell } from "@/components/site-shell";
 import { LegalSection, type LegalSectionProps } from "@/components/legal-section";
 import styles from "@/app/legal.module.css";
@@ -10,10 +10,11 @@ const LINKS = [
   { href: "/refund", label: "Refund policy", id: "refund" },
 ] as const;
 
-export function LegalPage({ title, intro, policy, children }: {
+export function LegalPage({ title, intro, policy, summary, children }: {
   title: string;
   intro: string;
   policy: (typeof LINKS)[number]["id"];
+  summary?: ReactNode;
   children: ReactNode;
 }) {
   const sections = Children.toArray(children).flatMap((child) =>
@@ -37,6 +38,7 @@ export function LegalPage({ title, intro, policy, children }: {
           <p className={styles.intro}>{intro}</p>
           <p className={styles.updated}>Last updated: <time dateTime="2026-10-21">21 Oct 2026</time></p>
         </header>
+        {summary && <section className={styles.summary} aria-label="Policy summary">{summary}</section>}
         <div className={styles.layout}>
           <nav className={styles.desktopIndex} aria-label="On this page">
             <p className={styles.indexTitle}>On this page</p>

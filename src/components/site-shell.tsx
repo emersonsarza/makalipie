@@ -7,15 +7,17 @@ import { SiteHeader } from "@/components/site-header";
 export function SiteShell({
   children,
   showBanner = true,
+  showFooterCta = true,
   menuView,
 }: {
   children: React.ReactNode;
   showBanner?: boolean;
+  showFooterCta?: boolean;
   menuView?: "menu" | "preorders";
 }) {
   const shop = usePublicShop();
   return (
-    <div id="top" className="flex min-h-full flex-1 flex-col">
+    <div id="top" className="site-shell flex min-h-full flex-1 flex-col">
       {showBanner && (
         <div className="announcement">
           A little weekend tradition. Buko pie, Friday to Sunday.
@@ -28,7 +30,7 @@ export function SiteShell({
       <main id="main" className="flex-1">
         {children}
       </main>
-      <SiteFooter />
+      <SiteFooter showCta={showFooterCta} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 import { usePublicShop } from "@/components/public-shop-provider";
-import Link from "next/link";
+import { ThemeLink as Link } from "@/components/site-theme";
 
 import { Reveal } from "@/components/reveal";
 import { reviews, site } from "@/lib/site";

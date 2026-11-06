@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import Link from "next/link";
-import { ArrowLeftRight, ArrowUpRight, List } from "lucide-react";
+import { ThemeLink as Link } from "@/components/site-theme";
+import { ArrowRight, ArrowUpRight, List } from "lucide-react";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 
 type Category = { id: string; name: string };
@@ -60,7 +60,7 @@ export function MobileMenuCategories({ categories, regionRef, preorder }: { cate
       <PopoverTrigger className="mobile-category-trigger"><List size={18} aria-hidden /><span>Categories</span></PopoverTrigger>
       <PopoverContent side="top" align="end" sideOffset={10} className="mobile-category-popup" finalFocus={() => !navigating.current}>
         <Link className="mobile-category-switch" href={preorder ? "/menu" : "/menu?view=preorders"} scroll={false} onClick={() => { setOpen(false); }}>
-          <span>{preorder ? "4-inch pies" : "Pre-orders"}</span><ArrowLeftRight size={16} aria-hidden />
+          <span>{preorder ? "Browse 4-inch pies" : "Browse pre-order pies"}</span><ArrowRight size={16} aria-hidden />
         </Link>
         <PopoverTitle className="mobile-category-label">Jump to a category</PopoverTitle>
         <nav aria-label="Menu categories">{categories.map(category => <a key={category.id} href={`#menu-${category.id}`} aria-current={position.current === category.id ? "location" : undefined} onClick={event => {

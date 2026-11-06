@@ -1,0 +1,82 @@
+html[data-site-theme="christmas"]:has(.site-shell) {
+  --primary: #85251c;
+  --primary-foreground: #faf9f6;
+  --ring: #85251c;
+  --primary-action: #85251c;
+  --primary-action-foreground: #faf9f6;
+  --selected-action-bg: #f4e8e3;
+  --selected-action-ink: #85251c;
+}
+
+/* Christmas dresses the existing brand; its core palette and typography stay intact. */
+html[data-site-theme="christmas"] .site-shell {
+  --holiday-red: #85251c;
+
+  .announcement {
+    background: var(--holiday-red);
+    color: var(--brand-white);
+  }
+  .desktop-nav > a::after,
+  .nav-drop-trigger::after {
+    background: var(--holiday-red);
+  }
+  .theme-switch button[aria-pressed="true"] {
+    background: var(--holiday-red);
+    color: var(--brand-white);
+  }
+}
+
+html[data-site-theme="christmas"] .site-shell {
+  .brand-button:not(.outline-button):not(.brand-button-secondary):not(:disabled),
+  .mobile-category-trigger {
+    background: var(--holiday-red);
+    color: var(--brand-white);
+    border-color: var(--holiday-red);
+  }
+  .brand-button:not(.outline-button):not(.brand-button-secondary):not(:disabled):hover {
+    background: #6f1e17;
+    border-color: #6f1e17;
+  }
+  .pie-filters button[aria-pressed="true"] {
+    background: var(--holiday-red);
+    border-color: var(--holiday-red);
+    color: var(--brand-white);
+  }
+  :is(a, button, input, textarea, select, summary):focus-visible {
+    outline-color: var(--holiday-red);
+  }
+}
+html[data-site-theme="christmas"]:has(.site-shell) {
+  .mobile-lineup-continue.brand-button { background: var(--primary); color: var(--primary-foreground); }
+  .mobile-lineup-continue.brand-button:hover,
+  [data-slot="button"].bg-primary:not(:disabled):hover { background: #6f1e17; }
+}
+
+/* Both sources are available before hydration; only the active theme occupies space. */
+html[data-site-theme="original"] [data-theme-photo="christmas"],
+html:not([data-site-theme="original"]) [data-theme-photo="original"],
+html[data-site-theme="original"] [data-theme-icon="christmas"],
+html:not([data-site-theme="original"]) [data-theme-icon="original"] { display: none; }
+html img.seasonal-photo { object-fit: cover; object-position: var(--seasonal-photo-position); }
+@media (max-width: 767px) {
+  html img.seasonal-photo { object-position: var(--seasonal-photo-mobile-position); }
+}
+
+.theme-switch {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-block: 18px;
+  border-top: 1px solid var(--brand-line);
+  font-size: 12px;
+}
+.theme-switch-label { display: inline-flex; align-items: center; gap: 6px; }
+.theme-switch-options { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--brand-line); border-radius: 999px; }
+.theme-switch button { min-height: 44px; min-width: 88px; padding: 10px 16px; border-radius: 999px; cursor: pointer; transition: background 160ms, color 160ms; }
+.theme-switch button:hover { background: #e8e3d7; }
+.theme-switch button[aria-pressed="true"] { background: var(--brand-slate); color: var(--brand-white); }
+.theme-switch button:focus-visible { outline: 2px solid var(--brand-slate); outline-offset: 2px; }
+@media (max-width: 600px) { .theme-switch { justify-content: flex-start; } }
+@media (prefers-reduced-motion: reduce) { .theme-switch button { transition: none; } }

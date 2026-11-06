@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {scenario, menuGB, cachedMenuGB, orderMB, affectedMeters} from './src/scenario.ts';
+assert.deepEqual(scenario.visitsDaily.map(menuGB), [0.06, 0.6, 6]);
+assert.equal(cachedMenuGB(), 0.1728);
+assert.deepEqual(scenario.ordersDaily.map(orderMB), [3, 15, 60]);
+assert.equal(1000 * scenario.days * scenario.photoMBPerVisit / 1000, 30);
+for (const action of ['cache-hit', 'host-photo', 'cart-edit']) assert.deepEqual(affectedMeters(action), []);
+assert.deepEqual(affectedMeters('menu-fetch'), ['egress']);
+assert.deepEqual(affectedMeters('order-save'), ['database', 'egress']);
+assert.deepEqual(affectedMeters('staff-login'), ['auth', 'egress']);
+assert.deepEqual(affectedMeters('realtime-change'), ['realtime', 'egress']);
+assert.equal(1 * scenario.staffSubscribers, 5);
+assert.equal(scenario.quotas.egressGB, 5);
+assert.equal(scenario.quotas.cachedEgressGB, 5);
+console.log('Verified traffic, cache, storage, photo and action-accounting examples.');

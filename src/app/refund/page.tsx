@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { ThemeLink as Link } from "@/components/site-theme";
 import { ChatLinks } from "@/components/public-shop-provider";
 import { LegalPage } from "@/components/legal-page";
 import { LegalSection } from "@/components/legal-section";
@@ -16,6 +16,7 @@ export default function RefundPage() {
       policy="refund"
       title="Refund Policy"
       intro="This Refund Policy explains refunds for an order we have confirmed in chat, and how to ask for help."
+      summary={<><h2>At a glance</h2><ul><li>If we reschedule your order or cannot fulfill it, you choose a new date or a full refund.</li><li>There is no refund for a no-show.</li><li>To ask about a refund, message us through <ChatLinks />.</li></ul><p>Read the full conditions below.</p></>}
     >
       <LegalSection n={1} title="Refund eligibility">
         <p>If we reschedule your order or cannot fulfill it, you choose a new date or a full refund.</p>
