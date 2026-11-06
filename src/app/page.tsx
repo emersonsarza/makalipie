@@ -1,3 +1,4 @@
+import { themedMetadata, type SocialSearchParams } from "@/lib/social-metadata";
 import { VisitSection } from "@/components/sections/visit";
 import { ChatLinks } from "@/components/public-shop-provider";
 import { staticPublicMenu, staticPublicShop } from "@/lib/public/static-shop";
@@ -10,6 +11,10 @@ import { PieSelection } from "@/components/sections/pie-selection";
 import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { getSiteUrl, site } from "@/lib/site";
+
+export function generateMetadata({ searchParams }: { searchParams: Promise<SocialSearchParams> }) {
+  return themedMetadata({ openGraph: { url: "/" } }, "home", searchParams);
+}
 
 export default function Home() {
   const shop = staticPublicShop();

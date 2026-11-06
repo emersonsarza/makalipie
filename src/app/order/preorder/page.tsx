@@ -1,8 +1,9 @@
+import { themedMetadata, type SocialSearchParams } from "@/lib/social-metadata";
 import type { Metadata } from "next";
 
 import { LegacyOrderRedirect } from "@/components/legacy-order-redirect";
 
-export const metadata: Metadata = {
+const pageMetadata: Metadata = {
   title: "Pre-order Tarts & Pies in Cebu",
   description:
     "Choose your branch and date, then order available Makalipie pies for pickup or delivery where offered. Confirm your order in chat; no payment is collected online.",
@@ -25,6 +26,10 @@ export const metadata: Metadata = {
     canonical: "/order",
   },
 };
+
+export function generateMetadata({ searchParams }: { searchParams: Promise<SocialSearchParams> }) {
+  return themedMetadata(pageMetadata, "order", searchParams);
+}
 
 export default function PreorderPage() {
   return <LegacyOrderRedirect />;

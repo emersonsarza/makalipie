@@ -1,14 +1,19 @@
+import { themedMetadata, type SocialSearchParams } from "@/lib/social-metadata";
 import type { Metadata } from "next";
 import { ThemeLink as Link } from "@/components/site-theme";
 import { ChatLinks } from "@/components/public-shop-provider";
 import { LegalPage } from "@/components/legal-page";
 import { LegalSection } from "@/components/legal-section";
 
-export const metadata: Metadata = {
+const pageMetadata: Metadata = {
   title: "Privacy Policy",
   description: "What this website does with your information, and what stays in the Instagram or Messenger chat.",
   alternates: { canonical: "/privacy" },
 };
+
+export function generateMetadata({ searchParams }: { searchParams: Promise<SocialSearchParams> }) {
+  return themedMetadata(pageMetadata, "home", searchParams);
+}
 
 export default function PrivacyPage() {
   return (

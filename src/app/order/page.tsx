@@ -1,8 +1,9 @@
+import { themedMetadata, type SocialSearchParams } from "@/lib/social-metadata";
 import type { Metadata } from "next";
 
 import { OrderScreen } from "@/components/order-screen";
 
-export const metadata: Metadata = {
+const pageMetadata: Metadata = {
   title: "Order Tarts & Pies in Cebu",
   description:
     "Choose your branch and date, then order available Makalipie pies for pickup or delivery where offered. Confirm your order in chat; no payment is collected online.",
@@ -25,6 +26,10 @@ export const metadata: Metadata = {
     canonical: "/order",
   },
 };
+
+export function generateMetadata({ searchParams }: { searchParams: Promise<SocialSearchParams> }) {
+  return themedMetadata(pageMetadata, "order", searchParams);
+}
 
 export default async function OrderPage({ searchParams }: { searchParams: Promise<{ branch?: string | string[]; product?: string | string[]; size?: string | string[] }> }) {
   return <OrderScreen mode="regular" searchParams={searchParams} />;

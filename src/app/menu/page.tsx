@@ -1,3 +1,4 @@
+import { themedMetadata, type SocialSearchParams } from "@/lib/social-metadata";
 import { menuSizes } from "@/lib/catalog/menu-view";
 import { customerSizeLabel } from "@/lib/catalog/size";
 import { staticPublicMenu } from "@/lib/public/static-shop";
@@ -7,7 +8,7 @@ import { getSiteUrl } from "@/lib/site";
 import { MenuCatalog } from "@/components/sections/menu-catalog";
 import { SiteShell } from "@/components/site-shell";
 
-export const metadata: Metadata = {
+const pageMetadata: Metadata = {
   title: "Tarts & Pies Menu in Cebu",
   description:
     "Browse Makalipie 4-inch pies and larger pre-order sizes. Choose your branch and date to check availability.",
@@ -30,6 +31,10 @@ export const metadata: Metadata = {
     canonical: "/menu",
   },
 };
+
+export function generateMetadata({ searchParams }: { searchParams: Promise<SocialSearchParams> }) {
+  return themedMetadata(pageMetadata, "menu", searchParams);
+}
 
 export default async function MenuPage({ searchParams }: { searchParams: Promise<{ view?: string | string[] }> }) {
   const view = (await searchParams).view;

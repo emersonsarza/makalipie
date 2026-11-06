@@ -3,6 +3,8 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
+import type { SiteTheme } from "@/lib/site-theme";
+import type { SocialPage } from "@/lib/social-metadata";
 
 const variants = {
   home: {
@@ -25,13 +27,15 @@ const variants = {
   },
 } as const;
 
-export async function createSocialImage(page: keyof typeof variants) {
+export async function createSocialImage(page: SocialPage, theme: SiteTheme = "christmas") {
+  const christmas = theme === "christmas";
   const content = variants[page];
+  const photoFile = christmas && page !== "order" ? `christmas-${page}.jpg` : `${content.photo}.jpg`;
   const [book, heavy, photo, seal] = await Promise.all([
     readFile(join(process.cwd(), "public/fonts/Garet-Book.ttf")),
     readFile(join(process.cwd(), "public/fonts/Garet-Heavy.ttf")),
-    readFile(join(process.cwd(), `public/images/social/${content.photo}.jpg`)),
-    readFile(join(process.cwd(), "public/brand/seal.png")),
+    readFile(join(process.cwd(), "public/images/social", photoFile)),
+    readFile(join(process.cwd(), "public/brand", christmas ? "seal-christmas.png" : "seal.png")),
   ]);
   return new ImageResponse(
     <div
@@ -69,6 +73,7 @@ export async function createSocialImage(page: keyof typeof variants) {
             fontSize: 13,
             fontWeight: 700,
             letterSpacing: 2.5,
+            color: christmas ? "#85251C" : "#656466",
             marginTop: 38,
           }}
         >
@@ -107,12 +112,13 @@ export async function createSocialImage(page: keyof typeof variants) {
         alt=""
         width={570}
         height={630}
-        style={{ objectFit: "cover" }}
+        style={{ objectFit: "cover", objectPosition: page === "menu" ? "center bottom" : "center" }}
       />
     </div>,
     {
       width: 1200,
       height: 630,
+      headers: { "Cache-Control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800" },
       fonts: [
         { name: "Garet", data: book, weight: 400, style: "normal" },
         { name: "Garet", data: heavy, weight: 700, style: "normal" },

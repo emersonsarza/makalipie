@@ -1,3 +1,4 @@
+import { socialImageMetadata } from "@/lib/social-metadata";
 import { themeBootstrap } from "@/lib/site-theme";
 import { SiteThemeController } from "@/components/site-theme";
 import { publicLocations } from "@/lib/popups/locations";
@@ -55,6 +56,7 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Makalipie" }],
   openGraph: {
+    images: [socialImageMetadata("home")],
     type: "website",
     locale: "en_PH",
     url: siteUrl,
@@ -63,6 +65,7 @@ export const metadata: Metadata = {
     description: site.description,
   },
   twitter: {
+    images: [socialImageMetadata("home")],
     card: "summary_large_image",
     title: "Makalipie | Handcrafted Tarts & Pies in Cebu",
     description: site.description,

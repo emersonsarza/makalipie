@@ -1,14 +1,19 @@
+import { themedMetadata, type SocialSearchParams } from "@/lib/social-metadata";
 import { ChatLinks } from "@/components/public-shop-provider";
 import type { Metadata } from "next";
 import { ThemeLink as Link } from "@/components/site-theme";
 import { LegalPage } from "@/components/legal-page";
 import { LegalSection } from "@/components/legal-section";
 
-export const metadata: Metadata = {
+const pageMetadata: Metadata = {
   title: "Terms and Conditions",
   description: "How to send a Makalipie order from this website, and how confirmation, payment, pickup, and changes work.",
   alternates: { canonical: "/terms" },
 };
+
+export function generateMetadata({ searchParams }: { searchParams: Promise<SocialSearchParams> }) {
+  return themedMetadata(pageMetadata, "home", searchParams);
+}
 
 export default function TermsPage() {
   return (
