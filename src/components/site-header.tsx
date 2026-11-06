@@ -38,6 +38,7 @@ function NavDrop({
   links,
   scroll,
   onNavigate,
+  underline = true,
 }: {
   id: string;
   label: string;
@@ -49,6 +50,7 @@ function NavDrop({
   links: NavLink[];
   scroll?: boolean;
   onNavigate?: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+  underline?: boolean;
 }) {
   return (
     <div
@@ -69,6 +71,7 @@ function NavDrop({
         aria-expanded={open}
         aria-controls={id}
         data-current={current ? "" : undefined}
+        data-underline={underline ? undefined : "false"}
         onClick={() => setMenu(menu)}
       >
         {label} <ChevronDown size={14} aria-hidden />
@@ -203,6 +206,7 @@ export function SiteHeader({ menuView }: { menuView?: "menu" | "preorders" }) {
             current={findCurrent}
             links={placeItems}
             onNavigate={goToPlace}
+            underline={false}
           />
           <Link href={storyLink.href} onClick={(event) => scrollToHash(storyLink.href, pathname, event)}>
             {storyLink.label}

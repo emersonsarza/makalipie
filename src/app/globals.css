@@ -572,6 +572,9 @@ html:not([data-site-theme="original"]) .brand-seal > .seal-original {
 .nav-drop-trigger[data-current]::after {
   transform: scaleX(1);
 }
+.nav-drop-trigger[data-underline="false"]::after {
+  display: none;
+}
 .nav-drop {
   position: relative;
   display: flex;
