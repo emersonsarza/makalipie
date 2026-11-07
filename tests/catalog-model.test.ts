@@ -62,5 +62,5 @@ test("an explicit pre-order flag overrides size and a stale branch mode", () => 
 test("shop settings own the pre-order lead time and home featuring", () => {
   const settings = shopSettingsSchema.parse({});
   assert.equal(settings.defaultPreorderLeadDays, 3);
-  assert.deepEqual(settings.featuredProductIds, ["buko", "smores", "pecan"]);
+  assert.deepEqual(settings.featuredProductIds, ["buko", "smores", "pecan", "keylime"]);
 });

@@ -1,4 +1,4 @@
-import { businessDateSchema } from "../admin/schemas";
+import { businessDateSchema } from "../business-date";
 import type { BranchId } from "../branches/schema";
 import type { Catalog, Selection } from "../catalog/schema";
 import { availabilityReason, manilaDate, quoteSelection } from "../catalog/rules";

@@ -4,7 +4,6 @@ import { defaultScheduleSettings, scheduleSettingsSchema } from "../src/lib/sche
 import { addCalendarDays, configuredSlots, slotsForDate, availableOrderDates, scheduleValidationError } from "../src/lib/scheduling/rules";
 import { defaultCatalog } from "../src/lib/catalog/defaults";
 import { quoteSelection } from "../src/lib/catalog/rules";
-import { flavorHasRoom } from "../src/lib/orders/allocation";
 const now = new Date("2026-09-28T00:00:00Z"); // 8 AM Manila
 function settings() { const s=defaultScheduleSettings(); s.branches.cebu.enabled=true; s.branches.cebu.startTime="08:00"; s.branches.cebu.cutoffTime="11:30"; return s; }
 test("missing configuration stays closed; branches have independent schedules",()=>{
@@ -58,7 +57,6 @@ test("the longest preparation sets the earliest date, and a shorter selection br
  assert.equal(availableOrderDates(s,"cebu",catalog,shorter,now)[0].date,"2026-10-01");
  const ready=quoteSelection(catalog,{...shorter,date:"2026-10-01"},"2026-09-28");
  assert.deepEqual(ready.errors,[]);
- assert.equal(flavorHasRoom({limit:0,held:0},1,"2026-10-01","2026-09-28",false),false);
 });
 test("add-on preparation can push the earliest date forward",()=>{
  const s=settings(), catalog=defaultCatalog(), product=catalog.products[0], addon=catalog.addons[0];

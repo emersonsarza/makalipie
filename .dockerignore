@@ -1,12 +1,8 @@
 node_modules
 explainers
 .next
-.next-emulator
 .git
 .env*
 !.env.example
-.firebase
-*-debug.log
-emulator-data
 *.pem
 *service-account*.json

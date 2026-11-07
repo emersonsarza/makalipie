@@ -14,5 +14,5 @@ test("the public site reads the seed shop without Firebase", () => {
   assert.ok(shop.links.instagramDm.startsWith("https://"));
   assert.ok(menu.items.length >= 9);
   assert.equal(menu.unavailable, false);
-  assert.equal(staticPopups().listings.length, 2);
+  assert.equal(staticPopups().listings.length, 1);
 });

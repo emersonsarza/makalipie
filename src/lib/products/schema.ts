@@ -3,16 +3,7 @@ import type { MenuItem } from "@/lib/site";
 
 export const productIdSchema = z.string().min(1).max(80).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and hyphens.").refine((value) => !["new", "images", "import"].includes(value), "Choose a different product link.");
 export const productImageSchema = z.object({
-  url: z.string().trim().max(2000).refine((value) => {
-    if (/^\/(images|brand)\/[a-zA-Z0-9/_-]+\.(webp|png|jpe?g)$/.test(value)) return true;
-    try {
-      const url = new URL(value);
-      const cloud = url.protocol === "https:" && url.hostname === "firebasestorage.googleapis.com";
-      const storageEmulator = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_EMULATOR_HOST;
-      const emulator = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true" && process.env.NODE_ENV !== "production" && storageEmulator?.startsWith("127.0.0.1:") && url.origin === `http://${storageEmulator}`;
-      return (cloud || emulator) && !url.username && !url.password && /^\/v0\/b\/[^/]+\/o\//.test(url.pathname);
-    } catch { return false; }
-  }, "Choose a product photo or upload a JPG, PNG, or WebP image."),
+  url: z.string().trim().max(2000).refine((value) => /^\/(images|brand)\/[a-zA-Z0-9/_-]+\.(webp|png|jpe?g)$/.test(value), "Choose a product photo."),
   alt: z.string().trim().min(1, "Describe the photo for customers using screen readers.").max(200),
 }).strict();
 

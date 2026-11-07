@@ -42,7 +42,8 @@ test("current and upcoming listings stay public, and a passed last date stays hi
 test("a pop-up id is refused as an online branch while the cart still falls back to a main branch", () => {
   const settings = defaultBranchSettings();
   const ids = visibleBranches(settings).map((branch) => branch.id);
-  assert.deepEqual(ids, ["cebu", "manila"]);
+  assert.deepEqual(ids, ["cebu"]);
+  assert.equal(settings.branches.some((branch) => branch.id === "manila" && !branch.visible), true);
   assert.equal(ids.includes("sunday-market"), false);
   assert.equal(popupClaimsBranch("sunday-market", [listing()]), true);
   assert.equal(popupClaimsBranch("cebu", [listing()]), false);

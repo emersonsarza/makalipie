@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { businessDateSchema } from "../admin/schemas";
+import { businessDateSchema } from "../business-date";
 import { branchIdSchema } from "../branches/schema";
-import { DEFAULT_BOOKING_HORIZON_DAYS } from "../orders/policy";
+
+export const DEFAULT_BOOKING_HORIZON_DAYS = 30;
 
 export const clockTimeSchema = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, "Use a valid time.");
 export function minutesOfDay(time: string) {
