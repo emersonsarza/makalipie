@@ -1,12 +1,12 @@
 # Makalipie Backend MVP
 
-Agreed MVP contract, updated November 9, 2026. This document specifies backend behavior and delivery order; it does not implement application code.
+Agreed MVP contract, updated November 11, 2026. This document specifies backend behavior and delivery order; it does not implement application code.
 
 **Develop and verify the complete backend first. Build the frontend afterward using [MAKALIPIE_FRONTEND_MVP.md](MAKALIPIE_FRONTEND_MVP.md).** Backend work includes database migrations, server operations, authentication, authorization, validation, cache invalidation, Realtime authorization/events, encrypted export, and recovery tooling. It does not include customer or admin screens.
 
 The shop continues confirming orders, arranging payment, and supporting customers in chat. The website records orders and gives customers an order number. Cebu uses regular ordering. Manila and future drop locations use event-specific offerings with daily allocation.
 
-This contract supersedes conflicting rules in the older ordering/data-flow documents. In particular, regular daily capacity, cart reservations, and reservation timers remain deferred, but **drop allocation is included**. Update implementation notes in the older documents when implementation begins; do not recreate their old hold system. [README.md](README.md) must also identify the VPS as sandbox and Vercel as production when implementation begins.
+This contract and [MAKALIPIE_FRONTEND_MVP.md](MAKALIPIE_FRONTEND_MVP.md) are the only source of truth and supersede conflicting rules in older documents. Older documents, including `docs/v2` and legacy ordering, data-flow, and admin specs, are retired and must not be used. In particular, regular daily capacity, cart reservations, and reservation timers remain deferred, but **drop allocation is included**. Do not recreate the old hold system. [README.md](README.md) must also identify the VPS as sandbox and Vercel as production when implementation begins. Existing customer-facing copy and legal pages that still mention `MK-####` order numbers must be updated to the `MP-MMDDXXX` format.
 
 ## 1. Environments and delivery boundaries
 
@@ -81,7 +81,7 @@ Use two Supabase projects in Singapore unless they already exist. Keep databases
 
 - Each drop is its own event: name, stable public slug, location/city, pickup address/map, fulfillment dates, ordering hours per date, pickup window per date, optional dispatch window per date, offerings, prices, add-ons, and allocation.
 - Pickup-only by default. Delivery may be enabled per drop; the shop arranges it. A customer-booked rider counts as pickup.
-- Every date has an owner-set ordering opening and cutoff time. **Same-day ordering only**: no advance orders for future drop dates. Reject orders outside today's configured opening/cutoff even if the event is published.
+- Every date has an owner-set ordering opening and cutoff time. **Same-day ordering only**: no advance orders for future drop dates. Reject orders outside today's configured opening/cutoff even if the event is published. Drop stock is planned and baked ahead, so same-day ordering is sufficient; daily allocation prevents overselling.
 - Drop customers do not choose hourly slots. They collect within that date's single pickup window or receive dispatch within its separately configured delivery window. Store the applicable window in the order snapshot.
 - Lifecycle: **Draft → Published → Ended**. Drafts are absent from public discovery and ordering. Published drops may be previewed before opening. End automatically after the final pickup/dispatch window. Unpublishing removes public ordering without changing existing orders.
 - Sold-out/closed dates remain visible during the event with ordering disabled. Ended drops leave public listings; direct old links show an ended state rather than silently switching to a different event.
@@ -123,21 +123,21 @@ Use two Supabase projects in Singapore unless they already exist. Keep databases
 - Require an idempotency key per intended submission. Same key and same normalized payload returns the original order number. Same key with a different payload is rejected. A changed cart uses a new key. Store a digest rather than retaining personal data in idempotency payload copies.
 - A single transaction saves order, line/add-on/package-component snapshots, number, and any allocation commitments. Order numbers are returned only after commit.
 - Snapshot product/size/package names, fixed package composition, prices, quantities, fulfillment location and windows, and add-ons. Historical financial and operational records must not depend on mutable catalog values.
-- New orders start `pending` and `unpaid`. Pickup total is final immediately. Delivery fee is nullable until confirmed; zero is a confirmed fee. Expose subtotal and a pending-total state instead of presenting an unknown-fee subtotal as a final total.
-- Delivery slots/windows mean **dispatch**, not promised arrival. The shop arranges riders. Payment, final confirmation, and customer changes/cancellations happen in chat using the order number.
-- Success returns the number, not a public customer-data lookup. No unauthenticated order details endpoint keyed by a guessable number.
+- New orders start `pending` and `unpaid`. Pickup total is final immediately. A delivery fee has two confirmed modes: a **known amount**, including zero, collected with the order total; or **paid to rider**, meaning the customer pays the rider directly, no amount is recorded, and the fee is excluded from the order total. Until the owner sets one of those modes, the fee is unknown (nullable). Expose subtotal and a pending-total state instead of presenting an unknown-fee subtotal as a final total.
+- Delivery slots/windows mean **dispatch**, not promised arrival. The shop arranges riders. Payment, final confirmation, and customer changes/cancellations happen in Instagram or Messenger chat using the order number.
+- Success returns the number, not a public customer-data lookup. No unauthenticated order details endpoint keyed by a guessable number. Also return `submittedAfterHours`, computed server-side in Asia/Manila against the regular branch's ordering window (weekly hours, or a date-override replacement window). The flag is true when the order was submitted outside that window. It is messaging only; there is no automatic hold. Drop orders outside that date's opening/cutoff continue to be rejected.
 
 ### Admin queries and changes
 
 - Orders are the admin landing page. Database-backed, paginated search/filter queries; never assume a cached subset is complete.
 - Views: Needs attention (pending first, then confirmed by fulfillment date), Today (today's pickups/dispatches), and All orders. Search by number; filter location, date, order status, payment status, and pickup/delivery.
 - Owner can create orders using the same server contracts. They start pending/unpaid and use normal numbering, snapshots, and allocation protection.
-- Owner can edit customer details, notes, fulfillment method/date/window, delivery fee, lines, quantities, and prices on pending/confirmed orders. Save all changes together. Return validation/availability warnings and require explicit owner confirmation to bypass regular availability rules.
+- Owner can edit customer details, notes, fulfillment method/date/window, delivery fee (a known amount including zero, or paid to rider), lines, quantities, and prices on pending/confirmed orders. Save all changes together. Return validation/availability warnings and require explicit owner confirmation to bypass regular availability rules.
 - Never bypass stock, numeric validation, authorization, or per-order drop limits. No package substitutions. For drop orders, offerings remain scoped to the chosen event/date.
 - Existing lines retain saved prices when quantities change. Additions use current applicable catalog/drop prices. Manual admin price overrides are explicit. Never automatically reprice the whole order. Server calculates all totals.
 - Repricing and payment status are distinct: no automatic collection/refund. If a paid order's total changes, require explicit reconciliation of its payment status before save; do not silently claim an increased balance is paid.
 - Status transitions are separate from general edits:
-  - Confirm: pending → confirmed. Payment may remain unpaid. Delivery requires a known fee, including zero.
+  - Confirm: pending → confirmed. Payment may remain unpaid. Delivery requires either a known fee, including zero, or **paid to rider**.
   - Complete: confirmed and paid → completed after fulfillment.
   - Cancel: pending/confirmed → cancelled. A paid order must first be recorded refunded; the website does not move money.
   - Completed/cancelled orders are read-only for content, prices, scheduling, and personal details. Completed orders may subsequently be marked refunded without reopening.
@@ -148,7 +148,7 @@ Use two Supabase projects in Singapore unless they already exist. Keep databases
 - Completion and cancellation immediately remove customer name, phone, delivery address, and all customer free-text notes **in the same transaction** as the status transition.
 - Warn before the irreversible transition. Do not restore personal fields if a record is revisited. Support uses the order number and existing chat.
 - Retain number, items/component snapshots, quantities, prices, totals, statuses, fulfillment date/window, and other necessary non-contact transaction data.
-- This is the agreed removal of direct personal fields, not a claim that detailed transaction history is mathematically anonymous.
+- This is the agreed removal of direct personal fields, not a claim that detailed transaction history is mathematically anonymous. The public Privacy and Terms pages must state this immediate removal; they must not say personal records are kept for 30 days.
 - Do not retain deleted personal data in audit payloads, logs, Realtime events, idempotency records, backup exports, or error reporting. Do not log submission bodies or tokens.
 
 ### Daily lineup
@@ -194,7 +194,7 @@ Use two Supabase projects in Singapore unless they already exist. Keep databases
 - Themes must already ship in code before selection. Only **Save changes** publishes a theme. Ignore public `?theme=` overrides.
 - Authenticated theme preview uses a protected, uncached owner-only context; does not modify global settings or accept orders. Do not let preview cookies or cache keys leak the preview to visitors.
 - Featured products are an owner-ranked list of any length. Show the first four distinct eligible Cebu products. Skip disabled/out-of-season/non-bookable products without changing the saved ranking. Fill gaps from other eligible Cebu products in menu order; show fewer only if fewer than four exist.
-- Pop-ups: city, name, address/map, start/end dates, hours, and descriptive item list. Informational only. Hide after the Manila end date; retain admin records for reuse.
+- Pop-ups: city, name, address/map, start/end dates, hours, and descriptive item list. Informational only. Hide after the end date in Manila time (Asia/Manila); retain admin records for reuse.
 - Social/DM/Messenger links are shared shop-wide. GrabFood/Foodpanda links belong to regular branches; drops do not show delivery-app buttons. Hide buttons for empty links.
 
 ## 7. Data model and operation contracts
@@ -211,7 +211,7 @@ Use migrations and explicit constraints; names below describe responsibilities, 
 | Drops and drop dates | Lifecycle, location, ordering times, fulfillment windows, per-date settings |
 | Drop offerings and package components | Fixed contents, fixed prices, per-order limits, date inclusion |
 | Drop daily allocations | Offering/date allocation, committed quantities, concurrency protection |
-| Orders, item/component snapshots, add-on snapshots | Financial/fulfillment history, nullable personal fields, statuses, optimistic version |
+| Orders, item/component snapshots, add-on snapshots | Financial/fulfillment history, nullable personal fields, delivery-fee mode (unknown, known amount including zero, or paid to rider), statuses, optimistic version |
 | Daily sequences and submission keys | Atomic daily numbering and duplicate-submission protection |
 | Site settings and featured ranking | Theme, seven-day horizon, three-day preparation, shared links, ranked products |
 | Pop-ups | City-based informational events |
@@ -249,17 +249,17 @@ Provide typed server interfaces for public discovery/catalog/eligibility, order 
 6. **Export and recovery:** encrypted versioned exports without personal fields, one-time public/recovery-key flow, documented restore and successful isolated restore exercise.
 7. **Handoff gate:** document typed operation inputs/results and setup/configuration, run contract/integration tests, verify sandbox behavior, and record results. Frontend begins only after this gate passes; no reliance on mock-only business behavior.
 
-Seed Cebu, hidden/unpublished Manila drop location, current pies/sizes, compatible simplified add-ons, menu sections, ranked featured pies, links, Sunday Market pop-up, Christmas theme, Cebu 10:00–19:00, seven-day horizon, and three-day preorder lead time. Migrate legacy image/rule data deliberately. Do not seed fabricated published drops, stock, or customer orders into production.
+Seed Cebu, hidden/unpublished Manila drop location, current pies/sizes, compatible simplified add-ons, menu sections, ranked featured pies, links, Sunday Market pop-up, Christmas theme, Cebu 10:00–19:00, seven-day horizon, and three-day preorder lead time. Existing hardcoded "10am to 8pm" copy on the current site must be replaced by admin-managed branch hours. Migrate legacy image/rule data deliberately. Do not seed fabricated published drops, stock, or customer orders into production.
 
 ### Required backend verification
 
 - Anonymous and non-owner users cannot access admin tables, operations, exports, preview, or private channels. Publishable key alone grants no application data. Events contain no personal information; browser never receives refresh or secret credentials.
 - Refresh rotation across tabs, expiry/revocation, logout, current-password verification, and other-session revocation after password change.
-- Manila midnight, inclusive seasons, seven-day boundary, preparation across closed dates, full one-hour slots, elapsed slots, date override opening a closed weekday, pause behavior, and drop same-day opening/cutoff/window/end boundaries.
+- Manila midnight, inclusive seasons, seven-day boundary, preparation across closed dates, full one-hour slots, elapsed slots, date override opening a closed weekday, pause behavior, drop same-day opening/cutoff/window/end boundaries, and `submittedAfterHours` computed in Asia/Manila against the regular branch window (including date-override replacement hours).
 - Disabled products/sizes, drop override rules, shared/add-on pricing, quantity validation, fixed package composition lock, and date-specific offering enablement.
 - Real concurrent database submissions competing for the last allocation: only the valid winner commits; loser saves nothing. Cover multiple offerings, distinct daily stock, aggregate per-order limits, cancellation, admin edits/date moves, stale writes, and idempotent retries.
 - Concurrent daily numbering, sequence beyond 999, cross-year number search, idempotency payload mismatch, transaction rollback, and updated-price review.
-- Delivery fee unknown versus zero, paid/confirmed completion gate, paid cancellation requiring refund, terminal read-only behavior, later completed-order refund, immediate personal-field deletion, and non-PII logs/exports.
+- Delivery fee unknown versus zero versus paid-to-rider, confirmation requiring a known fee or paid-to-rider, paid/confirmed completion gate, paid cancellation requiring refund, terminal read-only behavior, later completed-order refund, immediate personal-field deletion, and non-PII logs/exports.
 - Filtered/paginated completeness, out-of-order/duplicate live events, reconnect recovery, and package packing/baking totals including completed orders without double counting.
 - Cross-instance cache invalidation, fallback TTL, date-boundary eligibility, protected theme preview isolation, ranked four-item fallback, and images resolving across both themes.
 - Encrypted export tamper detection, successful restore with recovery key, failure without/wrong key, consistent allocations and numbering after recovery, and absent personal fields/sessions/secrets.
@@ -267,10 +267,10 @@ Seed Cebu, hidden/unpublished Manila drop location, current pies/sizes, compatib
 ## 10. Still outside MVP
 
 - Regular Cebu daily capacity; shared ingredient/component inventory; cart reservations/timers; automatic expiry of pending orders.
-- Online payment, automatic money movement, delivery fee calculation, delivery-area validation.
-- Customer accounts, public order-status lookup, customer live updates, email/chat/push notifications, background alerts while admin is closed.
-- Analytics dashboards, multiple staff roles, branch-level permission roles, authenticator-app MFA, self-service password-reset email.
-- Image uploads/Supabase Storage, automatic server/cloud backups, guaranteed daily backups without an admin visit, browser-based restore.
+- Online payment, automatic money movement, delivery fee calculation, delivery-area validation, and a require-full-payment switch. Big-order full payment is handled in chat; payment status is unpaid, paid, or refunded.
+- Customer accounts, public order-status lookup, customer-visible cancel reasons (cancellations are explained in chat), customer self-edit (changes go through chat; staff edit in admin), customer live updates, email/chat/push notifications, background alerts while admin is closed.
+- Analytics dashboards, a Kitchen page (Daily lineup remains the per-date packing and baking summary), multiple staff roles, branch-level permission roles, authenticator-app MFA, self-service password-reset email.
+- Image uploads/Supabase Storage, automatic server/cloud backups, guaranteed daily backups without an admin visit, browser-based restore. Backups remain local only, as specified in section 8.
 - Product-specific blocked dates, add-on customization/preparation/product compatibility, package substitutions, and permanent product/size/add-on deletion.
 
 ## Done when

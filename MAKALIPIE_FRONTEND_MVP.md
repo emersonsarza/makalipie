@@ -1,8 +1,8 @@
 # Makalipie Frontend MVP
 
-Agreed MVP contract, updated November 9, 2026. Implement **after the backend acceptance gate** in [MAKALIPIE_BACKEND_MVP.md](MAKALIPIE_BACKEND_MVP.md) passes. This document specifies screens and interactions, not application code.
+Agreed MVP contract, updated November 11, 2026. Implement **after the backend acceptance gate** in [MAKALIPIE_BACKEND_MVP.md](MAKALIPIE_BACKEND_MVP.md) passes. This document specifies screens and interactions, not application code.
 
-The backend document is the source of truth for money, schedules, permissions, allocation, transaction safety, status transitions, privacy, and recovery. The frontend consumes those verified contracts and must not recreate competing business rules or treat browser validation as authoritative.
+These two documents are the only source of truth. Older documents, including `docs/v2` and legacy specs, are retired and must not be used. The backend document defines money, schedules, permissions, allocation, transaction safety, status transitions, privacy, and recovery. The frontend consumes those verified contracts and must not recreate competing business rules or treat browser validation as authoritative.
 
 ## 1. Design and delivery requirements
 
@@ -28,8 +28,8 @@ The backend document is the source of truth for money, schedules, permissions, a
 
 Order the content as:
 
-1. **Our home in Cebu:** always visible, including address, map, hours, and Order in Cebu.
-2. **Pop-ups:** informational events, grouped/labeled by city, with dates, hours, map, and descriptive offerings. Expired pop-ups disappear publicly but remain in admin.
+1. **Our home in Cebu:** always visible, including address, map, hours, and Order in Cebu. Hours come from admin-managed branch data; replace leftover hardcoded "10am to 8pm" copy.
+2. **Pop-ups:** informational events, grouped/labeled by city, with dates, hours, map, and descriptive offerings. Hide after the end date in Manila time (Asia/Manila). Expired pop-ups remain in admin.
 3. **Upcoming drops:** published upcoming/current drops across **all cities**, ordered by next fulfillment date.
 
 Drop cards show city/event name, dates, pickup location, pickup-only or pickup/delivery, and Coming soon / Ordering open / Sold out / Ordering closed status. Use **View drop** before opening and **Order this drop** while orderable. Both lead to that specific event's Order page. Ended events leave listings; old direct links show an ended state with upcoming-drop and Cebu links.
@@ -65,22 +65,22 @@ Label delivery times **Delivery dispatch window**, explaining that arrival depen
 
 ### Step 3: Details, review, and submit
 
-- Require customer name and mobile number. Delivery additionally requires address. No email, account creation, or payment-method selector.
+- Require customer name and mobile number. Delivery additionally requires address. No email, account creation, or payment-method selector. Payment status is unpaid, paid, or refunded. There is no require-full-payment switch; big-order full payment is handled in chat.
 - Optional order notes, maximum 500 characters. No add-on customization fields.
 - Show an editable complete summary at the bottom of this step: lines, package contents, add-ons, quantities, unit prices, subtotal, fulfillment date/window/method, customer details, and delivery fee state.
-- Pickup shows the final total. Delivery shows **Delivery fee: to be confirmed** and **Final total pending delivery fee** until the owner supplies it. Zero is a valid confirmed fee.
+- Pickup shows the final total. Delivery shows **Delivery fee: to be confirmed in chat** and **Final total pending delivery fee** until the owner sets a known fee or marks it **paid to rider**. Zero is a valid confirmed fee. **Paid to rider** means the customer pays the rider directly; no amount is recorded and the fee is excluded from the order total.
 - Edit links return to the relevant section while preserving entered work.
-- Include a short privacy notice beside Submit, linked to the full policy: contact details are used for fulfillment and removed when completed/cancelled. No extra checkbox solely for this notice. Full policy must also describe retained transaction records consistently.
+- Include a short privacy notice beside Submit, linked to the full policy: contact details are used for fulfillment and removed immediately when completed/cancelled. No extra checkbox solely for this notice. The public Privacy and Terms pages must state this immediate removal, not a 30-day retention period, and must also describe retained transaction records consistently.
 - On submit, disable duplicate clicks and display progress, but rely on backend idempotency for correctness.
 - A price-change response shows updated prices/total and requires review and a new submission attempt. Do not accept the new price silently.
 - Stock/eligibility errors keep cart/details and identify offerings needing adjustment. A last-stock race must never show success for a rejected order.
 
 ### Success, chat, and recovery
 
-- Only show success after the database confirms the order committed. Show its number and **Order received—awaiting confirmation in chat**.
-- **Copy number & open Instagram** copies only the number and opens the shared DM link. Provide a separate Copy number control and a fallback if clipboard/Instagram opening fails. Customers paste and send the number themselves.
-- Explain that staff confirm fulfillment, arrange payment, and settle delivery fees in chat. No online payment or public status lookup.
-- Customers request changes/cancellation in chat, quoting the number. Staff update admin.
+- Only show success after the database confirms the order committed. Show its number and **Order received—awaiting confirmation in chat**. When the backend reports `submittedAfterHours`, also show that the shop will reply in chat the next morning.
+- **Copy number & open Instagram** and **Copy number & open Messenger** each copy only the number and open the shared shop link. Hide a button if its link is empty. Provide a separate Copy number control and the same clipboard fallback if copying or opening a link fails. Customers paste and send the number themselves.
+- Explain that staff confirm fulfillment, arrange payment, and settle delivery fees in Instagram or Messenger. The delivery fee may be paid directly to the rider. No online payment, public status lookup, customer order-status page, or customer-visible cancel reason; cancellations are explained in chat.
+- Customers request changes or cancellation in Instagram or Messenger, quoting the number. Staff update the order in admin. Customers cannot edit their own order.
 - Persist pies/packages, add-ons, quantities, location/event, and schedule on that browser; revalidate on return. Do **not** persist name, phone, delivery address, or notes in local/session storage. In-memory details survive ordinary validation/request errors.
 - After successful submission, clear that cart and remember only the latest success number needed to recover the success display after refresh. Do not provide unauthenticated customer/order details by number. The internal idempotency metadata needed to recover an ambiguous request must not retain personal payloads in browser storage.
 - A connection failure says the order could not be confirmed and allows retry with the **same** intended submission key. Never imply definite failure if the save may already have committed. Changed order content uses a new key only after resolving an ambiguous prior attempt.
@@ -88,7 +88,7 @@ Label delivery times **Delivery dispatch window**, explaining that arrival depen
 
 ## 4. Admin navigation and pages
 
-Admin pages: **Orders, Products, Add-ons, Schedules, Drops, Storefront, Settings**. Orders is the post-login landing page. No separate analytics dashboard.
+Admin pages: **Orders, Products, Add-ons, Schedules, Drops, Storefront, Settings**. Orders is the post-login landing page. No separate analytics dashboard or Kitchen page; Daily lineup, on Orders, is the per-date packing and baking summary.
 
 ### Login and shared account behavior
 
@@ -99,18 +99,18 @@ Admin pages: **Orders, Products, Add-ons, Schedules, Drops, Storefront, Settings
 
 ### Orders
 
-**Main split view:** list on left, selected order on right. List shows number/submission time, customer name until anonymized, pickup/delivery, fulfillment date/window, order/payment status, and total or delivery-fee-pending subtotal.
+**Main split view:** list on left, selected order on right. List shows number/submission time, customer name until anonymized, pickup/delivery, fulfillment date/window, order/payment status, and total, delivery-fee-pending subtotal, or paid-to-rider total.
 
 - Default **Needs attention**, plus **Today** and **All orders** views with counts. Search number and filter location, date, order/payment status, and fulfillment method. Pagination and filter results come from backend queries, not only loaded rows.
 - Private Realtime updates, no polling. Fetch on entry/reconnect, show Reconnecting when disconnected, and reconcile current results on events. Do not overwrite unsaved form edits with background updates; surface a stale-record warning.
 - New-order notifications are visible and open the relevant order when clicked. Sound is off by default, optional, and remembered per device. No closed-site background alerts.
-- Separate **Confirm order**, **Complete order**, and **Cancel order** actions with backend prerequisites. Complete/cancel dialogs explicitly warn that personal details are permanently removed. Paid cancellations require recording the refund first.
+- Separate **Confirm order**, **Complete order**, and **Cancel order** actions with backend prerequisites. Confirming a delivery order requires a known fee or **customer pays rider**. Complete/cancel dialogs explicitly warn that personal details are permanently removed. Paid cancellations require recording the refund first.
 - Completed/cancelled content is read-only and displays an anonymized state. Mark refunded remains available for completed orders.
 
 **POS-style new/edit Sheet:** shadcn Sheet slides in from the right; desktop width 80vw capped at **1440px**, full width on phones.
 
 - Left: searchable/category-organized allowed pies/packages and add-ons, size selection, and quantity controls.
-- Right: order summary, quantities, editable prices, delivery fee, subtotal/final total. Keep Save changes/Create order and Discard controls visible.
+- Right: order summary, quantities, editable prices, delivery fee (a known amount including zero, or **customer pays rider**), subtotal/final total. Keep Save changes/Create order and Discard controls visible.
 - Collapsible **Order details** contains customer fields, pickup/delivery, date/window, and notes. All changes save together.
 - Existing lines preserve snapshot prices; additions use current applicable prices. Display explicit overrides and live provisional totals; backend recalculates on save.
 - Availability overrides require warning/confirmation. Never offer stock-limit bypass or package substitutions. Preserve fixed package contents and source drop identity.
@@ -145,7 +145,7 @@ Admin pages: **Orders, Products, Add-ons, Schedules, Drops, Storefront, Settings
 
 - Split searchable list/editor, grouped Draft, Published, Ended.
 - Event editor sections: location/name; pickup address/map; pickup/delivery; dated ordering hours and pickup/dispatch windows; offerings; daily allocations; add-ons; preview/lifecycle actions.
-- Same-day ordering is clearly explained; each date has its own opening/cutoff and allocation. Default the lineup across dates, with per-date exclusions.
+- Same-day ordering is clearly explained; drop stock is planned and baked ahead. Each date has its own opening/cutoff and allocation. Default the lineup across dates, with per-date exclusions.
 - Package editor selects exact sizes/quantities and shows component imagery. Price initially sums components but is editable/fixed afterward. Show contents locked once ordered; create another offering for another combination.
 - Individual offerings have fixed prices; per-order maximums are separate for every offering. Explain that customers can place additional orders and that limits are not per person.
 - Daily allocation grid shows allocated, committed, remaining. Reject lowering below committed stock and handle stale updates. Explain pending orders already consume allocation.
@@ -160,7 +160,7 @@ Use clear sections/tabs for **Theme, Featured pies, Menu sections, Pop-ups, Link
 - **Theme:** choose an installed theme, then Save changes to publish. Preview opens a protected new tab with a **Previewing [theme]—not published** banner. Preview supports browsing but disables all order submissions and never changes visitors' published theme.
 - **Featured pies:** ranked list can exceed four; reorder with drag/drop and up/down. Explain the first-four-eligible rule and fallback filling; preview the current resolved four without changing the ranking.
 - **Menu sections:** name, optional note, sorting, weekdays. Explain weekdays apply to regular sizes; block deletion until products are reassigned.
-- **Pop-ups:** city, name, address/map, dates, hours, descriptive items. Informational only. Expired records remain editable; hide automatically from Find us.
+- **Pop-ups:** city, name, address/map, dates, hours, descriptive items. Informational only. Hide after the end date in Manila time (Asia/Manila). Expired records remain editable.
 - **Links:** shared Instagram/DM/Messenger. Regular-branch GrabFood/Foodpanda links live with branch settings; empty buttons are hidden. Validate URLs.
 - Every mutation explicitly saves and invalidates the relevant public cache. Visitors already browsing see changes on refresh/navigation, not a forced page replacement.
 
@@ -193,11 +193,11 @@ Begin only after the backend gate passes:
 - Direct Instagram links, plain Cebu links, multiple-drop picker, ended/unpublished links, selector URL changes, per-event cart isolation, and no location-query leakage through unrelated navigation.
 - Cebu always visible in Find us; all-city upcoming drops, informational-only pop-ups, automatic event expiry, homepage remaining Cebu-focused, and first-four featured fallback.
 - Regular date/method/slot selection, unavailable collapsed section, seasonal hiding, mixed regular/preorder cart, date-change preservation, drop same-day preview/open/closed/sold-out states, package limits and immutable contents.
-- Order-level add-on quantities/icons; required details; no persistent personal browser data; editable final summary; delivery subtotal versus final total; no payment-method selection.
+- Order-level add-on quantities/icons; required details; no persistent personal browser data; editable final summary; delivery fee unknown versus known amount versus paid-to-rider; no payment-method selection.
 - Price-change review, stock-race rejection, ambiguous network failure/idempotent retry, no duplicate order on repeated click, successful cart clearing, and success-number recovery without public personal-data access.
-- Clipboard/open-Instagram failure fallback, pending-confirmation wording, dispatch versus arrival wording, and change/cancellation guidance.
+- Clipboard or open-Instagram/Messenger failure fallback, hidden empty chat buttons, pending-confirmation wording, after-hours next-morning reply, dispatch versus arrival wording, and change/cancellation guidance in Instagram or Messenger.
 - Real admin filtering/pagination, current selection across live changes, reconnect reconciliation, no polling, sound off by default, click-to-open notifications, and no overwritten unsaved work.
-- POS create/edit atomic save, quantity/price override behavior, stale-save handling, cancel/discard prompts, status/payment prerequisites, irreversible anonymization warning, terminal read-only state, and completed-order refund.
+- POS create/edit atomic save, quantity/price override behavior, delivery fee or customer-pays-rider control, stale-save handling, cancel/discard prompts, status/payment prerequisites including delivery confirm requiring a known fee or paid-to-rider, irreversible anonymization warning, terminal read-only state, and completed-order refund.
 - Drop publish prerequisites, duplicate resets, daily allocation/per-order limit distinction, sold-out competition, no substitution, and separate baking/packing summaries.
 - Protected theme preview isolation/no checkout; Save changes required; image fallback for each size/theme; no public theme-query override.
 - Recovery-key setup, real encrypted file save, first-visit-per-day behavior, denied/expired permissions, concurrent tabs, 14-day cleanup after success only, unsupported-browser/manual fallback, and no raw personal fields in decrypted test exports.
