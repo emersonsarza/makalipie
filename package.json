@@ -9,10 +9,16 @@
     "lint": "eslint",
     "test:catalog": "node --import tsx --test tests/catalog.test.ts",
     "test:branches": "node --import tsx --test tests/branches.test.ts",
-    "test:scheduling": "node --import tsx --test tests/scheduling.test.ts"
+    "test:scheduling": "node --import tsx --test tests/scheduling.test.ts",
+    "test:phase1": "node --env-file=.env.local --import tsx --test tests/phase1-database.test.ts tests/phase1-auth.test.ts",
+    "supabase:start": "supabase start",
+    "supabase:reset": "supabase db reset",
+    "supabase:env": "node scripts/write-local-env.mjs",
+    "allowlist-owner": "node --env-file=.env.local --import tsx scripts/allowlist-owner.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
+    "@supabase/supabase-js": "^2.119.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cn": "^0.4.0",
@@ -35,6 +41,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
+    "supabase": "^3.1.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5"

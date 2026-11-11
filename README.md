@@ -4,6 +4,8 @@ Marketing site for [Makalipie](https://www.instagram.com/makalipie/) — proudly
 
 The storefront is static. Catalog, hours, branches, and links live in `src/lib/catalog/seed-data.ts`. Customers copy an order message and open Instagram; the site does not save orders.
 
+Phase 1 also keeps a Supabase catalog and a server-only admin login beside that static site. The public pages do not read the database yet.
+
 ## Stack
 
 - Next.js App Router + TypeScript
@@ -21,9 +23,78 @@ npm run start    # serve the production build
 npm run lint
 ```
 
+## Environments
+
+| Place | Application | Database |
+| --- | --- | --- |
+| This computer | `npm run dev` | Local Supabase |
+| Sandbox | VPS, port 3006 | Hosted Supabase project in Singapore |
+| Production | Vercel | A separate hosted Supabase project, not created in phase 1 |
+
+The VPS is the sandbox app. Vercel is production. `sandbox` and `main` both deploy into the same folder on the VPS, `/srv/apps/makalipie`, so a push of either branch replaces whatever is running there. Phase 1 does not push and does not change that deploy.
+
+Server environment variables live in `.env.local`, which is gitignored:
+
+| Name | Purpose |
+| --- | --- |
+| `SUPABASE_URL` | Local or hosted Supabase URL |
+| `SUPABASE_PUBLISHABLE_KEY` | Publishable key. It cannot read application tables |
+| `SUPABASE_SECRET_KEY` | Server-only key. It bypasses row security |
+
+Do not commit the secret key, put it in `NEXT_PUBLIC_*`, or pass it as a Docker build argument.
+
+### Local database
+
+Docker has to be running.
+
+```bash
+npm run supabase:start
+npm run supabase:env
+npm run test:phase1
+```
+
+`npm run supabase:env` writes `.env.local` from the local Supabase keys. Create `nika@makalipie.com` in local Studio under Authentication, then allowlist that user:
+
+```bash
+npm run allowlist-owner
+```
+
+For a local database only, `OWNER_PASSWORD` in `.env.local` lets that command create the user. The password stays in Supabase. A forgotten password is reset in the Supabase dashboard by a developer. There is no reset email. If the user is deleted and created again, run `npm run allowlist-owner` so the new id is allowlisted.
+
+There is no login page in this phase. The frontend will later call:
+
+- `POST /api/admin/session`
+- `GET /api/admin/session`
+- `POST /api/admin/session/refresh`
+- `POST /api/admin/session/logout`
+- `POST /api/admin/session/password`
+
+The refresh token is only in an httpOnly cookie. The response carries a short-lived access token for the browser to hold in memory.
+
+### Hosted sandbox
+
+Create one Supabase project and choose the Singapore region. Do not create the production project in this phase, and do not put real customer data in the sandbox.
+
+1. Put that project's URL and keys in `.env.sandbox`, using the same three names. That file is gitignored.
+2. Link this repo and apply the migration and seed:
+
+```bash
+npx supabase link --project-ref <project-ref>
+npx supabase db push
+npx supabase db query --remote --file supabase/seed.sql --yes
+```
+
+3. Create `nika@makalipie.com` in that project's Authentication dashboard.
+4. Allowlist the user and run the same checks against the hosted project:
+
+```bash
+node --env-file=.env.sandbox --import tsx scripts/allowlist-owner.ts
+node --env-file=.env.sandbox --import tsx --test tests/phase1-database.test.ts tests/phase1-auth.test.ts
+```
+
 ## Deploy (VPS)
 
-Push to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), which SSHs into the VPS and runs `/srv/apps/makalipie/deploy.sh` (git pull + `docker compose up -d --build`).
+A push to `main` or `sandbox` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), which SSHs into the VPS and runs `/srv/apps/makalipie/deploy.sh` (git pull + `docker compose up -d --build`). Both branches deploy into that same folder.
 
 Uses the same secrets as TBott:
 
