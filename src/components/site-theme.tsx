@@ -1,63 +1,44 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense, useLayoutEffect, useSyncExternalStore, type ComponentProps } from "react";
-import { isCustomerPath, resolveSiteTheme, syncThemeIcons, themedHref, type SiteTheme } from "@/lib/site-theme";
+import { usePathname } from "next/navigation";
+import { createContext, useContext, useLayoutEffect, type ComponentProps, type ReactNode } from "react";
+import { isCustomerPath, syncThemeIcons, type SiteTheme } from "@/lib/site-theme";
 
-const themeEvent = "makalipie:theme";
-function subscribe(listener: () => void) {
-  window.addEventListener(themeEvent, listener);
-  window.addEventListener("popstate", listener);
-  return () => {
-    window.removeEventListener(themeEvent, listener);
-    window.removeEventListener("popstate", listener);
-  };
-}
-function snapshot(): SiteTheme {
-  return resolveSiteTheme(new URLSearchParams(window.location.search).get("theme"));
-}
-function serverSnapshot(): SiteTheme { return "christmas"; }
-export function useSiteTheme() { return useSyncExternalStore(subscribe, snapshot, serverSnapshot); }
+const ThemeContext = createContext<{ theme: SiteTheme; preview?: boolean }>({ theme: "christmas" });
+export function useSiteTheme() { return useContext(ThemeContext).theme; }
 
 function applyTheme(theme: SiteTheme) {
-  const resolved = isCustomerPath(location.pathname) ? theme : "original";
-  document.documentElement.dataset.siteTheme = resolved;
-  syncThemeIcons(resolved);
-  window.dispatchEvent(new Event(themeEvent));
+  document.documentElement.dataset.siteTheme = theme;
+  syncThemeIcons(theme);
 }
 
-function ThemeSync() {
+export function SiteThemeController({ theme, children }: { theme: SiteTheme; children: ReactNode }) {
   const pathname = usePathname();
-  const params = useSearchParams();
-  useLayoutEffect(() => { applyTheme(resolveSiteTheme(params.get("theme"))); }, [pathname, params]);
-  return null;
+  useLayoutEffect(() => {
+    if (pathname !== "/admin/storefront/preview") applyTheme(isCustomerPath(pathname) ? theme : "original");
+  }, [pathname, theme]);
+  return <ThemeContext.Provider value={{ theme }}>{children}</ThemeContext.Provider>;
 }
 
-export function SiteThemeController() {
-  return <Suspense fallback={null}><ThemeSync /></Suspense>;
+export function PreviewTheme({ theme, children }: { theme: SiteTheme; children: ReactNode }) {
+  useLayoutEffect(() => {
+    applyTheme(theme);
+    return () => applyTheme("original");
+  }, [theme]);
+  return <ThemeContext.Provider value={{ theme, preview: true }}>{children}</ThemeContext.Provider>;
 }
 
-/** A customer link that also works in menus, filters and new tabs. */
 export function ThemeLink({ href, ...props }: ComponentProps<typeof Link>) {
-  const theme = useSiteTheme();
-  const destination = typeof href === "string" ? themedHref(href, theme) : href;
-  return <Link {...props} href={destination} />;
-}
-
-export function ThemeSwitch() {
-  const theme = useSiteTheme();
-  function select(next: SiteTheme) {
-    const url = new URL(window.location.href);
-    url.searchParams.set("theme", next);
-    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-    applyTheme(next);
+  const { theme, preview } = useContext(ThemeContext);
+  if (!preview) return <Link {...props} href={href} />;
+  if (typeof href !== "string") return <span className={props.className}>{props.children}</span>;
+  const url = new URL(href, "https://makalipie.invalid");
+  if (url.origin !== "https://makalipie.invalid" || !["/", "/menu"].includes(url.pathname)) {
+    return <span className={props.className} aria-disabled="true">{props.children}</span>;
   }
-  return <div className="theme-switch" role="group" aria-label="Theme">
-    <span className="theme-switch-label">Theme</span>
-    <div className="theme-switch-options">
-      <button type="button" aria-pressed={theme === "christmas"} onClick={() => select("christmas")}>Christmas</button>
-      <button type="button" aria-pressed={theme === "original"} onClick={() => select("original")}>Original</button>
-    </div>
-  </div>;
+  const params = new URLSearchParams({ theme });
+  if (url.pathname === "/menu") params.set("section", "menu");
+  if (url.searchParams.get("view") === "preorders") params.set("view", "preorders");
+  return <Link {...props} href={`/admin/storefront/preview?${params}${url.hash}`} />;
 }

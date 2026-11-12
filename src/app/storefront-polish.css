@@ -31,3 +31,17 @@
   .menu-catalog-page .catalog-title { flex-wrap: wrap; gap: 5px 10px; }
   .menu-catalog-page .catalog-title h3 { font-size: 19px; }
 }
+
+#desktop-find-menu { width: 280px; }
+
+.find-nav-group {
+  padding: 8px 12px 3px;
+  color: var(--brand-slate);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.mobile-drop-menu .find-nav-group { padding-inline: 0; }
+.find-nav-city { padding: 5px 12px 0; color: var(--brand-slate); font-size: 12px; font-weight: 700; }
+.mobile-drop-menu .find-nav-city { padding-inline: 0; }

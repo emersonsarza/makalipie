@@ -1,7 +1,7 @@
 import { themedMetadata, type SocialSearchParams } from "@/lib/social-metadata";
 import type { Metadata } from "next";
 
-import { OrderScreen } from "@/components/order-screen";
+import { OrderScreen, type OrderSearch } from "@/components/order-screen";
 
 const pageMetadata: Metadata = {
   title: "Order Tarts & Pies in Cebu",
@@ -31,6 +31,6 @@ export function generateMetadata({ searchParams }: { searchParams: Promise<Socia
   return themedMetadata(pageMetadata, "order", searchParams);
 }
 
-export default async function OrderPage({ searchParams }: { searchParams: Promise<{ branch?: string | string[]; product?: string | string[]; size?: string | string[] }> }) {
-  return <OrderScreen mode="regular" searchParams={searchParams} />;
+export default async function OrderPage({ searchParams }: { searchParams: Promise<OrderSearch> }) {
+  return <OrderScreen searchParams={searchParams} />;
 }

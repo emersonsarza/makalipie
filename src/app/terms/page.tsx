@@ -29,17 +29,17 @@ export default function TermsPage() {
       </LegalSection>
       <LegalSection n={2} title="Sending an order">
         <p>
-          Fill in the <Link href="/order">order form</Link>, copy it, and send it to us through <ChatLinks />. This website does not save the order. Copying the message does not reserve the pies.
+          Submit the <Link href="/order">order form</Link> to record your order and receive its number. Send that number through <ChatLinks /> so our team can confirm fulfillment and arrange payment.
         </p>
       </LegalSection>
       <LegalSection n={3} title="Confirmation">
         <p>
-          Sending the copied order does not confirm it. The order is final only when our team confirms it on Instagram or Messenger.
+          Submitting the form records your order as pending. It is confirmed when our team replies on Instagram or Messenger.
         </p>
       </LegalSection>
       <LegalSection n={4} title="Availability">
         <p>
-          The dates on the form are preferences. We confirm what we can bake when we reply. Messages sent outside business hours are read the next morning.
+          The website checks availability when you submit. We confirm fulfillment in chat. We reply to regular orders received outside business hours the next morning. Drops accept orders only during their announced ordering windows.
         </p>
       </LegalSection>
       <LegalSection n={5} title="Payment">
@@ -49,7 +49,7 @@ export default function TermsPage() {
       </LegalSection>
       <LegalSection n={6} title="Pickup and delivery">
         <p>
-          Manila is pickup only. Cebu can be pickup or delivery. We book the rider for delivery. You pay the delivery fee with your order or directly to the driver. A rider you send yourself counts as pickup. The pickup address is the one shown on the order form.
+          Pickup and delivery options depend on the branch or drop. We book the rider for delivery and confirm the fee in chat. A rider you send yourself counts as pickup. The order form shows your pickup address or delivery dispatch window.
         </p>
       </LegalSection>
       <LegalSection n={7} title="Courier responsibility">
@@ -59,7 +59,7 @@ export default function TermsPage() {
       </LegalSection>
       <LegalSection n={8} title="Changes">
         <p>
-          You cannot cancel an order yourself. Change requests are handled case by case in chat. You can ask to change the order or the pickup time until we confirm it, if we allow that change. Big pre-orders cannot be cancelled and must be paid in full before we start baking. Refund eligibility is described in our <Link href="/refund">Refund Policy</Link>.
+          You cannot cancel an order yourself. Send your order number in chat for changes or cancellation requests. You can ask to change the order or the pickup time until we confirm it, if we allow that change. Big pre-orders cannot be cancelled and must be paid in full before we start baking. Refund eligibility is described in our <Link href="/refund">Refund Policy</Link>.
         </p>
       </LegalSection>
       <LegalSection n={9} title="If we need to reschedule">
@@ -80,16 +80,19 @@ export default function TermsPage() {
           Our kitchen also handles nuts and gluten, so cross-contact is possible. Allergens for a specific pie stay on the menu and the order form.
         </p>
       </LegalSection>
-      <LegalSection n={13} title="Custom toppers">
-        <p>Available extras are shown at checkout, with their prices, preparation time, and message requirements.</p>
+      <LegalSection n={13} title="Optional extras">
+        <p>Available extras and their prices are shown at checkout.</p>
       </LegalSection>
       <LegalSection n={14} title="Complaints">
-        <p>For questions or complaints, contact us through <ChatLinks /> or email <a href="mailto:makalipie@gmail.com">makalipie@gmail.com</a>. Tell us what you ordered and the pickup date.</p>
+        <p>For questions or complaints, contact us through <ChatLinks /> or email <a href="mailto:makalipie@gmail.com">makalipie@gmail.com</a>. Include your order number if you have one.</p>
       </LegalSection>
       <LegalSection n={15} title="Governing law">
         <p>These terms are governed by the laws of the Philippines, with Cebu as the venue.</p>
       </LegalSection>
-      <LegalSection n={16} title="Changes to these terms">
+      <LegalSection n={16} title="Order records and privacy">
+        <p>We remove your contact details and order notes from the website immediately on completion or cancellation. We retain transaction records without those details, including the order number, items, amounts, fulfillment schedule, and order and payment statuses. See our <Link href="/privacy">Privacy Policy</Link>.</p>
+      </LegalSection>
+      <LegalSection n={17} title="Changes to these terms">
         <p>We may update these Terms and Conditions. The “Last updated” date at the top of this page identifies the current version.</p>
       </LegalSection>
     </LegalPage>

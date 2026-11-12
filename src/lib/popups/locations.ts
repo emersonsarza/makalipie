@@ -1,7 +1,9 @@
 import type { BranchRecord } from "../branches/schema";
 import { openPopups, type PopupListing } from "./schema";
 
-export type PublicLocations = { upcoming: PopupListing[]; recent: PopupListing[] };
+type PublicPopup = PopupListing & { city?: string };
+export type PublicLocations = { upcoming: PublicPopup[]; recent: PublicPopup[] };
+export const dropEventAnchor = (id: string) => `drop-event-${id}`;
 export const locationAnchor = (id: string) => `location-${id}`;
 
 const hiddenPopupIds = new Set(["mont-christmas-bazaar"]);
@@ -34,4 +36,13 @@ export function cleanLocationBranches(branches: BranchRecord[]) {
     name: branch.id === "cebu" ? "Cebu" : branch.name.replace(/\b(?:Makalipie|Main)\b/gi, "").replace(/\s+/g, " ").trim() || branch.id,
     visible: branch.id === "cebu" ? true : branch.id === "manila" ? false : branch.visible,
   }));
+}
+
+
+export function eventCountdown(today: string, start: string, end = start) {
+  if (today > end) return null;
+  const days = (Date.parse(start + "T00:00:00Z") - Date.parse(today + "T00:00:00Z")) / 86_400_000;
+  if (days <= 0) return "Today";
+  if (days === 1) return "Tomorrow";
+  return `${days} days to go`;
 }

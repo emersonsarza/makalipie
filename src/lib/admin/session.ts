@@ -202,6 +202,42 @@ function cookieIsSecure(request: Request): boolean {
   return new URL(request.url).protocol === "https:";
 }
 
+export type OwnerAccess = {
+  accessToken: string;
+  expiresAt: number;
+};
+
+export async function withOwner(
+  request: Request,
+  action: (session: OwnerAccess) => Promise<{ status: number; body: unknown }>,
+  options?: { mutation?: boolean },
+): Promise<Response> {
+  if (options?.mutation && !originAllowed(request)) return json(request, 403, { error: "forbidden_origin" });
+  const current = readCookie(request, REFRESH_COOKIE);
+  if (!current) return json(request, 401, { error: "unauthenticated" });
+  const refreshed = await createAuthClient().auth.refreshSession({ refresh_token: current });
+  const session = refreshed.data.session;
+  if (refreshed.error || !session?.user.email || !session.refresh_token) {
+    return json(request, 401, { error: "unauthenticated" }, null);
+  }
+  const allowed = await allowlisted(session.user.id);
+  if (allowed === "error") return json(request, 503, { error: "temporary_failure" }, session.refresh_token);
+  if (!allowed) {
+    if (session.access_token) await createServiceClient().auth.admin.signOut(session.access_token, "global");
+    return json(request, 401, { error: "unauthorized" }, null);
+  }
+  if (!session.access_token) return json(request, 503, { error: "temporary_failure" }, session.refresh_token);
+  try {
+    const result = await action({
+      accessToken: session.access_token,
+      expiresAt: typeof session.expires_at === "number" ? session.expires_at : Math.floor(Date.now() / 1000) + 3600,
+    });
+    return json(request, result.status, result.body, session.refresh_token);
+  } catch {
+    return json(request, 503, { error: "temporary_failure" }, session.refresh_token);
+  }
+}
+
 function json(request: Request, status: number, body: unknown, refreshToken?: string | null): Response {
   const headers = new Headers({ "cache-control": "no-store" });
   const secure = cookieIsSecure(request) ? "; Secure" : "";

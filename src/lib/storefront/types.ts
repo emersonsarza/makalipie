@@ -1,0 +1,94 @@
+export const DEFAULT_PRODUCT_IMAGE = { path: "/images/brand/hero.webp", alt: "Makalipie pies" } as const;
+export const THEMES = ["christmas", "original"] as const;
+export type ThemeName = (typeof THEMES)[number];
+
+export type StoreImage = { path: string; alt: string };
+export type StoreLocation = {
+  id: string;
+  kind: "regular" | "drop";
+  name: string;
+  address: string;
+  mapUrl: string;
+  hoursLabel: string;
+  visible: boolean;
+  pickupEnabled: boolean;
+  deliveryEnabled: boolean;
+  acceptingOrders: boolean;
+  grabFoodUrl: string;
+  foodpandaUrl: string;
+  updatedAt: string;
+};
+export type StoreSection = { id: string; name: string; note: string; sortOrder: number; weekdays: number[]; updatedAt: string };
+export type StoreThemeImage = { theme: ThemeName; path: string; alt: string };
+export type StoreSize = {
+  id: string;
+  label: string;
+  priceCentavos: number;
+  mode: "regular" | "preorder";
+  enabled: boolean;
+  sortOrder: number;
+  image: StoreImage | null;
+  themeImages: StoreThemeImage[];
+  branchIds: string[];
+};
+export type StoreProduct = {
+  id: string;
+  name: string;
+  shortDescription: string;
+  description: string;
+  allergens: string[];
+  sectionId: string;
+  enabled: boolean;
+  sortOrder: number;
+  image: StoreImage;
+  seasonStart: string | null;
+  seasonEnd: string | null;
+  themeImages: StoreThemeImage[];
+  updatedAt: string;
+  sizes: StoreSize[];
+};
+export type StoreAddOn = {
+  id: string;
+  name: string;
+  priceCentavos: number;
+  icon: string;
+  enabled: boolean;
+  sortOrder: number;
+  locationIds: string[];
+  updatedAt: string;
+};
+export type StoreSchedule = { locationId: string; enabled: boolean; opens: string; cutoff: string; weekdays: number[]; updatedAt: string };
+export type StoreOverride = { locationId: string; date: string; closed: boolean; opens: string | null; cutoff: string | null; updatedAt: string };
+export type StorePopup = {
+  id: string;
+  locationId: string;
+  name: string;
+  address: string;
+  mapUrl: string;
+  startDate: string;
+  endDate: string;
+  hours: string;
+  items: string[];
+  updatedAt: string;
+};
+export type StoreSettings = {
+  theme: ThemeName;
+  bookingHorizonDays: number;
+  preorderLeadDays: number;
+  instagramUrl: string;
+  instagramDmUrl: string;
+  messengerUrl: string;
+  updatedAt: string;
+};
+export type StoreCatalog = {
+  revision: number;
+  settings: StoreSettings;
+  locations: StoreLocation[];
+  sections: StoreSection[];
+  products: StoreProduct[];
+  addOns: StoreAddOn[];
+  schedules: StoreSchedule[];
+  overrides: StoreOverride[];
+  featuredIds: string[];
+  popups: StorePopup[];
+};

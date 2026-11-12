@@ -1,7 +1,7 @@
 "use client";
 
 import { usePublicShop } from "@/components/public-shop-provider";
-import { locationAnchor } from "@/lib/popups/locations";
+import { dropEventAnchor, locationAnchor } from "@/lib/popups/locations";
 import { ArrowUpRight, ChevronDown, Menu, X } from "lucide-react";
 import { BrandSeal } from "@/components/brand-seal";
 import { ThemeLink as Link } from "@/components/site-theme";
@@ -15,7 +15,7 @@ const pieLinks = [
   { href: "/menu?view=preorders", label: "Pre-orders", view: "preorders" as const },
 ];
 
-type NavLink = { key: string; href: string; label: string; current?: boolean };
+type NavLink = { key: string; href: string; label: string; current?: boolean; group?: "Locations" | "Upcoming events"; city?: string };
 
 function scrollToHash(href: string, pathname: string, event: MouseEvent) {
   const hash = href.includes("#") ? href.slice(href.indexOf("#") + 1) : "";
@@ -25,6 +25,19 @@ function scrollToHash(href: string, pathname: string, event: MouseEvent) {
     event.preventDefault();
     document.getElementById(hash)?.scrollIntoView({ behavior: "smooth" });
   }
+}
+
+function NavLinks({ links, iconSize, scroll, onNavigate }: {
+  links: NavLink[]; iconSize: number; scroll?: boolean;
+  onNavigate?: (event: MouseEvent<HTMLAnchorElement>, href: string) => void;
+}) {
+  return links.map((link, index) => <div key={link.key}>
+    {link.group && link.group !== links[index - 1]?.group && <p className="find-nav-group">{link.group}</p>}
+    {link.city && link.city !== links[index - 1]?.city && <p className="find-nav-city">{link.city}</p>}
+    <Link href={link.href} scroll={scroll} aria-current={link.current ? "page" : undefined} onClick={event => onNavigate?.(event, link.href)}>
+      <span>{link.label}</span><ArrowUpRight size={iconSize} aria-hidden />
+    </Link>
+  </div>);
 }
 
 function NavDrop({
@@ -77,18 +90,7 @@ function NavDrop({
         {label} <ChevronDown size={14} aria-hidden />
       </button>
       <div id={id} className="nav-drop-menu" hidden={!open}>
-        {links.map((link) => (
-          <Link
-            key={link.key}
-            href={link.href}
-            scroll={scroll}
-            aria-current={link.current ? "page" : undefined}
-            onClick={(event) => onNavigate?.(event, link.href)}
-          >
-            <span>{link.label}</span>
-            <ArrowUpRight size={15} aria-hidden />
-          </Link>
-        ))}
+        <NavLinks links={links} iconSize={15} scroll={scroll} onNavigate={onNavigate} />
       </div>
     </div>
   );
@@ -101,26 +103,27 @@ export function SiteHeader({ menuView }: { menuView?: "menu" | "preorders" }) {
   const [mobilePiesOpen, setMobilePiesOpen] = useState(false);
   const [mobileFindOpen, setMobileFindOpen] = useState(false);
   const [hash, setHash] = useState("");
+  const [placeSelection, setPlaceSelection] = useState(0);
   const pathname = usePathname();
   const toggle = useRef<HTMLButtonElement>(null);
   const piesTrigger = useRef<HTMLButtonElement>(null);
   const findTrigger = useRef<HTMLButtonElement>(null);
+  const events = [
+    ...(shop.locations?.upcoming ?? []).map(popup => ({
+      key: locationAnchor(popup.id), label: popup.name, date: popup.startDate, open: false,
+      city: popup.city || (/\bCebu\b/i.test(popup.address) ? "Cebu" : "Other locations"),
+    })),
+    ...(shop.upcomingDrops ?? []).map(drop => ({
+      key: dropEventAnchor(drop.id), label: drop.name, date: drop.nextDate, open: drop.ordering === "open", city: drop.city,
+    })),
+  ].sort((left, right) => Number(right.city === "Cebu") - Number(left.city === "Cebu")
+    || left.city.localeCompare(right.city) || Number(right.open) - Number(left.open)
+    || left.date.localeCompare(right.date) || left.label.localeCompare(right.label));
   const places = [
-    ...(shop.branches ?? []).filter((branch) => branch.visible && branch.id === "cebu").map((branch) => ({
-      key: branch.id,
-      href: `/#${locationAnchor(branch.id)}`,
-      label: branch.id === "cebu" ? "Makalipie Cebu" : branch.name,
+    ...(shop.branches ?? []).filter(branch => branch.visible && branch.id === "cebu").map(branch => ({
+      key: locationAnchor(branch.id), label: "Makalipie Cebu", group: "Locations" as const,
     })),
-    ...(shop.locations?.upcoming ?? []).map((popup) => ({
-      key: popup.id,
-      href: `/#${locationAnchor(popup.id)}`,
-      label: popup.name,
-    })),
-    ...(shop.locations?.recent ?? []).map((popup) => ({
-      key: popup.id,
-      href: `/#${locationAnchor(popup.id)}`,
-      label: popup.name,
-    })),
+    ...events.map(event => ({ ...event, group: "Upcoming events" as const })),
   ];
   useEffect(() => {
     const sync = () => setHash(window.location.hash);
@@ -128,6 +131,28 @@ export function SiteHeader({ menuView }: { menuView?: "menu" | "preorders" }) {
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
   }, [pathname]);
+  useEffect(() => {
+    if (pathname !== "/" || (!hash.startsWith("#location-") && !hash.startsWith("#drop-event-"))) return;
+    const card = document.getElementById(hash.slice(1));
+    if (!card?.matches("article.location-anchor")) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const header = document.querySelector(".brand-header")?.getBoundingClientRect().height ?? 0;
+    let clearHighlight: number | undefined;
+    const observer = new IntersectionObserver(entries => {
+      if (!entries.some(entry => entry.isIntersecting && entry.intersectionRatio >= 0.15)) return;
+      observer.disconnect();
+      card.focus({ preventScroll: true });
+      card.setAttribute("data-find-highlight", "");
+      clearHighlight = window.setTimeout(() => card.removeAttribute("data-find-highlight"), 1200);
+    }, { rootMargin: `-${header}px 0px 0px`, threshold: 0.15 });
+    observer.observe(card);
+    card.scrollIntoView({ behavior: reducedMotion ? "instant" : "smooth", block: "start" });
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(clearHighlight);
+      card.removeAttribute("data-find-highlight");
+    };
+  }, [hash, pathname, placeSelection]);
   useEffect(() => {
     if (!open && !desktopMenu) return;
     const close = (event: KeyboardEvent) => {
@@ -161,12 +186,20 @@ export function SiteHeader({ menuView }: { menuView?: "menu" | "preorders" }) {
   }));
   const placeItems: NavLink[] = places.map((place) => ({
     ...place,
-    current: pathname === "/" && hash === `#${locationAnchor(place.key)}`,
+    href: `/#${place.key}`,
+    current: pathname === "/" && hash === `#${place.key}`,
   }));
   const findCurrent = placeItems.some((place) => place.current);
   const goToPlace = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
-    scrollToHash(href, pathname, event);
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    setDesktopMenu(null);
     closeMobile();
+    if (pathname !== "/") return;
+    event.preventDefault();
+    const nextHash = href.slice(href.indexOf("#"));
+    if (window.location.hash !== nextHash) window.history.pushState(null, "", nextHash);
+    setHash(nextHash);
+    setPlaceSelection(selection => selection + 1);
   };
 
   return (
@@ -205,6 +238,7 @@ export function SiteHeader({ menuView }: { menuView?: "menu" | "preorders" }) {
             triggerRef={findTrigger}
             current={findCurrent}
             links={placeItems}
+            scroll={false}
             onNavigate={goToPlace}
             underline={false}
           />
@@ -277,17 +311,7 @@ export function SiteHeader({ menuView }: { menuView?: "menu" | "preorders" }) {
             <ChevronDown size={20} aria-hidden />
           </button>
           <div id="mobile-find-menu" className="mobile-drop-menu" hidden={!mobileFindOpen}>
-            {placeItems.map((link) => (
-              <Link
-                key={link.key}
-                href={link.href}
-                aria-current={link.current ? "page" : undefined}
-                onClick={(event) => goToPlace(event, link.href)}
-              >
-                {link.label}
-                <ArrowUpRight size={18} aria-hidden />
-              </Link>
-            ))}
+            <NavLinks links={placeItems} iconSize={18} scroll={false} onNavigate={goToPlace} />
           </div>
           <Link
             href={storyLink.href}

@@ -22,10 +22,10 @@ export function socialImageMetadata(page: SocialPage, theme: SiteTheme = "christ
   };
 }
 
-export async function themedMetadata(base: Metadata, page: SocialPage, searchParams: Promise<SocialSearchParams>): Promise<Metadata> {
+export async function themedMetadata(base: Metadata, page: SocialPage, searchParams: Promise<SocialSearchParams>, publishedTheme?: SiteTheme): Promise<Metadata> {
   const params = await searchParams;
   const value = Array.isArray(params.theme) ? params.theme[0] : params.theme;
-  const theme = resolveSiteTheme(value ?? null);
+  const theme = publishedTheme ?? resolveSiteTheme(value ?? null);
   const image = socialImageMetadata(page, theme);
   const title = typeof base.title === "string" ? `${base.title} · Makalipie` : "Makalipie | Handcrafted Tarts & Pies in Cebu";
   const description = base.description ?? site.description;
@@ -33,7 +33,7 @@ export async function themedMetadata(base: Metadata, page: SocialPage, searchPar
   const url = typeof canonical === "string" || canonical instanceof URL ? canonical : page === "home" ? "/" : `/${page}`;
   const identity = new URL(base.openGraph?.url ?? url, "https://preview.invalid");
   identity.search = "";
-  identity.searchParams.set("theme", theme);
+  if (!publishedTheme) identity.searchParams.set("theme", theme);
   if (page === "menu" && params.view === "preorders") identity.searchParams.set("view", "preorders");
   const shareUrl = `${identity.pathname}${identity.search}`;
   return {

@@ -29,7 +29,7 @@ export default function PrivacyPage() {
       </LegalSection>
       <LegalSection n={2} title="Information we collect">
         <p>
-          This website does not receive or store your order. The form stays in your browser until you copy it and send it through <ChatLinks />. That message can include your name, phone number, delivery address, pies, date, time, and notes. Instagram or Messenger then holds the chat under its own terms.
+          When you submit an order, we record your name, mobile number, delivery address if needed, optional notes, and order details. The browser keeps cart selections and scheduling information for convenience. Contact details and notes are kept in the form only while you work on it. You can send the order number through <ChatLinks /> to discuss the order.
         </p>
       </LegalSection>
       <LegalSection n={3} title="Payment credentials">
@@ -46,7 +46,7 @@ export default function PrivacyPage() {
         <p>We don’t send marketing messages after an order.</p>
       </LegalSection>
       <LegalSection n={6} title="Access to your information">
-        <p>The Makalipie team who reply to your chat can see that conversation.</p>
+        <p>Authorized Makalipie staff can see your order details while fulfilling your order. Staff who reply to your chat can also see that conversation.</p>
       </LegalSection>
       <LegalSection n={7} title="Third parties">
         <p>
@@ -54,7 +54,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
       <LegalSection n={8} title="Retention">
-        <p>This website does not keep a copy of your order. The details live in the chat you send us.</p>
+        <p>We remove your name, mobile number, delivery address, and order notes from the website immediately when the order is completed or cancelled. We retain transaction records without those details, including the order number, items, amounts, fulfillment schedule, and order and payment statuses. Chat messages are retained separately under the platform’s policies.</p>
       </LegalSection>
       <LegalSection n={9} title="Your rights">
         <p>

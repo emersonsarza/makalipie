@@ -1,5 +1,4 @@
 "use client";
-import { ThemeSwitch } from "@/components/site-theme";
 import { VisibleBranches } from "@/components/customer-policy";
 import { usePublicShop } from "@/components/public-shop-provider";
 import { ArrowUpRight } from "lucide-react";
@@ -44,21 +43,20 @@ export function SiteFooter({ showCta = true }: { showCta?: boolean }) {
           <div>
             <p className="eyebrow">SAY HELLO</p>
             {shop.links.messenger && <a href={shop.links.messenger} target="_blank" rel="noreferrer">{shop.links.messenger.includes("facebook.com")?"Facebook":"Messenger"} <ArrowUpRight size={14} aria-hidden /></a>}
-            <a href={shop.links.instagram} target="_blank" rel="noreferrer">
+            {shop.links.instagram && <a href={shop.links.instagram} target="_blank" rel="noreferrer">
               @makalipie <ArrowUpRight size={14} aria-hidden />
-            </a>
-            <a href={shop.links.instagramDm} target="_blank" rel="noreferrer">
+            </a>}
+            {shop.links.instagramDm && <a href={shop.links.instagramDm} target="_blank" rel="noreferrer">
               Gifts & gatherings <ArrowUpRight size={14} aria-hidden />
-            </a>
-            <a href={shop.links.grabFood} target="_blank" rel="noreferrer">
+            </a>}
+            {shop.links.grabFood && <a href={shop.links.grabFood} target="_blank" rel="noreferrer">
               Order on Grab <ArrowUpRight size={14} aria-hidden />
-            </a>
-            <a href={shop.links.foodpanda} target="_blank" rel="noreferrer">
+            </a>}
+            {shop.links.foodpanda && <a href={shop.links.foodpanda} target="_blank" rel="noreferrer">
               Order on Foodpanda <ArrowUpRight size={14} aria-hidden />
-            </a>
+            </a>}
           </div>
         </div>
-        <ThemeSwitch />
         <div className="footer-bottom">
           <span>© {new Date().getFullYear()} Makalipie</span>
           <span>Making people happy, one pie at a time.</span>

@@ -1,6 +1,8 @@
 import { themedMetadata, type SocialSearchParams } from "@/lib/social-metadata";
 import { menuSizes } from "@/lib/catalog/menu-view";
 import { customerSizeLabel } from "@/lib/catalog/size";
+import { readPublishedShop } from "@/lib/public/published-shop";
+import { menuFromShop } from "@/lib/public/storefront-view";
 import { staticPublicMenu } from "@/lib/public/static-shop";
 import type { Metadata } from "next";
 import { getSiteUrl } from "@/lib/site";
@@ -32,14 +34,15 @@ const pageMetadata: Metadata = {
   },
 };
 
-export function generateMetadata({ searchParams }: { searchParams: Promise<SocialSearchParams> }) {
-  return themedMetadata(pageMetadata, "menu", searchParams);
+export async function generateMetadata({ searchParams }: { searchParams: Promise<SocialSearchParams> }) {
+  return themedMetadata(pageMetadata, "menu", searchParams, (await readPublishedShop())?.theme);
 }
 
 export default async function MenuPage({ searchParams }: { searchParams: Promise<{ view?: string | string[] }> }) {
   const view = (await searchParams).view;
   const preorder = view === "preorders";
-  const { items: allItems, unavailable, sections } = staticPublicMenu();
+  const published = await readPublishedShop();
+  const { items: allItems, unavailable, sections } = published ? menuFromShop(published) : staticPublicMenu();
   const items = menuSizes(allItems, preorder);
   return (
     <SiteShell menuView={preorder ? "preorders" : "menu"}>

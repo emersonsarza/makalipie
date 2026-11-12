@@ -16,6 +16,11 @@ const tables = [
   "locations", "menu_sections", "products", "product_sizes", "product_theme_images", "size_theme_images",
   "size_branch_assignments", "add_ons", "add_on_locations", "branch_schedules", "schedule_date_overrides",
   "shop_settings", "featured_products", "popups", "admin_users", "login_attempts",
+  "storefront_revision", "storefront_snapshot",
+  "drop_revision", "drop_snapshot", "drops", "drop_dates", "drop_offerings",
+  "drop_package_components", "drop_offering_dates", "drop_addons",
+  "daily_order_sequences", "orders", "order_lines", "order_line_components", "order_addons", "order_idempotency",
+  "backup_keys",
 ];
 
 test("seed matches the phase 1 catalog", async () => {

@@ -1,7 +1,7 @@
 import { themedMetadata, type SocialSearchParams } from "@/lib/social-metadata";
 import type { Metadata } from "next";
 
-import { LegacyOrderRedirect } from "@/components/legacy-order-redirect";
+import { redirect } from "next/navigation";
 
 const pageMetadata: Metadata = {
   title: "Pre-order Tarts & Pies in Cebu",
@@ -31,6 +31,12 @@ export function generateMetadata({ searchParams }: { searchParams: Promise<Socia
   return themedMetadata(pageMetadata, "order", searchParams);
 }
 
-export default function PreorderPage() {
-  return <LegacyOrderRedirect />;
+export default async function PreorderPage({ searchParams }: { searchParams: Promise<SocialSearchParams> }) {
+  const params = await searchParams;
+  const query = new URLSearchParams();
+  for (const key of ["loc", "drop", "product", "size"]) {
+    const value = params[key];
+    if (typeof value === "string") query.set(key, value);
+  }
+  redirect(query.size ? `/order?${query}` : "/order");
 }

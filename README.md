@@ -2,9 +2,9 @@
 
 Marketing site for [Makalipie](https://www.instagram.com/makalipie/) — proudly Cebuana-made tarts and pies in Banilad, Cebu.
 
-The storefront is static. Catalog, hours, branches, and links live in `src/lib/catalog/seed-data.ts`. Customers copy an order message and open Instagram; the site does not save orders.
+The storefront uses the published Supabase catalog, branch hours, links, and drop lineup. Customers submit through `/order` and receive an order number to share with Makalipie in chat.
 
-Phase 1 also keeps a Supabase catalog and a server-only admin login beside that static site. The public pages do not read the database yet.
+The server contracts for the later frontend are in [BACKEND_HANDOFF.md](BACKEND_HANDOFF.md). Local Supabase already serves catalog, drops, orders, owner events, and encrypted export. The public pages do not read that database yet.
 
 ## Stack
 
@@ -50,8 +50,10 @@ Docker has to be running.
 ```bash
 npm run supabase:start
 npm run supabase:env
-npm run test:phase1
+npm run test:handoff
 ```
+
+`npm run test:handoff` runs the phase 1 through phase 6 checks. The route list is in [BACKEND_HANDOFF.md](BACKEND_HANDOFF.md).
 
 `npm run supabase:env` writes `.env.local` from the local Supabase keys. Create `nika@makalipie.com` in local Studio under Authentication, then allowlist that user:
 
@@ -85,11 +87,16 @@ npx supabase db query --remote --file supabase/seed.sql --yes
 ```
 
 3. Create `nika@makalipie.com` in that project's Authentication dashboard.
-4. Allowlist the user and run the same checks against the hosted project:
+4. Allowlist the user. This phase did not create the project and did not run the checks. When the sandbox exists, run all six phase scripts against it, using `--env-file=.env.sandbox` in place of `.env.local`:
 
 ```bash
 node --env-file=.env.sandbox --import tsx scripts/allowlist-owner.ts
 node --env-file=.env.sandbox --import tsx --test tests/phase1-database.test.ts tests/phase1-auth.test.ts
+node --env-file=.env.sandbox --import tsx --test --test-concurrency=1 tests/phase2-eligibility.test.ts tests/phase2-catalog.test.ts
+node --env-file=.env.sandbox --import tsx --test --test-concurrency=1 tests/phase3-drops.test.ts
+node --env-file=.env.sandbox --import tsx --test --test-concurrency=1 tests/phase4-orders.test.ts
+node --env-file=.env.sandbox --import tsx --test --test-concurrency=1 tests/phase5-realtime.test.ts
+node --env-file=.env.sandbox --import tsx --test --test-concurrency=1 tests/phase6-backups.test.ts
 ```
 
 ## Deploy (VPS)
@@ -137,7 +144,8 @@ Changing `NEXT_PUBLIC_*` requires a rebuild. `docker compose up -d --build` cove
 
 - Home: hero, menu teaser, story, visit, how to order
 - `/menu` full catalog with prices
-- `/order` form → copy summary → Instagram DM
-- Kiosk: 2nd Floor, Streetscape, Banilad — daily 10AM–8PM
+- `/order` for Cebu, visible branches, and event-specific drop checkout
+- `/order/status` for the latest confirmation on this browser
+- Kiosk: address and hours from the Cebu branch settings
 - Buko pie bestseller: Fri–Sun via Instagram DM
 - Sunday Market: Butter Chicken Curry pie ~7AM–3PM

@@ -43,12 +43,10 @@ html[data-site-theme="christmas"] .site-shell {
     color: var(--brand-white);
   }
   :is(a, button, input, textarea, select, summary):focus-visible {
-    outline-color: var(--holiday-red);
+    outline-color: var(--checkout-accent, var(--holiday-red));
   }
 }
 html[data-site-theme="christmas"]:has(.site-shell) {
-  .mobile-lineup-continue.brand-button { background: var(--primary); color: var(--primary-foreground); }
-  .mobile-lineup-continue.brand-button:hover,
   [data-slot="button"].bg-primary:not(:disabled):hover { background: #6f1e17; }
 }
 

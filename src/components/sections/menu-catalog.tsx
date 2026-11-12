@@ -262,7 +262,7 @@ export function MenuCatalog({
           <p className="eyebrow">FROM OUR KITCHEN TO YOUR TABLE</p>
           <h2>Picked your favourites?</h2>
           <p>
-            Choose a branch and date, then copy your order and send it through{" "}
+            Choose a branch and date, submit your order, then send the order number through{" "}
             <ChatLinks /> so we can confirm the details.
           </p>
           <Link href="/order" className="brand-button">
@@ -270,31 +270,31 @@ export function MenuCatalog({
           </Link>
         </div>
         <div className="menu-order-details">
-          <div>
+          {(shop.links.grabFood || shop.links.foodpanda) && <div>
             <span>Prefer Grab or Foodpanda?</span>
             <p>
               Open our store in the app. Prices, delivery fees, and availability
               are set on the platform.
             </p>
             <div className="delivery-app-actions">
-              <a
+              {shop.links.grabFood && <a
                 href={shop.links.grabFood}
                 target="_blank"
                 rel="noreferrer"
                 className="brand-button outline-button"
               >
                 Order on Grab <ArrowUpRight size={16} aria-hidden />
-              </a>
-              <a
+              </a>}
+              {shop.links.foodpanda && <a
                 href={shop.links.foodpanda}
                 target="_blank"
                 rel="noreferrer"
                 className="brand-button outline-button"
               >
                 Order on Foodpanda <ArrowUpRight size={16} aria-hidden />
-              </a>
+              </a>}
             </div>
-          </div>
+          </div>}
           <div>
             <span>Taking it home</span>
             <VisibleBranches />
@@ -305,8 +305,7 @@ export function MenuCatalog({
               {shop.deliveryAvailable
                 ? "In Cebu, choose pickup or delivery. We book the rider, and you pay the delivery fee with your order or directly to the driver."
                 : "Delivery is not currently offered."}{" "}
-              You can also book your own courier; choose Pickup. Manila, when
-              offered, is pickup only.
+              You can also book your own courier; choose Pickup. Drop fulfillment options are listed on each event.
               <br />
               Use the pickup address shown on the order form.
             </p>
@@ -315,10 +314,8 @@ export function MenuCatalog({
             <span>Something we should know?</span>
             <p>
               Our kitchen also handles nuts and gluten, so cross-contact is
-              possible. For allergies or dietary questions,{" "}
-              <a href={shop.links.instagramDm} target="_blank" rel="noreferrer">
-                talk to us
-              </a>{" "}
+              possible. For allergies or dietary questions, contact{" "}
+              <ChatLinks />{" "}
               before you send your order.
             </p>
           </div>

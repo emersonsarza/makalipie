@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode, type RefObject } from "react";
 import { ChevronUp } from "lucide-react";
 import { Sheet, SheetTrigger, SheetContent, SheetTitle, SheetDescription, SheetClose } from "@/components/ui/sheet";
-import { formatPrice } from "@/lib/site";
 
-export function MobileLineup({ count, subtotal, children }: { count: number; subtotal: number; children: ReactNode }) {
+export function MobileLineup({ count, amount, totalLabel, fallbackFocus, children }: {
+  count: number;
+  amount: string;
+  totalLabel: "Total" | "Subtotal";
+  fallbackFocus: RefObject<HTMLElement | null>;
+  children: ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const [keyboard, setKeyboard] = useState(false);
   useEffect(() => {
@@ -28,24 +33,20 @@ export function MobileLineup({ count, subtotal, children }: { count: number; sub
       document.removeEventListener("focusout", detectKeyboard);
     };
   }, []);
-  useEffect(() => {
-    if (count === 0) setOpen(false);
-  }, [count]);
-  const summary = `${count} ${count === 1 ? "pc" : "pcs"} · ${formatPrice(subtotal)}`;
-  return <>
-    {count > 0 ? <Sheet open={open} onOpenChange={setOpen}>
-    <div className="mobile-lineup-bar" hidden={keyboard}>
+  const summary = `${count} ${count === 1 ? "item" : "items"} · ${amount}`;
+  return <Sheet open={open} onOpenChange={setOpen}>
+    {count > 0 && <div className="mobile-lineup-bar" hidden={keyboard}>
       <SheetTrigger className="mobile-lineup-trigger">
-        <span><small>Subtotal</small><strong>{summary}</strong></span>
-        <span>View order <ChevronUp size={18} aria-hidden /></span>
+        <span><small>{totalLabel}</small><strong>{summary}</strong></span>
+        <span>View lineup <ChevronUp size={18} aria-hidden /></span>
       </SheetTrigger>
-    </div>
-    <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">{summary}</span>
-    <SheetContent side="bottom" className="mobile-lineup-sheet" showCloseButton={false}>
-      <header className="mobile-lineup-header"><div><SheetTitle>Your order</SheetTitle><SheetDescription>{count} {count === 1 ? "piece" : "pieces"} in your box</SheetDescription></div><SheetClose className="mobile-lineup-close">Close</SheetClose></header>
-      <div className="mobile-lineup-scroll">{count === 0 ? <p className="mobile-lineup-empty">Your box is waiting. Choose your favourite pies to get started.</p> : children}</div>
-      <footer className="mobile-lineup-footer"><div><span>Subtotal</span><strong>{formatPrice(subtotal)}</strong></div><SheetClose className="mobile-lineup-continue brand-button">Continue ordering</SheetClose></footer>
+    </div>}
+    <span className="sr-only" role="status" aria-atomic="true">{summary}</span>
+    <SheetContent side="bottom" className="mobile-lineup-sheet" showCloseButton={false}
+      finalFocus={() => count > 0 && !keyboard && window.matchMedia("(max-width: 959px)").matches ? true : fallbackFocus.current}>
+      <header className="mobile-lineup-header"><div><SheetTitle>Your order</SheetTitle><SheetDescription>{count} {count === 1 ? "item" : "items"} in your lineup</SheetDescription></div><SheetClose className="mobile-lineup-close">Close</SheetClose></header>
+      <div className="mobile-lineup-scroll">{count === 0 ? <p className="mobile-lineup-empty">Your lineup is empty.</p> : children}</div>
+      <footer className="mobile-lineup-footer"><div><span>{totalLabel}</span><strong>{amount}</strong></div><SheetClose className="mobile-lineup-continue">Continue ordering</SheetClose></footer>
     </SheetContent>
-  </Sheet> : <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">{summary}</span>}
-  </>;
+  </Sheet>;
 }
