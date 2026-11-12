@@ -3,7 +3,7 @@ import { createServiceClient } from "@/lib/admin/supabase";
 import { orderSourceLabel } from "@/lib/orders/query";
 import { z } from "zod";
 
-const orderIds = z.array(z.string().uuid()).min(1).max(100);
+const orderIds = z.array(z.string().uuid()).min(1).max(10);
 
 export function GET(request: Request) {
   return withOwner(request, async () => {

@@ -439,3 +439,31 @@
   .desktopStepLabel, .desktopActions { display: none; }
   .stepHeading h2 { scroll-margin-top: 4.5rem; }
 }
+
+.checkout .dateTrigger,
+.checkoutCalendar,
+.checkoutCalendar button {
+  border-radius: 4px;
+}
+
+.checkout .dateTrigger {
+  min-height: 44px;
+}
+
+.checkout .dateTrigger[aria-invalid="true"] {
+  border-color: #98352d;
+  box-shadow: none;
+}
+
+.checkoutCalendar {
+  --primary: #333235;
+  --primary-foreground: white;
+  --ring: #333235;
+  --accent: #ecebed;
+  --muted: #ecebed;
+  width: fit-content;
+  max-width: calc(100vw - 24px);
+  padding: 4px;
+}
+
+.checkoutCalendar :global(.rdp-root) { --cell-radius: 4px; }

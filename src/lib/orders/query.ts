@@ -2,7 +2,7 @@ import { manilaDate } from "../catalog/rules";
 import { createServiceClient } from "../admin/supabase";
 import { effectiveStatus } from "../drops/present";
 
-const pageSize = 25;
+const pageSize = 10;
 type Row = Record<string, unknown>;
 
 function text(value: unknown) {

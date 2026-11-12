@@ -64,6 +64,7 @@ const Notifications = createContext<{
   revision: number;
   sound: boolean;
   setSound: (enabled: boolean) => void;
+  markAllRead: () => void;
   desktop: { enabled: boolean; permission: NotificationPermission | "unsupported" } | null;
   requestingDesktop: boolean;
   desktopMessage: string;
@@ -171,11 +172,50 @@ export function OrderNotificationsProvider({ accountId, children }: { accountId:
     let disposed = false;
     let client: SupabaseClient | undefined;
     let timer: ReturnType<typeof setTimeout>;
+    let connecting = false;
+    let subscribed = false;
+    let retryScheduled = false;
+    let retryDelay = 1000;
+    let renewAt = 0;
+    let lastHeartbeat = 0;
+
+    function scheduleConnection(delay: number) {
+      clearTimeout(timer);
+      retryScheduled = false;
+      if (disposed || !navigator.onLine) return false;
+      timer = setTimeout(() => {
+        retryScheduled = false;
+        void connect();
+      }, delay);
+      return true;
+    }
+
+    function retryConnection() {
+      subscribed = false;
+      setConnected(false);
+      if (!retryScheduled && scheduleConnection(retryDelay)) {
+        retryScheduled = true;
+        retryDelay = Math.min(retryDelay * 2, 30_000);
+      }
+    }
+
+    function disconnectClient() {
+      const previous = client;
+      client = undefined;
+      if (previous) {
+        void previous.realtime.disconnect().catch(() => {});
+        void previous.removeAllChannels().catch(() => {});
+      }
+    }
 
     async function connect() {
+      if (disposed || connecting || !navigator.onLine) return;
+      connecting = true;
+      clearTimeout(timer);
+      retryScheduled = false;
       try {
         const token = await adminRequest<Token>("/api/admin/realtime/token?connection=1");
-        if (disposed) return;
+        if (disposed || !navigator.onLine) return;
         const key = "makalipie-order-notifications:" + token.url + ":" + accountId;
         if (storageKey.current !== key) {
           storageKey.current = key;
@@ -184,17 +224,27 @@ export function OrderNotificationsProvider({ accountId, children }: { accountId:
           try { soundEnabled.current = localStorage.getItem("makalipie-order-sound") === "on"; } catch {}
           setSoundState(soundEnabled.current);
         }
-        if (client) {
-          setConnected(false);
-          await client.removeAllChannels();
-          client.realtime.disconnect();
-          if (disposed) return;
-        }
-        client = createClient(token.url, token.publishableKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
-        await client.realtime.setAuth(token.accessToken);
-        if (disposed) return;
-        client.channel("orders", { config: { private: true } }).on("broadcast", { event: "order" }, ({ payload }) => {
-          if (disposed || typeof payload.orderId !== "string") return;
+        disconnectClient();
+        subscribed = false;
+        setConnected(false);
+        renewAt = token.expiresAt * 1000 - 30_000;
+        lastHeartbeat = Date.now();
+        const nextClient = createClient(token.url, token.publishableKey, {
+          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+          realtime: {
+            heartbeatCallback(status) {
+              if (disposed || client !== nextClient) return;
+              if (status === "ok") lastHeartbeat = Date.now();
+              if (status === "timeout" || status === "error") retryConnection();
+            },
+          },
+        });
+        client = nextClient;
+        await nextClient.realtime.setAuth(token.accessToken);
+        if (disposed || client !== nextClient) return;
+        scheduleConnection(12_000);
+        nextClient.channel("orders", { config: { private: true } }).on("broadcast", { event: "order" }, ({ payload }) => {
+          if (disposed || client !== nextClient || typeof payload.orderId !== "string") return;
           setRevision(value => value + 1);
           if (payload.changeType === "created" && !current.current.some(entry => entry.id === payload.orderId)) {
             const alreadyReceived = readEntries(key).some(entry => entry.id === payload.orderId);
@@ -205,17 +255,43 @@ export function OrderNotificationsProvider({ accountId, children }: { accountId:
             }
           }
         }).subscribe(status => {
-          if (disposed) return;
-          setConnected(status === "SUBSCRIBED");
-          if (status === "SUBSCRIBED") setRevision(value => value + 1);
+          if (disposed || client !== nextClient || !navigator.onLine) return;
+          if (status !== "SUBSCRIBED") {
+            retryConnection();
+            return;
+          }
+          subscribed = true;
+          retryDelay = 1000;
+          lastHeartbeat = Date.now();
+          setConnected(true);
+          setRevision(value => value + 1);
+          scheduleConnection(Math.max(1000, renewAt - Date.now()));
         });
-        timer = setTimeout(() => { void connect(); }, Math.max(1000, token.expiresAt * 1000 - Date.now() - 30_000));
       } catch {
-        if (!disposed) {
-          setConnected(false);
-          timer = setTimeout(() => { void connect(); }, 5000);
-        }
+        if (!disposed) retryConnection();
+      } finally {
+        connecting = false;
       }
+    }
+
+    function reconnectOnResume() {
+      if (document.visibilityState !== "visible" || connecting || !navigator.onLine) return;
+      const now = Date.now();
+      if (!subscribed || !client?.realtime.isConnected() || now >= renewAt || now - lastHeartbeat > 65_000) {
+        void connect();
+      }
+    }
+
+    function goOffline() {
+      clearTimeout(timer);
+      retryScheduled = false;
+      subscribed = false;
+      setConnected(false);
+    }
+
+    function goOnline() {
+      retryDelay = 1000;
+      void connect();
     }
 
     function sync(event: StorageEvent) {
@@ -226,12 +302,22 @@ export function OrderNotificationsProvider({ accountId, children }: { accountId:
     }
 
     window.addEventListener("storage", sync);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    window.addEventListener("focus", reconnectOnResume);
+    window.addEventListener("pageshow", reconnectOnResume);
+    document.addEventListener("visibilitychange", reconnectOnResume);
     void connect();
     return () => {
       disposed = true;
       window.removeEventListener("storage", sync);
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+      window.removeEventListener("focus", reconnectOnResume);
+      window.removeEventListener("pageshow", reconnectOnResume);
+      document.removeEventListener("visibilitychange", reconnectOnResume);
       clearTimeout(timer);
-      if (client) { void client.removeAllChannels(); client.realtime.disconnect(); }
+      disconnectClient();
     };
   }, [accountId]);
 
@@ -251,6 +337,13 @@ export function OrderNotificationsProvider({ accountId, children }: { accountId:
       try { localStorage.setItem("makalipie-order-sound", enabled ? "on" : "off"); } catch {}
       if (enabled) playSound();
     },
+    markAllRead() {
+      const latest = storageKey.current ? readEntries(storageKey.current) : [];
+      const merged = new Map(current.current.map(entry => [entry.id, entry]));
+      for (const entry of latest) merged.set(entry.id, entry);
+      save([...merged.values()].sort((left, right) => right.receivedAt - left.receivedAt)
+        .slice(0, 100).map(entry => ({ ...entry, read: true })));
+    },
     openOrder(id) {
       if (editorOpen) return;
       save(current.current.map(entry => entry.id === id ? { ...entry, read: true } : entry));
@@ -259,9 +352,12 @@ export function OrderNotificationsProvider({ accountId, children }: { accountId:
   }}>{children}</Notifications.Provider>;
 }
 
+const notificationPageSize = 10;
+
 export function OrderNotificationBell() {
-  const { entries, editorOpen, openOrder, sound, setSound, desktop, requestingDesktop, desktopMessage, setDesktop, testDesktop } = useOrderNotifications();
+  const { entries, editorOpen, openOrder, sound, setSound, desktop, requestingDesktop, desktopMessage, setDesktop, testDesktop, markAllRead } = useOrderNotifications();
   const [open, setOpen] = useState(false);
+  const [shown, setShown] = useState(notificationPageSize);
   const [summaries, setSummaries] = useState<Record<string, OrderSummary>>({});
   const soundId = useId();
   const desktopId = useId();
@@ -270,16 +366,21 @@ export function OrderNotificationBell() {
     : desktop?.permission === "unsupported" ? "Desktop notifications are unavailable in this browser."
     : "Show new orders in system notifications while Admin is open.";
   const unread = entries.filter(entry => !entry.read).length;
-  const ids = entries.map(entry => entry.id).join(",");
+  const visible = entries.slice(0, shown);
+  const missingIds = visible.filter(entry => !summaries[entry.id]).slice(0, notificationPageSize).map(entry => entry.id).join(",");
 
   useEffect(() => {
-    if (!open || !ids) return;
+    if (!open) setShown(notificationPageSize);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !missingIds) return;
     const controller = new AbortController();
-    void adminRequest<Record<string, OrderSummary>>("/api/admin/orders/numbers?ids=" + ids, { signal: controller.signal })
-      .then(result => { if (!controller.signal.aborted) setSummaries(result); })
+    void adminRequest<Record<string, OrderSummary>>("/api/admin/orders/numbers?ids=" + missingIds, { signal: controller.signal })
+      .then(result => { if (!controller.signal.aborted) setSummaries(current => ({ ...current, ...result })); })
       .catch(() => {});
     return () => controller.abort();
-  }, [ids, open]);
+  }, [missingIds, open]);
 
   return <Popover open={open} onOpenChange={setOpen}>
     <PopoverTrigger render={<Button variant="ghost" className="relative size-11 md:size-9" aria-label={`Notifications, ${unread} unread`} />}>
@@ -289,12 +390,15 @@ export function OrderNotificationBell() {
     <PopoverContent align="end" sideOffset={8} className="admin-theme max-h-[var(--available-height)] w-[min(24rem,calc(100vw-2rem))] gap-0 overflow-y-auto bg-white p-0 text-neutral-900">
       <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
         <PopoverTitle className="text-base font-semibold tracking-tight">Notifications</PopoverTitle>
-        <Badge className="bg-accent px-2 text-xs font-medium normal-case tracking-normal text-accent-foreground">{unread} unread</Badge>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Badge className="bg-accent px-2 text-xs font-medium normal-case tracking-normal text-accent-foreground">{unread} unread</Badge>
+          <Button type="button" variant="ghost" size="sm" disabled={!unread} onClick={markAllRead}>Mark all as read</Button>
+        </div>
       </div>
       {editorOpen && <p className="px-4 pt-3 text-xs text-muted-foreground">Close the order editor to open a notification.</p>}
       {entries.length === 0 ? <p className="px-4 py-6 text-sm text-muted-foreground">No order notifications yet.</p> :
         <ul className="max-h-[min(56dvh,21rem)] divide-y overflow-y-auto overscroll-contain px-2 py-1">
-          {entries.map(entry => {
+          {visible.map(entry => {
             const summary = summaries[entry.id];
             const delivery = summary?.fulfillment === "delivery";
             const Icon = delivery ? Truck : ShoppingBag;
@@ -329,6 +433,11 @@ export function OrderNotificationBell() {
           </li>;
           })}
         </ul>}
+      {entries.length > shown && <div className="border-t px-4 py-2">
+        <Button type="button" variant="ghost" className="w-full" onClick={() => setShown(count => count + notificationPageSize)}>
+          Show more notifications
+        </Button>
+      </div>}
       <div className="flex items-center gap-3 border-t px-4 py-3">
         <Volume2 className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <div className="min-w-0 flex-1">

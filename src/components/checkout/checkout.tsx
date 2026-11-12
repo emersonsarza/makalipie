@@ -11,6 +11,9 @@ import { ChatLinks } from "@/components/public-shop-provider";
 import { ThemeLink as Link } from "@/components/site-theme";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import styles from "./checkout.module.css";
 import { Input } from "@/components/ui/input";
@@ -199,6 +202,44 @@ function ScheduleField({ id, label, value, options, onChange, placeholder, error
   </div>;
 }
 
+function FulfillmentCalendar({ date, today, dates, error, change }: {
+  date: string; today?: string; dates: string[]; error?: string; change: (date: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const available = new Set(dates);
+  const calendarDate = (value: string) => new Date(value + "T12:00:00");
+  const selected = date ? calendarDate(date) : undefined;
+  const first = dates[0];
+  const start = today && (!first || today < first) ? today : first;
+
+  return <div className={`grid gap-2 ${styles.controls}`}>
+    <Label htmlFor="checkout-date">Fulfillment date</Label>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger render={<Button id="checkout-date" type="button" variant="outline"
+        className={`w-full justify-between ${styles.dateTrigger} ${date ? styles.selectedField : ""}`} disabled={!first}
+        aria-invalid={Boolean(error)} aria-describedby={error ? "checkout-date-error" : undefined} />}>
+        <span className="flex items-center gap-2"><CalendarDays aria-hidden /> {date ? dateLabel(date) : "Choose a date"}</span>
+        <ChevronDown aria-hidden />
+      </PopoverTrigger>
+      <PopoverContent align="start" className={styles.checkoutCalendar}>
+        <PopoverTitle className="sr-only">Choose a fulfillment date</PopoverTitle>
+        <Calendar mode="single" required autoFocus selected={selected}
+          today={today ? calendarDate(today) : undefined}
+          defaultMonth={selected && date >= (start ?? date) && date <= (dates.at(-1) ?? date) ? selected : first ? calendarDate(first) : undefined}
+          startMonth={start ? calendarDate(start) : undefined}
+          endMonth={first ? calendarDate(dates[dates.length - 1]) : undefined}
+          disabled={day => !available.has(format(day, "yyyy-MM-dd"))}
+          onSelect={day => {
+            if (!day) return;
+            change(format(day, "yyyy-MM-dd"));
+            setOpen(false);
+          }} />
+      </PopoverContent>
+    </Popover>
+    <InlineError id="checkout-date-error" message={error} />
+  </div>;
+}
+
 function ContactFields({ contact, change, method, errors }: {
   contact: Contact; change: (patch: Partial<Contact>) => void; method: Method; errors: ContactErrors;
 }) {
@@ -325,7 +366,10 @@ export function Checkout(props: CheckoutProps) {
   const today = drop?.today ?? eligibility?.today ?? shop?.today;
   const dropDates = drop?.dates.filter(date => !today || date.date >= today) ?? [];
   const dates = dropId ? dropDates : eligibility?.dates ?? [];
-  const date = dates.length === 1 ? dates[0].date : savedCart.date;
+  const defaultDate = dropId ? dates.find(candidate => candidate.date === today)?.date : today;
+  const savedDate = today && savedCart.date < today && !Object.keys(savedCart.items).length && !Object.keys(savedCart.addons).length
+    ? "" : savedCart.date;
+  const date = dropId && dates.length === 1 ? dates[0].date : savedDate || defaultDate || "";
   const day = dropDates.find(candidate => candidate.date === date);
   const slots = eligibility?.dates.find(candidate => candidate.date === date)?.slots ?? [];
   const pickup = dropId ? true : branch?.pickupEnabled;
@@ -334,7 +378,7 @@ export function Checkout(props: CheckoutProps) {
   const slot = dropId ? "" : slots.length === 1 ? slots[0].id : savedCart.slot;
   const cart: Cart = { ...savedCart, date, method, slot };
   useEffect(() => {
-    if (!hydrated || pending || (savedCart.date === date && savedCart.method === method && savedCart.slot === slot)) return;
+    if (!hydrated || pending || !savedCart.date || (savedCart.date === date && savedCart.method === method && savedCart.slot === slot)) return;
     const normalized = { ...savedCart, date, method, slot };
     saveCart(locationId, dropId, normalized);
     void Promise.resolve().then(() => setCart(current => current === savedCart ? normalized : current));
@@ -555,7 +599,12 @@ export function Checkout(props: CheckoutProps) {
   const address = drop?.address ?? branch?.address;
   const methodLabel = method === "delivery" ? "Delivery dispatch" : "Pickup";
   const MethodIcon = method === "delivery" ? Truck : ShoppingBag;
-  const dateOptions = dates.map(({ date }) => ({ value: date, label: dateLabel(date) }));
+  const dateOptions = dates.map(({ date }) => date);
+  const todayUnavailable = !dropId && cart.date === today && !validDate;
+  const dateError = !dates.length ? "No fulfillment dates are available right now."
+    : todayUnavailable ? "No fulfillment times are available today. Choose another date."
+    : cart.date && !validDate ? "Your saved date is unavailable. Choose a new date." : undefined;
+  const orderingHours = dropId ? day && { opens: day.orderingOpens, cutoff: day.orderingCutoff } : eligibility?.todayOrderingWindow;
   const slotOptions = slots.map(candidate => ({ value: candidate.id, label: candidate.label }));
   const methods = [
     ...(pickup ? [{ value: "pickup", label: "Pickup" }] : []),
@@ -622,7 +671,7 @@ export function Checkout(props: CheckoutProps) {
     {reviewAction.label} <ArrowRight aria-hidden />
   </Button>;
   const mobileHint = step === 0 && !canChoosePies && !refreshError
-    ? !validDate ? "Choose a date to continue." : !validMethod ? "Choose a fulfillment method to continue."
+    ? !validDate ? todayUnavailable ? "Choose another date to continue." : "Choose a date to continue." : !validMethod ? "Choose a fulfillment method to continue."
       : method === "delivery" ? "Choose a dispatch time to continue." : "Choose a pickup time to continue."
     : step === 1 && !readyToOrder && !Object.keys(cart.items).length && (!dropId || day?.orderingOpen)
       ? "Add a pie or box to continue."
@@ -672,9 +721,11 @@ export function Checkout(props: CheckoutProps) {
           {step === 0 && <>
             {hasLocationPicker && locationPicker}
             {drop && <p className="text-sm text-muted-foreground">Drop orders open on each fulfillment day. You can browse future dates.</p>}
-            <ScheduleField id="checkout-date" label="Fulfillment date" value={validDate ? cart.date : ""} options={dateOptions}
-              placeholder="Choose a date" onChange={changeDate}
-              error={!dates.length ? "No fulfillment dates are available right now." : cart.date && !validDate ? "Your saved date is unavailable. Choose a new date." : undefined} />
+            <FulfillmentCalendar date={cart.date} today={today} dates={dateOptions} error={dateError} change={changeDate} />
+            {orderingHours && <p className="text-sm text-muted-foreground">
+              {dropId ? "Online ordering for this date" : "Online ordering today"} opens at {timeLabel(orderingHours.opens)} and closes at {timeLabel(orderingHours.cutoff)} Manila time.
+            </p>}
+            {!dropId && eligibility && !orderingHours && <p className="text-sm text-muted-foreground">Same-day ordering is closed today.</p>}
             {validDate && <>
               <ScheduleField id="checkout-method" label="How would you like to get your pies?" value={method} options={methods}
                 onChange={value => { setScheduleError(""); updateCart({ ...cart, method: value === "delivery" ? "delivery" : "pickup" }); }}
@@ -689,7 +740,7 @@ export function Checkout(props: CheckoutProps) {
             {dropId && day && <>
               {windowLabel && <p className="text-sm">{method === "delivery" ? "Delivery dispatch window" : "Pickup window"} · {windowLabel}</p>}
               <p className="text-sm">{day.orderingOpen ? day.offerings.some(item => item.orderable) ? "Ordering open for this date." : day.offerings.some(item => item.remaining > 0) ? "Ordering is unavailable for this date." : "Sold out for this date."
-                : `Ordering window · ${timeLabel(day.orderingOpens)}–${timeLabel(day.orderingCutoff)} Manila time. Browse this date’s lineup below.`}</p>
+                : "Ordering is closed right now. You can still browse this date’s lineup."}</p>
             </>}
             {method === "delivery" ? <p className="text-sm text-muted-foreground">The shop books the rider. Arrival depends on rider availability and travel time.</p>
               : <p className="text-sm text-muted-foreground">Booking your own rider? Choose Pickup and send them to the pickup address.</p>}

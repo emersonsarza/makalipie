@@ -1,5 +1,5 @@
 import { manilaDate } from "../catalog/rules";
-import { orderableDates, seasonVisible, sizeEligibleOnDate } from "./eligibility";
+import { branchWindow, orderableDates, seasonVisible, sizeEligibleOnDate } from "./eligibility";
 import { bySort, selectFeatured } from "./featured";
 import { resolveSizeImage } from "./images";
 import type { StoreCatalog, StoreProduct, ThemeName } from "./types";
@@ -115,6 +115,7 @@ export function presentShop(catalog: StoreCatalog, now = new Date(), options?: {
 export function presentEligibility(catalog: StoreCatalog, locationId: string, now = new Date()) {
   const location = catalog.locations.find((item) => item.id === locationId && item.visible);
   if (!location) return null;
+  const today = manilaDate(now);
   const dates = orderableDates(catalog, locationId, now);
   const products = catalog.products.flatMap((product) => {
     if (!product.enabled) return [];
@@ -130,7 +131,8 @@ export function presentEligibility(catalog: StoreCatalog, locationId: string, no
   });
   return {
     locationId,
-    today: manilaDate(now),
+    today,
+    todayOrderingWindow: branchWindow(catalog, locationId, today),
     acceptingOrders: location.acceptingOrders,
     dates,
     products,
