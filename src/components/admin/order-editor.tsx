@@ -100,6 +100,7 @@ export function OrderEditor({ order, catalog, drops, stale, open, onClosed, clos
         lines, addons: items.filter(item => item.id).map(({ id, quantity, unitPriceCentavos }) => ({ id, quantity, unitPriceCentavos })),
         deliveryFeeMode: method === "delivery" ? feeMode : undefined,
         deliveryFeeCentavos: method === "delivery" && feeMode === "known" ? feeCentavos : null,
+        ...(order?.payment === "paid" ? { paymentStatus: "paid" as const } : {}),
       });
       saved(result.orderId);
     } catch (failure) {

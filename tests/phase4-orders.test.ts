@@ -470,6 +470,42 @@ test("reviewed prices, retries, numbering, stock, privacy, and the lineup", asyn
     assert.equal(quotedHeader.total_centavos, quotedHeader.subtotal_centavos);
     assert.equal((await transition(delivering.body.orderId, "confirmed")).status, 200);
 
+    const prepaidDelivery = await placePublic(regularCart("phase4-paid-then-fee", {
+      fulfillment: "delivery",
+      deliveryAddress: "123 Mango Street, Cebu",
+    }));
+    assert.equal(prepaidDelivery.status, 200, JSON.stringify(prepaidDelivery.body));
+    assert.equal((await transition(prepaidDelivery.body.orderId, "paid")).status, 200);
+    const prepaidHeader = await header(prepaidDelivery.body.orderId);
+    const prepaidLines = await linesOf(prepaidDelivery.body.orderId);
+    const feeAfterPaid = await applyOrderChange("update_order", {
+      orderId: prepaidDelivery.body.orderId,
+      updatedAt: prepaidHeader.updated_at,
+      fulfillmentDate: addDays(manilaDate(), 1),
+      fulfillment: "delivery",
+      slotId: "10:00",
+      deliveryFeeMode: "known",
+      deliveryFeeCentavos: 24000,
+      lines: prepaidLines.map((line) => ({
+        lineId: line.id,
+        productId: line.product_id,
+        sizeId: line.size_id,
+        quantity: line.quantity,
+        unitPriceCentavos: line.unit_price_centavos,
+      })),
+      customerName: "Phase4 Buyer",
+      customerPhone: "09171234567",
+      deliveryAddress: "123 Mango Street, Cebu",
+      notes: "",
+    }, "admin");
+    assert.equal(feeAfterPaid.status, 200, JSON.stringify(feeAfterPaid.body));
+    const prepaidSaved = await service.from("orders").select("payment, delivery_fee_mode, delivery_fee_centavos, subtotal_centavos, total_centavos").eq("id", prepaidDelivery.body.orderId).single();
+    assert.equal(prepaidSaved.error, null);
+    assert.equal(prepaidSaved.data.payment, "paid");
+    assert.equal(prepaidSaved.data.delivery_fee_mode, "known");
+    assert.equal(prepaidSaved.data.delivery_fee_centavos, 24000);
+    assert.equal(prepaidSaved.data.total_centavos, prepaidSaved.data.subtotal_centavos + 24000);
+
     const riderOrder = await placePublic(regularCart("phase4-rider", {
       fulfillment: "delivery",
       deliveryAddress: "123 Mango Street, Cebu",
