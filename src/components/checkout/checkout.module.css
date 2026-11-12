@@ -429,3 +429,13 @@
   background: #ecebed;
   color: #333235;
 }
+
+.mobileStepLabel { display: none; }
+
+@media (max-width: 767px) {
+  .summarySchedule { grid-template-columns: minmax(0, 1fr); }
+  .steps { top: 0; }
+  .mobileStepLabel { display: inline; }
+  .desktopStepLabel, .desktopActions { display: none; }
+  .stepHeading h2 { scroll-margin-top: 4.5rem; }
+}

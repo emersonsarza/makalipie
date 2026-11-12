@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/compone
 type Category = { id: string; name: string };
 
 export function MobileMenuCategories({ categories, regionRef, preorder }: { categories: Category[]; regionRef: RefObject<HTMLDivElement | null>; preorder: boolean }) {
-  const [position, setPosition] = useState({ visible: false, current: "" });
+  const [currentCategory, setCurrentCategory] = useState("");
   const [open, setOpen] = useState(false);
   const navigating = useRef(false);
   const categoryKey = JSON.stringify(categories);
@@ -26,15 +26,16 @@ export function MobileMenuCategories({ categories, regionRef, preorder }: { cate
       const headerRect = header.getBoundingClientRect();
       page.style.setProperty("--mobile-menu-offset", `${headerRect.height + 16}px`);
       const edge = headerRect.bottom + 16;
-      const bounds = region.getBoundingClientRect();
-      const visible = media.matches && entries.length > 0 && bounds.top <= edge && bounds.bottom > edge;
+      if (!media.matches) {
+        setOpen(false);
+        return;
+      }
       let current = entries[0]?.id ?? "";
       for (const entry of entries) {
         const section = document.getElementById(`menu-${entry.id}`);
         if (section && section.getBoundingClientRect().top <= edge + 1) current = entry.id;
       }
-      setPosition(previous => previous.visible === visible && previous.current === current ? previous : { visible, current });
-      if (!visible) setOpen(false);
+      setCurrentCategory(current);
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
     const observer = new ResizeObserver(schedule);
@@ -54,7 +55,6 @@ export function MobileMenuCategories({ categories, regionRef, preorder }: { cate
     };
   }, [categoryKey, regionRef]);
 
-  if (!position.visible || !categories.length) return null;
   return <div className="mobile-category-control">
     <Popover open={open} onOpenChange={next => { if (next) navigating.current = false; setOpen(next); }}>
       <PopoverTrigger className="mobile-category-trigger"><List size={18} aria-hidden /><span>Categories</span></PopoverTrigger>
@@ -62,8 +62,8 @@ export function MobileMenuCategories({ categories, regionRef, preorder }: { cate
         <Link className="mobile-category-switch" href={preorder ? "/menu" : "/menu?view=preorders"} scroll={false} onClick={() => { setOpen(false); }}>
           <span>{preorder ? "Browse 4-inch pies" : "Browse pre-order pies"}</span><ArrowRight size={16} aria-hidden />
         </Link>
-        <PopoverTitle className="mobile-category-label">Jump to a category</PopoverTitle>
-        <nav aria-label="Menu categories">{categories.map(category => <a key={category.id} href={`#menu-${category.id}`} aria-current={position.current === category.id ? "location" : undefined} onClick={event => {
+        <PopoverTitle className={categories.length ? "mobile-category-label" : "sr-only"}>{categories.length ? "Jump to a category" : "Menu categories"}</PopoverTitle>
+        {categories.length > 0 && <nav aria-label="Menu categories">{categories.map(category => <a key={category.id} href={`#menu-${category.id}`} aria-current={currentCategory === category.id ? "location" : undefined} onClick={event => {
           event.preventDefault();
           navigating.current = true;
           setOpen(false);
@@ -76,7 +76,7 @@ export function MobileMenuCategories({ categories, regionRef, preorder }: { cate
             target.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true });
             target.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
           });
-        }}><span>{category.name}</span><ArrowUpRight size={16} aria-hidden /></a>)}</nav>
+        }}><span>{category.name}</span><ArrowUpRight size={16} aria-hidden /></a>)}</nav>}
       </PopoverContent>
     </Popover>
   </div>;

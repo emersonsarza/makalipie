@@ -44,7 +44,7 @@ export async function OrderScreen({ searchParams }: { searchParams: Promise<Orde
   else if (params.drop !== undefined && !direct && !discoveryFailed) notice = "That drop is unavailable. Choose an event or order from Cebu.";
   else if (discoveryFailed) notice = "Some ordering information could not be loaded. Refresh to check again.";
 
-  return <SiteShell showFooterCta={false}>
+  return <SiteShell showFooterCta={false} mobileCheckout>
     <Checkout key={locationId + ":" + (drop?.id ?? "")} locations={locations} locationId={locationId}
       events={events} shop={shop} drop={drop ?? undefined} notice={notice}
       eligibility={catalog && branch ? presentEligibility(catalog, branch.id, now) ?? undefined : undefined}

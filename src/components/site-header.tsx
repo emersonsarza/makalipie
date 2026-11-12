@@ -2,11 +2,12 @@
 
 import { usePublicShop } from "@/components/public-shop-provider";
 import { dropEventAnchor, locationAnchor } from "@/lib/popups/locations";
-import { ArrowUpRight, ChevronDown, Menu, X } from "lucide-react";
+import { ArrowUpRight, ChevronDown, Menu, Minus, Plus, X } from "lucide-react";
 import { BrandSeal } from "@/components/brand-seal";
 import { ThemeLink as Link } from "@/components/site-theme";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, type Dispatch, type MouseEvent, type RefObject, type SetStateAction } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type Dispatch, type MouseEvent, type RefObject, type SetStateAction } from "react";
 
 const storyLink = { href: "/#story", label: "Our story" };
 
@@ -106,6 +107,28 @@ export function SiteHeader({ menuView }: { menuView?: "menu" | "preorders" }) {
   const [placeSelection, setPlaceSelection] = useState(0);
   const pathname = usePathname();
   const toggle = useRef<HTMLButtonElement>(null);
+  const mobileNav = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const menu = mobileNav.current;
+    const header = menu?.parentElement;
+    if (!menu || !header) return;
+    const viewport = window.visualViewport;
+    const syncHeight = () => {
+      const bottom = header.getBoundingClientRect().bottom;
+      menu.style.setProperty("--mobile-menu-height", `${Math.max(0, (viewport?.height ?? window.innerHeight) - bottom)}px`);
+    };
+    syncHeight();
+    window.addEventListener("resize", syncHeight);
+    window.addEventListener("scroll", syncHeight, { passive: true });
+    viewport?.addEventListener("resize", syncHeight);
+    return () => {
+      window.removeEventListener("resize", syncHeight);
+      window.removeEventListener("scroll", syncHeight);
+      viewport?.removeEventListener("resize", syncHeight);
+    };
+  }, [open]);
   const piesTrigger = useRef<HTMLButtonElement>(null);
   const findTrigger = useRef<HTMLButtonElement>(null);
   const events = [
@@ -164,8 +187,6 @@ export function SiteHeader({ menuView }: { menuView?: "menu" | "preorders" }) {
         return;
       }
       setOpen(false);
-      setMobilePiesOpen(false);
-      setMobileFindOpen(false);
       toggle.current?.focus();
     };
     window.addEventListener("keydown", close);
@@ -173,8 +194,6 @@ export function SiteHeader({ menuView }: { menuView?: "menu" | "preorders" }) {
   }, [desktopMenu, open]);
   const closeMobile = () => {
     setOpen(false);
-    setMobilePiesOpen(false);
-    setMobileFindOpen(false);
   };
   const piesCurrent = pathname === "/menu";
   const pieLinkScroll = !piesCurrent;
@@ -203,7 +222,9 @@ export function SiteHeader({ menuView }: { menuView?: "menu" | "preorders" }) {
   };
 
   return (
-    <header className="brand-header">
+    <header className="brand-header" onBlur={event => {
+      if (open && event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) closeMobile();
+    }}>
       <a href="#main" className="skip-link">
         Skip to content
       </a>
@@ -255,7 +276,7 @@ export function SiteHeader({ menuView }: { menuView?: "menu" | "preorders" }) {
             ref={toggle}
             onClick={() => {
               setOpen((value) => !value);
-              if (open) {
+              if (!open) {
                 setMobilePiesOpen(false);
                 setMobileFindOpen(false);
               }
@@ -268,67 +289,49 @@ export function SiteHeader({ menuView }: { menuView?: "menu" | "preorders" }) {
           </button>
         </div>
       </div>
-      {open && (
-        <nav id="mobile-nav" className="mobile-menu" aria-label="Mobile">
+      <button type="button" className="mobile-menu-backdrop" data-open={open} inert={!open}
+        aria-label="Dismiss menu" tabIndex={-1} onClick={() => { closeMobile(); toggle.current?.focus(); }} />
+      <nav ref={mobileNav} id="mobile-nav" className="mobile-menu" aria-label="Mobile" data-open={open} inert={!open}>
+        <div className="mobile-menu-links">
           <Link href="/" aria-current={pathname === "/" ? "page" : undefined} onClick={closeMobile}>
-            Home
-            <ArrowUpRight size={20} aria-hidden />
+            Home <ArrowUpRight size={20} aria-hidden />
           </Link>
-          <button
-            type="button"
-            className="mobile-menu-trigger"
-            aria-expanded={mobilePiesOpen}
-            aria-controls="mobile-pies-menu"
-            data-current={piesCurrent ? "" : undefined}
-            onClick={() => setMobilePiesOpen((value) => !value)}
-          >
-            Our pies
-            <ChevronDown size={20} aria-hidden />
-          </button>
-          <div id="mobile-pies-menu" className="mobile-drop-menu" hidden={!mobilePiesOpen}>
-            {pieItems.map((link) => (
-              <Link
-                key={link.key}
-                href={link.href}
-                scroll={pieLinkScroll}
-                aria-current={link.current ? "page" : undefined}
-                onClick={closeMobile}
-              >
-                {link.label}
-                <ArrowUpRight size={18} aria-hidden />
-              </Link>
-            ))}
-          </div>
-          <button
-            type="button"
-            className="mobile-menu-trigger"
-            aria-expanded={mobileFindOpen}
-            aria-controls="mobile-find-menu"
-            data-current={findCurrent ? "" : undefined}
-            onClick={() => setMobileFindOpen((value) => !value)}
-          >
-            Find us
-            <ChevronDown size={20} aria-hidden />
-          </button>
-          <div id="mobile-find-menu" className="mobile-drop-menu" hidden={!mobileFindOpen}>
-            <NavLinks links={placeItems} iconSize={18} scroll={false} onNavigate={goToPlace} />
-          </div>
-          <Link
-            href={storyLink.href}
-            onClick={(event) => {
-              scrollToHash(storyLink.href, pathname, event);
-              closeMobile();
-            }}
-          >
-            {storyLink.label}
-            <ArrowUpRight size={20} aria-hidden />
+          <Collapsible open={mobilePiesOpen} onOpenChange={setMobilePiesOpen}>
+            <CollapsibleTrigger className="mobile-menu-trigger" data-current={piesCurrent ? "" : undefined}>
+              Our pies {mobilePiesOpen ? <Minus size={20} aria-hidden /> : <Plus size={20} aria-hidden />}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mobile-drop-menu">
+              <div className="mobile-drop-links">
+                {pieItems.map(link => <Link key={link.key} href={link.href} scroll={pieLinkScroll}
+                  aria-current={link.current ? "page" : undefined} onClick={closeMobile}>
+                  {link.label} <ArrowUpRight size={18} aria-hidden />
+                </Link>)}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+          <Collapsible open={mobileFindOpen} onOpenChange={setMobileFindOpen}>
+            <CollapsibleTrigger className="mobile-menu-trigger" data-current={findCurrent ? "" : undefined}>
+              Find us {mobileFindOpen ? <Minus size={20} aria-hidden /> : <Plus size={20} aria-hidden />}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mobile-drop-menu">
+              <div className="mobile-drop-links">
+                <NavLinks links={placeItems} iconSize={18} scroll={false} onNavigate={goToPlace} />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+          <Link href={storyLink.href} onClick={event => {
+            scrollToHash(storyLink.href, pathname, event);
+            closeMobile();
+          }}>
+            {storyLink.label} <ArrowUpRight size={20} aria-hidden />
           </Link>
-          <Link href="/order" onClick={closeMobile}>
-            Bring home a pie
-            <ArrowUpRight size={20} aria-hidden />
+        </div>
+        <div className="mobile-menu-order">
+          <Link className="brand-button" href="/order" onClick={closeMobile}>
+            Bring home a pie <ArrowUpRight size={20} aria-hidden />
           </Link>
-        </nav>
-      )}
+        </div>
+      </nav>
     </header>
   );
 }

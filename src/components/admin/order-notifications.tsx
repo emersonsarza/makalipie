@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, ShoppingBag, Truck, Volume2 } from "lucide-react";
+import { Bell, Monitor, ShoppingBag, Truck, Volume2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -39,12 +39,36 @@ function playSound() {
   } catch {}
 }
 
+const desktopPreference = "makalipie-order-desktop-notifications";
+
+function desktopPermission(): NotificationPermission | "unsupported" {
+  return window.isSecureContext && "Notification" in window ? Notification.permission : "unsupported";
+}
+
+function desktopEnabled() {
+  try { return localStorage.getItem(desktopPreference) === "on"; } catch { return false; }
+}
+
+function showDesktopNotification(body: string, tag: string) {
+  const notification = new Notification("Makalipie Admin", { body, tag, silent: true });
+  notification.onclick = () => {
+    window.focus();
+    notification.close();
+  };
+  return notification;
+}
+
 const Notifications = createContext<{
   entries: Entry[];
   connected: boolean;
   revision: number;
   sound: boolean;
   setSound: (enabled: boolean) => void;
+  desktop: { enabled: boolean; permission: NotificationPermission | "unsupported" } | null;
+  requestingDesktop: boolean;
+  desktopMessage: string;
+  setDesktop: (enabled: boolean) => Promise<void>;
+  testDesktop: () => void;
   request: { id: string } | null;
   consumeRequest: () => void;
   editorOpen: boolean;
@@ -66,11 +90,76 @@ export function OrderNotificationsProvider({ accountId, children }: { accountId:
   const [connected, setConnected] = useState(false);
   const [revision, setRevision] = useState(0);
   const [sound, setSoundState] = useState(false);
+  const [desktop, setDesktopState] = useState<{ enabled: boolean; permission: NotificationPermission | "unsupported" } | null>(null);
+  const [requestingDesktop, setRequestingDesktop] = useState(false);
+  const [desktopMessage, setDesktopMessage] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
   const [request, setRequest] = useState<{ id: string } | null>(null);
   const storageKey = useRef("");
   const current = useRef<Entry[]>([]);
   const soundEnabled = useRef(false);
+
+  const syncDesktop = useCallback(() => {
+    const permission = desktopPermission();
+    setDesktopState({ permission, enabled: permission === "granted" && desktopEnabled() });
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    let permissionStatus: PermissionStatus | undefined;
+    void Promise.resolve().then(() => { if (active) syncDesktop(); });
+    if (desktopPermission() !== "unsupported") {
+      void navigator.permissions?.query({ name: "notifications" }).then(status => {
+        if (!active) return;
+        permissionStatus = status;
+        status.addEventListener("change", syncDesktop);
+        syncDesktop();
+      }).catch(() => {});
+    }
+    function syncPreference(event: StorageEvent) {
+      if (event.key === desktopPreference || event.key === null) syncDesktop();
+    }
+    window.addEventListener("focus", syncDesktop);
+    window.addEventListener("storage", syncPreference);
+    return () => {
+      active = false;
+      permissionStatus?.removeEventListener("change", syncDesktop);
+      window.removeEventListener("focus", syncDesktop);
+      window.removeEventListener("storage", syncPreference);
+    };
+  }, [syncDesktop]);
+
+  async function setDesktop(enabled: boolean) {
+    setDesktopMessage("");
+    setRequestingDesktop(true);
+    try {
+      const permission = desktopPermission();
+      if (enabled && permission === "unsupported") return;
+      const result = enabled && permission === "default" ? await Notification.requestPermission() : permission;
+      if (enabled && result !== "granted") {
+        if (result === "default") setDesktopMessage("Allow notifications in your browser to turn these on.");
+        return;
+      }
+      localStorage.setItem(desktopPreference, enabled ? "on" : "off");
+    } catch {
+      setDesktopMessage("Couldn’t update desktop notifications in this browser.");
+    } finally {
+      syncDesktop();
+      setRequestingDesktop(false);
+    }
+  }
+
+  function testDesktop() {
+    syncDesktop();
+    if (desktopPermission() !== "granted" || !desktopEnabled()) return;
+    try {
+      const notification = showDesktopNotification("Desktop notifications are ready for new orders.", "makalipie-admin-test");
+      setDesktopMessage("Test requested. Check your system notifications.");
+      notification.onerror = () => setDesktopMessage("The test notification couldn’t be displayed. Check your browser and system settings.");
+    } catch {
+      setDesktopMessage("This browser couldn’t display the test notification.");
+    }
+  }
 
   function save(next: Entry[]) {
     current.current = next;
@@ -108,8 +197,12 @@ export function OrderNotificationsProvider({ accountId, children }: { accountId:
           if (disposed || typeof payload.orderId !== "string") return;
           setRevision(value => value + 1);
           if (payload.changeType === "created" && !current.current.some(entry => entry.id === payload.orderId)) {
+            const alreadyReceived = readEntries(key).some(entry => entry.id === payload.orderId);
             save([{ id: payload.orderId, receivedAt: Date.now(), read: false }, ...current.current].slice(0, 100));
             if (soundEnabled.current) playSound();
+            if (!alreadyReceived && desktopEnabled() && desktopPermission() === "granted") {
+              try { showDesktopNotification("A new order is ready to review.", key + ":" + payload.orderId); } catch {}
+            }
           }
         }).subscribe(status => {
           if (disposed) return;
@@ -151,7 +244,7 @@ export function OrderNotificationsProvider({ accountId, children }: { accountId:
   }
 
   return <Notifications.Provider value={{
-    entries, connected, revision, sound, request, consumeRequest, editorOpen, setEditorOpen, selectOrder,
+    entries, connected, revision, sound, desktop, requestingDesktop, desktopMessage, setDesktop, testDesktop, request, consumeRequest, editorOpen, setEditorOpen, selectOrder,
     setSound(enabled) {
       setSoundState(enabled);
       soundEnabled.current = enabled;
@@ -167,10 +260,15 @@ export function OrderNotificationsProvider({ accountId, children }: { accountId:
 }
 
 export function OrderNotificationBell() {
-  const { entries, editorOpen, openOrder, sound, setSound } = useOrderNotifications();
+  const { entries, editorOpen, openOrder, sound, setSound, desktop, requestingDesktop, desktopMessage, setDesktop, testDesktop } = useOrderNotifications();
   const [open, setOpen] = useState(false);
   const [summaries, setSummaries] = useState<Record<string, OrderSummary>>({});
   const soundId = useId();
+  const desktopId = useId();
+  const desktopDescription = desktop?.permission === "denied"
+    ? "Blocked in your browser. Allow notifications in this site’s settings."
+    : desktop?.permission === "unsupported" ? "Desktop notifications are unavailable in this browser."
+    : "Show new orders in system notifications while Admin is open.";
   const unread = entries.filter(entry => !entry.read).length;
   const ids = entries.map(entry => entry.id).join(",");
 
@@ -188,7 +286,7 @@ export function OrderNotificationBell() {
       <Bell className="size-4" aria-hidden="true" />
       {unread > 0 && <span aria-hidden="true" className="absolute top-0 right-0 min-w-5 rounded-full bg-primary px-1 text-center text-xs font-semibold text-primary-foreground">{unread}</span>}
     </PopoverTrigger>
-    <PopoverContent align="end" sideOffset={8} className="admin-theme w-[min(24rem,calc(100vw-2rem))] gap-0 bg-white p-0 text-neutral-900">
+    <PopoverContent align="end" sideOffset={8} className="admin-theme max-h-[var(--available-height)] w-[min(24rem,calc(100vw-2rem))] gap-0 overflow-y-auto bg-white p-0 text-neutral-900">
       <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
         <PopoverTitle className="text-base font-semibold tracking-tight">Notifications</PopoverTitle>
         <Badge className="bg-accent px-2 text-xs font-medium normal-case tracking-normal text-accent-foreground">{unread} unread</Badge>
@@ -238,6 +336,20 @@ export function OrderNotificationBell() {
           <p id={soundId + "-description"} className="text-xs text-muted-foreground">Play a sound for new orders</p>
         </div>
         <Switch id={soundId} aria-describedby={soundId + "-description"} checked={sound} onCheckedChange={setSound} />
+      </div>
+      <div className="grid gap-2 border-t px-4 py-3">
+        <div className="flex items-center gap-3">
+          <Monitor className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <label htmlFor={desktopId} className="text-sm font-medium">Desktop notifications</label>
+            <p id={desktopId + "-description"} className="text-xs text-muted-foreground">{desktopDescription}</p>
+          </div>
+          <Switch id={desktopId} aria-describedby={desktopId + "-description"} checked={desktop?.enabled ?? false}
+            disabled={!desktop || requestingDesktop || desktop.permission === "denied" || desktop.permission === "unsupported"}
+            onCheckedChange={enabled => { void setDesktop(enabled); }} />
+        </div>
+        {desktop?.enabled && <Button type="button" variant="outline" size="sm" className="ml-7 justify-self-start" onClick={testDesktop}>Send test notification</Button>}
+        {desktopMessage && <p role="status" className="ml-7 text-xs text-muted-foreground">{desktopMessage}</p>}
       </div>
     </PopoverContent>
   </Popover>;

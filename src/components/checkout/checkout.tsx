@@ -56,6 +56,7 @@ type Choice = {
 };
 type PriceUpdate = { productId?: string; sizeId?: string; offeringId?: string; id?: string; unitPriceCentavos?: number };
 const steps = ["Branch & date", "Pick your pies", "Your details"];
+const compactSteps = ["Schedule", "Pies", "Details"];
 type ContactErrors = Partial<Record<"name" | "phone" | "address", string>>;
 type StockAdjustment = { name: string; remaining: number };
 const stepHeadings = ["First, where and when?", "A few for you. A few to share.", "The last little details."];
@@ -76,6 +77,10 @@ function stockReason(day: PublicDrop["dates"][number] | undefined, offering: Pub
   return "Currently unavailable.";
 }
 
+function branchLabel(name: string) {
+  return /^Makalipie(?:\s|$)/i.test(name) ? name : `Makalipie ${name}`;
+}
+
 function regularChoices(shop: PublishedShop | undefined, eligibility: BranchEligibility | undefined, branch: string, date: string): Choice[] {
   const available = new Map<string, string[]>(eligibility?.products.flatMap(product => product.sizes.map(size => [`${product.id}/${size.id}`, size.dates] as const)));
   return shop?.menu.flatMap(section => section.products.flatMap(product =>
@@ -84,14 +89,15 @@ function regularChoices(shop: PublishedShop | undefined, eligibility: BranchElig
       const dates = available.get(key);
       if (product.seasonStart && product.seasonEnd && !dates?.length && eligibility) return [];
       const weekday = date ? new Date(date + "T00:00:00Z").getUTCDay() : undefined;
-      const reason = !date ? "Choose a date first."
+      const isAvailable = Boolean(dates?.includes(date));
+      const reason = isAvailable ? undefined : !date ? "Choose a date first."
         : product.seasonStart && product.seasonEnd && (date < product.seasonStart || date > product.seasonEnd) ? "Outside its seasonal dates."
         : size.mode === "regular" && weekday !== undefined && !section.weekdays.includes(weekday) ? "This pie isn’t baked on that weekday."
         : size.mode === "preorder" ? `Allow ${shop.settings.preorderLeadDays} days for preparation. Try a later date.`
         : "This size is unavailable on the selected date.";
       return [{
         key, name: `${product.name} · ${size.label}`, price: size.priceCentavos, maximum: 99, image: size.image,
-        available: Boolean(dates?.includes(date)), reason, productId: product.id, sizeId: size.id,
+        available: isAvailable, reason, productId: product.id, sizeId: size.id,
       }];
     }))) ?? [];
 }
@@ -567,7 +573,7 @@ export function Checkout(props: CheckoutProps) {
     {(locations.length > 1 || !location) && <div className="grid gap-2">
       <Label htmlFor="checkout-location">Where are you ordering?</Label>
       <SelectField contentClassName={styles.checkoutSelect} id="checkout-location" label="Where are you ordering?" value={location?.id ?? ""} placeholder="Choose a location"
-        options={locations.map(item => ({ value: item.id, label: item.name }))}
+        options={locations.map(item => ({ value: item.id, label: item.kind === "regular" ? branchLabel(item.name) : item.name }))}
         onValueChange={id => router.push(checkoutHref(id))} />
     </div>}
     {events.length > 0 && <ScheduleField id="checkout-drop" label="Drop" value={events.some(event => event.id === dropId) ? dropId! : ""} placeholder="Choose a drop"
@@ -589,10 +595,38 @@ export function Checkout(props: CheckoutProps) {
   function focusLineupClose(source: HTMLElement) {
     source.closest("[role=dialog]")?.querySelector<HTMLButtonElement>(".mobile-lineup-close")?.focus();
   }
-  const pickupAddress = address && method === "pickup" && <>
-    <AddressLines address={address} pairCommaParts={!drop && branch?.id === "cebu"} />
-    {drop?.mapUrl && <a className="underline" href={drop.mapUrl} target="_blank" rel="noreferrer">Pickup directions</a>}
+  const branchName = branch?.name ?? (location?.kind === "regular" ? location.name : undefined);
+  const fulfillmentLocation = drop?.name ?? (branchName ? branchLabel(branchName) : location?.name ?? "Choose a location");
+  const mapUrl = drop?.mapUrl ?? branch?.mapUrl;
+  const pickupDirections = method === "pickup" && mapUrl &&
+    <a className="underline" href={mapUrl} target="_blank" rel="noreferrer">Pickup directions</a>;
+  const pickupAddress = method === "pickup" && (address || pickupDirections) && <>
+    {address && <AddressLines address={address} pairCommaParts={!drop && branch?.id === "cebu"} />}
+    {pickupDirections}
   </>;
+  const canChoosePies = dropId ? validDate : validWindow && !refreshError;
+  const scheduleAction = {
+    label: dropId && !day?.orderingOpen ? "View the lineup" : "Choose your pies",
+    disabled: !canChoosePies,
+    onClick: () => goTo(1),
+  };
+  const detailsAction = { label: "Continue to your details", disabled: !readyToOrder, onClick: () => goTo(2) };
+  const reviewAction = { label: "Submit order", disabled: !readyToOrder || submitting, form: "checkout-submit" };
+  const choosePies = <Button type="button" variant="ghost" className={styles.primary} disabled={scheduleAction.disabled} onClick={scheduleAction.onClick}>
+    {scheduleAction.label} <ArrowRight aria-hidden />
+  </Button>;
+  const continueToDetails = <Button type="button" variant="ghost" className={styles.primary} disabled={detailsAction.disabled} onClick={detailsAction.onClick}>
+    {detailsAction.label} <ArrowRight aria-hidden />
+  </Button>;
+  const submitOrder = <Button type="submit" variant="ghost" form={reviewAction.form} className={`${styles.primary} w-full`} disabled={reviewAction.disabled}>
+    {reviewAction.label} <ArrowRight aria-hidden />
+  </Button>;
+  const mobileHint = step === 0 && !canChoosePies && !refreshError
+    ? !validDate ? "Choose a date to continue." : !validMethod ? "Choose a fulfillment method to continue."
+      : method === "delivery" ? "Choose a dispatch time to continue." : "Choose a pickup time to continue."
+    : step === 1 && !readyToOrder && !Object.keys(cart.items).length && (!dropId || day?.orderingOpen)
+      ? "Add a pie or box to continue."
+      : step === 2 && method === "delivery" ? "Delivery fee to be confirmed in chat." : undefined;
 
   return <section className={`wrap order-page ${styles.checkout}`}>
     <header className={`order-intro ${styles.intro}`}>
@@ -615,7 +649,8 @@ export function Checkout(props: CheckoutProps) {
       </> : <p className="text-sm">This attempt belongs to another branch or drop. <Link className="underline" href={checkoutHref(pending.locationId, pending.dropId)}>Resume there</Link></p>}
       {!submitting && <p className="text-sm">Need help? Contact us through <ChatLinks /> before placing another order.</p>}
     </form> : <>
-      {hasLocationPicker && (step !== 0 || !isCheckout || drop?.status === "ended") && locationPicker}
+      {hasLocationPicker && (!isCheckout || drop?.status === "ended" ? locationPicker
+        : step !== 0 && <div className={styles.desktopActions}>{locationPicker}</div>)}
       {drop?.status === "ended" ? <Alert><AlertDescription className="space-y-3">
         <p>This drop has ended.</p>
         <p className="flex flex-wrap gap-3"><Link href="/#upcoming-drops" className="underline">See upcoming events</Link><Link href="/order" className="underline">Order from Cebu</Link></p>
@@ -624,14 +659,14 @@ export function Checkout(props: CheckoutProps) {
           {steps.map((label, index) => <li key={label}>
             <button type="button" aria-current={step === index ? "step" : undefined} disabled={index > step}
               onClick={() => goTo(index)}>
-              <span className={styles.stepIndex} aria-hidden>{index < step ? <Check size={15} /> : index + 1}</span><span>{label}</span>
+              <span className={styles.stepIndex} aria-hidden>{index < step ? <Check size={15} /> : index + 1}</span><span className={styles.desktopStepLabel}>{label}</span><span className={styles.mobileStepLabel}>{compactSteps[index]}</span>
             </button>
           </li>)}
         </ol>
         <div className={styles.layout} data-review={step === 2}>
         <section className={`${step === 1 ? "min-w-0" : styles.panel} space-y-5`} aria-labelledby="checkout-step">
           <div className={styles.stepHeading}>
-            <p className="eyebrow">Step {step + 1} of {steps.length}</p>
+            <p className={`eyebrow ${styles.desktopStepLabel}`}>Step {step + 1} of {steps.length}</p>
             <h2 ref={heading} id="checkout-step" tabIndex={-1}>{stepHeadings[step]}</h2>
           </div>
           {step === 0 && <>
@@ -658,22 +693,18 @@ export function Checkout(props: CheckoutProps) {
             </>}
             {method === "delivery" ? <p className="text-sm text-muted-foreground">The shop books the rider. Arrival depends on rider availability and travel time.</p>
               : <p className="text-sm text-muted-foreground">Booking your own rider? Choose Pickup and send them to the pickup address.</p>}
-            {pickupAddress && <div className={`${styles.mobileAddress} ${styles.summaryLine} text-sm`}><MapPin aria-hidden /><div>{pickupAddress}</div></div>}
+            {pickupAddress && <div className={`${styles.mobileAddress} ${styles.summaryLine} text-sm`}><MapPin aria-hidden /><div>{pickupDirections || pickupAddress}</div></div>}
             {requested.length > 0 && <p className="text-sm">Looking for {requested[0].name}? Choose a date to check availability.</p>}
-            <div className={styles.actions}>
-              <Button type="button" variant="ghost" className={styles.primary} disabled={dropId ? !validDate : !validWindow || Boolean(refreshError)} onClick={() => goTo(1)}>
-                {dropId && !day?.orderingOpen ? "View the lineup" : "Choose your pies"} <ArrowRight aria-hidden />
-              </Button>
-            </div>
+            <div className={`${styles.actions} ${styles.desktopActions}`}>{choosePies}</div>
           </>}
           {step === 1 && <>
             {hasAdjustments && <p id="checkout-stock-picker" tabIndex={-1} role="status" className="text-sm">Review the stock adjustments below.</p>}
             {validDate && <div className={`${styles.scheduleStrip} flex flex-wrap items-center justify-between gap-x-3 text-sm`}>
-              <p className="flex items-center gap-2"><CalendarDays size={16} className="shrink-0" aria-hidden /> <span>{dateLabel(cart.date)} · {methodLabel}{windowLabel && ` · ${windowLabel}`}</span></p>
+              <p className="flex items-center gap-2"><CalendarDays size={16} className="shrink-0" aria-hidden /> <span>{dateLabel(cart.date)} · {methodLabel}<span className={styles.desktopStepLabel}>{windowLabel && ` · ${windowLabel}`}</span></span></p>
               <Button type="button" variant="link" onClick={() => goTo(0)}>Change date</Button>
             </div>}
             {!dropId && choices.filter(choice => choice.available).length === 0 && <p>No pies are available on this date.</p>}
-            {dropId && <p className="text-sm text-muted-foreground">{day?.orderingOpen ? "Stock can change until the order is submitted." : "Preview only. Orders open on the selected date during its ordering hours."}</p>}
+            {dropId && <p className={`text-sm text-muted-foreground ${day?.orderingOpen ? styles.desktopStepLabel : ""}`}>{day?.orderingOpen ? "Stock can change until the order is submitted." : "Preview only. Orders open on the selected date during its ordering hours."}</p>}
             <div className="grid gap-3">
               {choices.filter(choice => dropId || choice.available || cart.items[choice.key]).map(choice => <ChoiceRow key={choice.key} choice={choice}
                 quantity={cart.items[choice.key]?.quantity ?? 0} change={quantity => quantityChange("items", choice.key, quantity, choice.price)}
@@ -709,9 +740,9 @@ export function Checkout(props: CheckoutProps) {
             </div>}
             {feedbackMessage}
             {refreshMessage}
-            <div className={styles.actions}>
+            <div className={`${styles.actions} ${styles.desktopActions}`}>
               <Button type="button" variant="ghost" onClick={() => goTo(0)}><ArrowLeft aria-hidden /> Back</Button>
-              <Button type="button" variant="ghost" className={styles.primary} disabled={!readyToOrder} onClick={() => goTo(2)}>Continue to your details <ArrowRight aria-hidden /></Button>
+              {continueToDetails}
             </div>
           </>}
           {step === 2 && <form noValidate id="checkout-submit" className="space-y-5" onSubmit={event => void submit(event)}>
@@ -723,14 +754,14 @@ export function Checkout(props: CheckoutProps) {
           <h2 id="checkout-summary" className="text-xl font-semibold">{step === 2 ? "Order summary" : "Your order"}</h2>
           <div className={styles.summarySchedule}>
             <div className={styles.scheduleColumn}>
-              <p className={styles.summaryLine}>{drop ? <Store aria-hidden /> : <MapPin aria-hidden />} <span>{drop?.name ?? branch?.name ?? location?.name ?? "Choose a location"}</span></p>
+              <p className={styles.summaryLine}><Store aria-hidden /> <span>{fulfillmentLocation}</span></p>
               {pickupAddress && <div className={styles.summaryLine}><MapPin aria-hidden /><div>{pickupAddress}</div></div>}
             </div>
             <div className={styles.scheduleColumn}>
               {validDate && <p className={styles.summaryLine}><CalendarDays aria-hidden /> <span>{dateLabel(cart.date)}</span></p>}
               {validMethod && <p className={styles.summaryLine}><MethodIcon aria-hidden /> <span>{methodLabel}{windowLabel && ` · ${windowLabel}`}</span></p>}
             </div>
-            {step === 2 && <Button variant="link" type="button" onClick={() => goTo(0)}>Edit schedule</Button>}
+            {step === 2 && <Button variant="outline" className="min-h-11" type="button" onClick={() => goTo(0)}>Edit schedule</Button>}
           </div>
           {step === 2 && hasAdjustments && <p id="checkout-stock-review" tabIndex={-1} role="status" className="text-sm">Review the updated quantities and total before submitting again.</p>}
           {hasItems ? <ul>
@@ -760,17 +791,18 @@ export function Checkout(props: CheckoutProps) {
             {refreshMessage}
             {!validWindow && <InlineError message="Edit your schedule to select an available date and time." />}
             {dropId && validWindow && !day?.orderingOpen && <InlineError message="Ordering is closed for this date." />}
-            <Button type="submit" variant="ghost" form="checkout-submit" className={`${styles.primary} w-full`} disabled={!readyToOrder || submitting}>Submit order <ArrowRight aria-hidden /></Button>
+            <div className={styles.desktopActions}>{submitOrder}</div>
           </>}
         </aside>
         </div>
-        <MobileLineup count={selectedCount} amount={pesos(total)} totalLabel={totalLabel} fallbackFocus={heading}>
+        <MobileLineup count={selectedCount} amount={pesos(total)} totalLabel={totalLabel} fallbackFocus={heading}
+          action={step === 0 ? scheduleAction : step === 1 ? detailsAction : reviewAction} hint={mobileHint}>
           <ul className="mobile-lineup-items">
             {selectedLines.map(({ group, key, value, choice }) => {
               const label = choice?.name ?? "Saved selection";
               const blocked = group === "items" && conflictKeys.includes(key);
-              const warning = choice?.reason ?? (!choice?.available ? "This selection is unavailable." :
-                value.quantity > choice.maximum || blocked ? "Stock has changed. Adjust this selection." : undefined);
+              const warning = !choice?.available ? choice?.reason ?? "This selection is unavailable."
+                : value.quantity > choice.maximum || blocked ? "Stock has changed. Adjust this selection." : undefined;
               return <li key={group + ":" + key}>
                 <div className="mobile-lineup-item">
                   {choice && <CheckoutPhoto choice={choice} compact />}
@@ -799,8 +831,9 @@ export function Checkout(props: CheckoutProps) {
           {method === "delivery" && <p className="mobile-lineup-note">Delivery fee to be confirmed in chat.</p>}
           {validDate && <section className="mobile-lineup-logistics">
             <h3>Your schedule</h3>
-            <p>{drop?.name ?? branch?.name ?? location?.name} · {dateLabel(cart.date)}</p>
+            <p className={styles.summaryLine}><Store aria-hidden /> <span>{fulfillmentLocation} · {dateLabel(cart.date)}</span></p>
             {validMethod && <p>{methodLabel}{windowLabel && ` · ${windowLabel}`}</p>}
+            {pickupAddress && <div className="mt-2 text-sm">{pickupAddress}</div>}
           </section>}
         </MobileLineup>
       </>}
