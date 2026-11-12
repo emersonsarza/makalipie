@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
 import { createClient } from "@supabase/supabase-js";
+import { GET as catalogGet, POST as catalogPost } from "../src/app/api/admin/catalog/route";
 import { GET, POST } from "../src/app/api/admin/session/route";
 import { POST as logoutRoute } from "../src/app/api/admin/session/logout/route";
 import { POST as passwordRoute } from "../src/app/api/admin/session/password/route";
 import { POST as refreshRoute } from "../src/app/api/admin/session/refresh/route";
 import { readSupabaseEnv } from "../src/lib/admin/env";
-import { REFRESH_COOKIE } from "../src/lib/admin/session";
+import { ACCESS_COOKIE, REFRESH_COOKIE } from "../src/lib/admin/session";
 import { createServiceClient } from "../src/lib/admin/supabase";
 
 const env = readSupabaseEnv();
@@ -29,10 +30,35 @@ function sessionRequest(path: string, options: { method?: string; cookie?: strin
 }
 
 function refreshCookie(response: Response): string | null {
-  const header = response.headers.get("set-cookie") ?? "";
+  const header = setCookieHeader(response);
   const match = header.match(new RegExp(`${REFRESH_COOKIE}=([^;]*)`));
   if (!match || match[1] === "") return null;
   return decodeURIComponent(match[1]);
+}
+
+function setCookieHeader(response: Response) {
+  return ("getSetCookie" in response.headers ? response.headers.getSetCookie() : [response.headers.get("set-cookie") ?? ""]).join("\n");
+}
+
+function cookieValue(response: Response, name: string) {
+  const match = setCookieHeader(response).match(new RegExp(`${name}=([^;]*)`));
+  if (!match || match[1] === "") return null;
+  return decodeURIComponent(match[1]);
+}
+
+function pairCookie(response: Response) {
+  const refresh = cookieValue(response, REFRESH_COOKIE);
+  const access = cookieValue(response, ACCESS_COOKIE);
+  assert.ok(refresh);
+  assert.ok(access);
+  return `${REFRESH_COOKIE}=${encodeURIComponent(refresh)}; ${ACCESS_COOKIE}=${encodeURIComponent(access)}`;
+}
+
+function pairRequest(path: string, cookie: string, ip: string) {
+  return new Request(`http://127.0.0.1:3000${path}`, {
+    method: "GET",
+    headers: { origin: "http://127.0.0.1:3000", cookie, "x-forwarded-for": ip },
+  });
 }
 
 async function createUser(email: string) {
@@ -135,6 +161,90 @@ test("owner session refreshes, rejects a bad password, and revokes other session
     assert.equal(refreshCookie(loggedOut), null);
     const afterLogout = await refreshRoute(sessionRequest("/api/admin/session/refresh", { cookie: changedCookie, ip: currentIp }));
     assert.equal(afterLogout.status, 401);
+  } finally {
+    await removeUser(userId);
+  }
+});
+
+test("two devices keep independent sessions and catalog reads do not rotate refresh", async () => {
+  const email = `phase1-devices-${randomUUID()}@example.com`;
+  const userId = await createUser(email);
+  try {
+    await service.from("admin_users").insert({ user_id: userId });
+    const laptop = await POST(sessionRequest("/api/admin/session", { ip: "203.0.113.51", body: { email, password } }));
+    const phone = await POST(sessionRequest("/api/admin/session", { ip: "203.0.113.52", body: { email, password } }));
+    assert.equal(laptop.status, 200);
+    assert.equal(phone.status, 200);
+    const laptopPair = pairCookie(laptop);
+    const phonePair = pairCookie(phone);
+    const laptopRefresh = cookieValue(laptop, REFRESH_COOKIE);
+
+    const burst = await Promise.all([
+      catalogGet(pairRequest("/api/admin/catalog", laptopPair, "203.0.113.51")),
+      catalogGet(pairRequest("/api/admin/catalog", laptopPair, "203.0.113.51")),
+      catalogGet(pairRequest("/api/admin/catalog", phonePair, "203.0.113.52")),
+      catalogGet(pairRequest("/api/admin/catalog", phonePair, "203.0.113.52")),
+      GET(pairRequest("/api/admin/session", laptopPair, "203.0.113.51")),
+      GET(pairRequest("/api/admin/session", phonePair, "203.0.113.52")),
+    ]);
+    for (const response of burst) {
+      assert.equal(response.status, 200, await response.clone().text());
+      assert.equal(cookieValue(response, REFRESH_COOKIE), null);
+    }
+
+    const laterLaptop = await catalogGet(pairRequest("/api/admin/catalog", laptopPair, "203.0.113.51"));
+    const laterPhone = await catalogGet(pairRequest("/api/admin/catalog", phonePair, "203.0.113.52"));
+    assert.equal(laterLaptop.status, 200);
+    assert.equal(laterPhone.status, 200);
+
+    const loggedOutPhone = await logoutRoute(new Request("http://127.0.0.1:3000/api/admin/session/logout", {
+      method: "POST",
+      headers: { origin: "http://127.0.0.1:3000", cookie: phonePair, "x-forwarded-for": "203.0.113.52" },
+    }));
+    assert.equal(loggedOutPhone.status, 200);
+    assert.equal(cookieValue(loggedOutPhone, REFRESH_COOKIE), null);
+    const signedOutBrowser = await catalogGet(pairRequest("/api/admin/catalog", "", "203.0.113.52"));
+    assert.equal(signedOutBrowser.status, 401);
+    const leftoverWrite = await catalogPost(new Request("http://127.0.0.1:3000/api/admin/catalog", {
+      method: "POST",
+      headers: { origin: "http://127.0.0.1:3000", cookie: phonePair, "content-type": "application/json", "x-forwarded-for": "203.0.113.52" },
+      body: JSON.stringify({ action: "save_settings", payload: {} }),
+    }));
+    assert.equal(leftoverWrite.status, 401);
+    const leftoverRead = await catalogGet(pairRequest("/api/admin/catalog", phonePair, "203.0.113.52"));
+    assert.equal(leftoverRead.status, 200);
+    const laptopAfterPhoneLogout = await catalogGet(pairRequest("/api/admin/catalog", laptopPair, "203.0.113.51"));
+    assert.equal(laptopAfterPhoneLogout.status, 200);
+    assert.equal(cookieValue(laptopAfterPhoneLogout, REFRESH_COOKIE), null);
+    assert.equal(laptopRefresh, cookieValue(laptop, REFRESH_COOKIE));
+  } finally {
+    await removeUser(userId);
+  }
+});
+
+test("https sessions set host-prefixed cookies", async () => {
+  const email = `phase1-https-${randomUUID()}@example.com`;
+  const userId = await createUser(email);
+  try {
+    await service.from("admin_users").insert({ user_id: userId });
+    const headers = new Headers({
+      origin: "https://127.0.0.1:3000",
+      "x-forwarded-proto": "https",
+      "x-forwarded-host": "127.0.0.1:3000",
+      "x-forwarded-for": "203.0.113.61",
+      "content-type": "application/json",
+    });
+    const response = await POST(new Request("https://127.0.0.1:3000/api/admin/session", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ email, password }),
+    }));
+    assert.equal(response.status, 200, await response.clone().text());
+    const header = setCookieHeader(response);
+    assert.match(header, /__Host-mp_refresh=/);
+    assert.match(header, /__Host-mp_access=/);
+    assert.match(header, /Secure/);
+    assert.doesNotMatch(header, /__Host-mp_refresh=[^;]*;.*Domain=/);
   } finally {
     await removeUser(userId);
   }

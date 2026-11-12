@@ -44,8 +44,12 @@ export function adminRequest<T>(url: string, init?: RequestInit): Promise<T> {
         return { response, body: await response.json() };
       };
       // Tabs share the same cookie as well as a session. Web Locks prevent competing rotations.
-      const { response, body } = typeof navigator !== "undefined" && navigator.locks
-        ? await navigator.locks.request("makalipie-admin-request", dispatch) : await dispatch();
+      const locked = () => typeof navigator !== "undefined" && navigator.locks
+        ? navigator.locks.request("makalipie-admin-request", dispatch) : dispatch();
+      let { response, body } = await locked();
+      if (response.status === 401 && body.error === "unauthenticated") {
+        ({ response, body } = await locked());
+      }
       if (epoch !== generation) throw new DOMException("Session ended", "AbortError");
       if (response.status === 401 && body.error !== "invalid_credentials") hooks?.unauthorized();
       init?.signal?.throwIfAborted();

@@ -258,16 +258,27 @@ export function OrderNotificationsProvider({ accountId, children }: { accountId:
         if (disposed || client !== nextClient) return;
         scheduleConnection(12_000);
         resourceSubscribed = false;
+        function channelStatus(status: string, channel: "orders" | "admin-data") {
+          if (disposed || client !== nextClient || !navigator.onLine) return;
+          if (status === "SUBSCRIBED") {
+            if (channel === "orders") {
+              subscribed = true;
+              retryDelay = 1000;
+              lastHeartbeat = Date.now();
+              scheduleConnection(Math.max(1000, renewAt - Date.now()));
+            } else {
+              resourceSubscribed = true;
+            }
+            setConnected(subscribed && resourceSubscribed);
+            if (subscribed && resourceSubscribed) void invalidateAdmin(queryClient);
+            return;
+          }
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") retryConnection();
+        }
         nextClient.channel("admin-data", { config: { private: true } }).on("broadcast", { event: "change" }, ({ payload }) => {
           if (disposed || client !== nextClient) return;
           if (["catalog", "drops", "backups"].includes(payload.resource)) changed(payload.resource);
-        }).subscribe(status => {
-          if (disposed || client !== nextClient) return;
-          resourceSubscribed = status === "SUBSCRIBED";
-          setConnected(subscribed && resourceSubscribed);
-          if (resourceSubscribed && subscribed) void invalidateAdmin(queryClient);
-          else retryConnection();
-        });
+        }).subscribe(status => channelStatus(status, "admin-data"));
         nextClient.channel("orders", { config: { private: true } }).on("broadcast", { event: "order" }, ({ payload }) => {
           if (disposed || client !== nextClient || typeof payload.orderId !== "string") return;
           changed("orders");
@@ -279,19 +290,7 @@ export function OrderNotificationsProvider({ accountId, children }: { accountId:
               try { showDesktopNotification("A new order is ready to review.", key + ":" + payload.orderId); } catch {}
             }
           }
-        }).subscribe(status => {
-          if (disposed || client !== nextClient || !navigator.onLine) return;
-          if (status !== "SUBSCRIBED") {
-            retryConnection();
-            return;
-          }
-          subscribed = true;
-          retryDelay = 1000;
-          lastHeartbeat = Date.now();
-          setConnected(resourceSubscribed);
-          if (resourceSubscribed) void invalidateAdmin(queryClient);
-          scheduleConnection(Math.max(1000, renewAt - Date.now()));
-        });
+        }).subscribe(status => channelStatus(status, "orders"));
       } catch {
         if (!disposed) retryConnection();
       } finally {

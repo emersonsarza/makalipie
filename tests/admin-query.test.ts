@@ -63,9 +63,20 @@ test("retired session responses cannot repopulate a cleared cache", async () => 
 
 test("authorization failure expires the session; incorrect current password does not", async () => {
   let expired = 0;
+  let catalogCalls = 0;
   configureAdminTransport({ unauthorized: () => { expired++; }, mutate: (_url, _init, run) => run() });
-  mock.method(globalThis, "fetch", async () => Response.json({ error: "unauthenticated" }, { status: 401 }));
-  await assert.rejects(adminRequest("/api/admin/catalog"), OrderRequestError); assert.equal(expired, 1);
+  mock.method(globalThis, "fetch", async (url: string) => {
+    if (String(url).includes("/catalog")) {
+      catalogCalls += 1;
+      if (catalogCalls === 1) return Response.json({ error: "unauthenticated" }, { status: 401 });
+      return Response.json({ ok: true });
+    }
+    return Response.json({ error: "unauthenticated" }, { status: 401 });
+  });
+  assert.deepEqual(await adminRequest("/api/admin/catalog"), { ok: true });
+  assert.equal(expired, 0);
+  assert.equal(catalogCalls, 2);
+  await assert.rejects(adminRequest("/api/admin/orders"), OrderRequestError); assert.equal(expired, 1);
   mock.restoreAll();
   mock.method(globalThis, "fetch", async () => Response.json({ error: "invalid_credentials" }, { status: 401 }));
   await assert.rejects(adminRequest("/api/admin/session/password", { method: "POST" }), OrderRequestError); assert.equal(expired, 1);
