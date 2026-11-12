@@ -209,6 +209,8 @@
 .choice[data-available="false"] { border-style: dashed; }
 .choiceInfo { min-width: 0; overflow-wrap: anywhere; }
 .choiceInfo > * + * { margin-top: 0.25rem; }
+.choiceName { font-size: 1rem; line-height: 1.25; font-weight: 700; }
+.choiceSize { font-size: 0.75rem; line-height: 1.25; color: var(--muted-foreground); }
 .choicePrice, .mobilePrice {
   grid-column: 3;
   align-self: center;
@@ -280,6 +282,16 @@
 .summaryPhoto { flex: none; width: 44px; height: 44px; object-fit: cover; border-radius: 4px; }
 
 .accent { color: var(--checkout-accent); }
+
+.deliveryFeeNotice {
+  --fee-notice-ink: #333235;
+  border: 1px solid var(--fee-notice-ink);
+  border-inline-start-width: 4px;
+  border-radius: 4px;
+  padding: 0.875rem;
+  background: #f5f4f4;
+  color: var(--fee-notice-ink);
+}
 
 .summaryLine {
   display: flex;
@@ -364,19 +376,22 @@
   .stepIndex { width: 1.625rem; height: 1.625rem; }
   .controls :is(input, textarea, [data-slot="select-trigger"]) { font-size: 16px; }
   .choice {
+    --choice-image-size: clamp(4rem, 20vw, 5rem);
     grid-template-columns: var(--choice-image-size) minmax(0, 1fr) auto;
     gap: 0.25rem 0.5rem;
     padding: 0.5rem;
   }
   .choiceInfo { grid-column: 2; }
   .choicePrice { display: none; }
-  .mobilePrice { display: block; }
+  .mobilePrice { display: block; font-size: 0.8125rem; font-weight: 500; }
   .choiceQuantity { grid-column: 3; margin-inline-start: 4px; }
   .checkout .contentsTrigger { min-height: 44px; }
   .components { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 16rem; margin-inline: auto; }
   .choiceQuantity .quantity { flex-direction: column-reverse; }
+  .choiceQuantity .quantity button { height: 32px; }
   .choiceQuantity .quantity output {
-    min-height: 1.5rem;
+    min-height: 1.25rem;
+    font-size: 0.75rem;
     border-inline: 0;
     border-block: 1px solid var(--checkout-line);
   }
@@ -467,3 +482,35 @@
 }
 
 .checkoutCalendar :global(.rdp-root) { --cell-radius: 4px; }
+
+.confirmation .confirmationSummary {
+  position: relative;
+  margin-block: 8px;
+  border-radius: 0;
+  background: white;
+  text-align: start;
+}
+
+.confirmationSummary::before,
+.confirmationSummary::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  height: 8px;
+  background: conic-gradient(from 135deg at 50% 0, white 90deg, transparent 0) left top / 16px 8px repeat-x;
+  pointer-events: none;
+}
+
+.confirmationSummary::before { bottom: 100%; }
+.confirmationSummary::after { top: 100%; transform: rotate(180deg); }
+
+@media (min-width: 960px) {
+  .confirmationWithSummary {
+    max-width: 64rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .confirmationWithSummary > :first-child { grid-column: 2; grid-row: 1; }
+  .confirmationSummary { grid-column: 1; grid-row: 1; }
+}

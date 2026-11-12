@@ -69,10 +69,20 @@ const transitionSchema = z.object({
   status: z.enum(["confirmed", "paid", "completed", "cancelled", "refunded"]),
 });
 
+const deliveryFeeVersion = {
+  orderId: z.string().uuid(),
+  updatedAt: z.iso.datetime({ offset: true }),
+};
+const deliveryFeeSchema = z.discriminatedUnion("deliveryFeeMode", [
+  z.object({ ...deliveryFeeVersion, deliveryFeeMode: z.literal("known"), deliveryFeeCentavos: money.max(2147483647) }),
+  z.object({ ...deliveryFeeVersion, deliveryFeeMode: z.literal("rider") }),
+]);
+
 function schemaFor(action: string): z.ZodTypeAny | null {
   if (action === "place_order") return placeSchema;
   if (action === "update_order") return updateSchema;
   if (action === "transition_order") return transitionSchema;
+  if (action === "set_delivery_fee") return deliveryFeeSchema;
   return null;
 }
 
@@ -89,6 +99,7 @@ function detailBody(error: string, message: string) {
 
 function mapOrderError(error: { message?: string }) {
   const message = error.message ?? "";
+  if (message.includes("delivery_fee_not_editable")) return { status: 409, body: { error: "delivery_fee_not_editable", message: "This order is no longer eligible for a quick delivery fee update." } };
   if (message.includes("stale_save")) return { status: 409, body: { error: "stale_save" } };
   if (message.includes("price_change")) return { status: 409, body: detailBody("price_change", message) };
   if (message.includes("unavailable")) return { status: 409, body: detailBody("unavailable", message) };
@@ -103,6 +114,7 @@ function mapOrderError(error: { message?: string }) {
 
 export async function applyOrderChange(action: unknown, payload: unknown, actor: "public" | "admin" = "public") {
   if (typeof action !== "string") return { status: 400, body: { error: "validation" } };
+  if (action === "set_delivery_fee" && actor !== "admin") return { status: 403, body: { error: "forbidden" } };
   const parsed = schemaFor(action)?.safeParse(payload);
   if (!parsed?.success) return { status: 400, body: { error: "validation" } };
   const data = parsed.data as Record<string, unknown>;

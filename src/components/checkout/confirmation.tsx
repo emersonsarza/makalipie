@@ -1,14 +1,47 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
-import { ArrowUpRight, CircleCheck, Copy } from "lucide-react";
+import { ArrowUpRight, CalendarDays, CircleCheck, Copy, ShoppingBag, Store, Truck } from "lucide-react";
 import { BrandSeal } from "@/components/brand-seal";
 import { usePublicShop } from "@/components/public-shop-provider";
 import { ThemeLink as Link } from "@/components/site-theme";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import styles from "./checkout.module.css";
-import { loadReceipt } from "./state";
+import { DeliveryFeeNotice } from "./delivery-fee-notice";
+import { dateLabel, loadReceipt, pesos, type ReceiptSummary } from "./state";
+
+function ConfirmationSummary({ summary }: { summary: ReceiptSummary }) {
+  const delivery = summary.method === "delivery";
+  const MethodIcon = delivery ? Truck : ShoppingBag;
+  const total = summary.items.reduce((sum, item) => sum + item.quantity * item.unitPriceCentavos, 0);
+
+  return <section className={`${styles.panel} ${styles.summary} ${styles.confirmationSummary} space-y-4`} aria-labelledby="confirmation-summary-heading">
+    <h2 id="confirmation-summary-heading">Order summary</h2>
+    <div className="space-y-2 border-t pt-3 text-sm">
+      <p className={styles.summaryLine}><Store aria-hidden /> <span>{summary.location}</span></p>
+      <p className={styles.summaryLine}><CalendarDays aria-hidden /> <span>{dateLabel(summary.date)}</span></p>
+      <p className={styles.summaryLine}><MethodIcon aria-hidden /> <span>{delivery ? "Delivery dispatch" : "Pickup"}{summary.window && ` · ${summary.window}`}</span></p>
+    </div>
+    <ul className="border-t border-dashed pt-2">
+      {summary.items.map((item, index) => <li key={index} className={styles.summaryItem}>
+        {item.photos && (item.photos.length === 1
+          ? <Image src={item.photos[0]} alt="" width={44} height={44} className={styles.summaryPhoto} />
+          : <div className={`${styles.summaryPhoto} ${styles.mosaic}`} aria-hidden>
+            {item.photos.map((path, tile) => <Image key={tile} src={path} alt="" width={22} height={22} />)}
+          </div>)}
+        <div className="min-w-0 flex-1">
+          <p className="break-words font-semibold">{item.name}</p>
+          <p className="text-muted-foreground tabular-nums">{item.quantity} × {pesos(item.unitPriceCentavos)}</p>
+        </div>
+        <span className={styles.summaryAmount}>{pesos(item.quantity * item.unitPriceCentavos)}</span>
+      </li>)}
+    </ul>
+    <p className={styles.summaryTotal}><span>{delivery ? "Subtotal" : "Total"}</span><span>{pesos(total)}</span></p>
+    {delivery && <DeliveryFeeNotice />}
+  </section>;
+}
 
 export function OrderConfirmation() {
   const [receipt, setReceipt] = useState<ReturnType<typeof loadReceipt>>();
@@ -46,7 +79,7 @@ export function OrderConfirmation() {
     if (href && !chat) setManual(true);
   }
 
-  return <section className={`wrap ${styles.checkout} ${styles.confirmation}`} aria-labelledby="confirmation-heading">
+  return <section className={`wrap ${styles.checkout} ${styles.confirmation} ${receipt?.summary ? styles.confirmationWithSummary : ""}`} aria-labelledby="confirmation-heading">
     <div className={`${styles.panel} space-y-5`}>
       <div className="mx-auto w-16"><BrandSeal alt="" width={64} height={64} /></div>
       {receipt && <CircleCheck size={48} strokeWidth={1.5} className={`mx-auto ${styles.accent}`} aria-hidden />}
@@ -79,5 +112,6 @@ export function OrderConfirmation() {
       </> : <p>There’s no saved confirmation in this browser.</p>}
       <Link href="/order" className="text-sm font-semibold underline underline-offset-4">{receipt ? "Start another order" : "Go to checkout"}</Link>
     </div>
+    {receipt?.summary && <ConfirmationSummary summary={receipt.summary} />}
   </section>;
 }

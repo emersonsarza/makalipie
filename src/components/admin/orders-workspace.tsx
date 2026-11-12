@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { AdminOrder, OrderQueue } from "@/lib/orders/query";
 import { adminRequest, pesos, writeOrder } from "./orders-data";
 import { useOrderNotifications } from "./order-notifications";
+import { DeliveryFeeEditor } from "./delivery-fee-editor";
 import { useSharedOrderEditor } from "./shared-order-editor";
 
 const views = [{ id: "attention", name: "Needs attention" }, { id: "today", name: "Today" }, { id: "all", name: "All orders" }];
@@ -118,6 +119,7 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
   const [result, setResult] = useState<Results>();
   const queueKey = JSON.stringify([queue, view, page, filters]);
   const pendingExit = useRef<QueueExit | null>(null);
+  const listSection = useRef<HTMLElement>(null);
   const [exit, setExit] = useState<QueueExit>();
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [selectedId, select] = useState("");
@@ -217,11 +219,15 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
       const last = Math.max(1, Math.ceil(current.total / current.pageSize));
       const pending = pendingExit.current;
       pendingExit.current = null;
-      const animateExit = pending?.key === queueKey
-        && !current.orders.some(row => row.id === pending.order.id)
-        && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      if (animateExit) setExit(pending);
-      else if (page > last) { setPage(last); return; }
+      const leaving = pending?.key === queueKey && !current.orders.some(row => row.id === pending.order.id)
+        ? pending : undefined;
+      if (leaving && listSection.current?.getClientRects().length
+        && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setExit(leaving);
+      } else {
+        if (leaving) select(previous => previous === leaving.order.id ? current.orders[0]?.id ?? "" : previous);
+        if (page > last) { setPage(last); return; }
+      }
       setResult(current);
       setCounts(Object.fromEntries(data.map(([id, items]) => [id, items.total])));
       setError("");
@@ -240,6 +246,7 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
   }, [selectedId, revision, liveRevision]);
 
   async function transition(order: AdminOrder, status: string) {
+    if (status === "paid" && order.status !== "confirmed") return;
     setWorking(true);
     setActionError("");
     try {
@@ -263,15 +270,26 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
   const visibleExit = exit?.key === queueKey && !visibleRows.some(row => row.id === exit.order.id) ? exit : undefined;
   if (visibleExit) visibleRows.splice(visibleExit.index, 0, visibleExit.order);
 
-  function finishExit() {
+  const firstRemainingId = result?.orders[0]?.id ?? "";
+  const finishExit = useCallback(() => {
+    if (!visibleExit) return;
     setExit(undefined);
+    select(previous => previous === visibleExit.order.id ? firstRemainingId : previous);
     if (page > totalPages) setPage(totalPages);
-  }
+  }, [visibleExit, firstRemainingId, page, totalPages]);
+
+  useEffect(() => {
+    if (!visibleExit) return;
+    const timeout = window.setTimeout(finishExit, 350);
+    return () => window.clearTimeout(timeout);
+  }, [visibleExit, finishExit]);
+
+  const showPhoneDetail = phoneDetail && Boolean(selectedId);
 
   return <div className="space-y-4">
     {(queueError || error || actionError) && <Alert variant="destructive"><AlertDescription>{queueError || error || actionError} <Button variant="ghost" onClick={refresh}>Refresh</Button></AlertDescription></Alert>}
     <div className="grid items-start gap-5 xl:gap-6 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
-      <section className={(phoneDetail ? "hidden lg:block " : "") + "min-w-0"} aria-label="Order list">
+      <section ref={listSection} className={(showPhoneDetail ? "hidden lg:block " : "") + "min-w-0"} aria-label="Order list">
         <div className="mb-4 grid min-w-0 gap-1.5 text-sm font-medium sm:max-w-80">
           <span id={queueLabelId}>Order queue</span>
           <Select value={queue || null} disabled={!queues.length || editorOpen} onValueChange={value => { if (value) changeQueue(value); }}>
@@ -378,7 +396,7 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
           </TabsContent>)}
         </Tabs>
       </section>
-      <section className={(!phoneDetail ? "hidden lg:block " : "") + "min-w-0 space-y-5 rounded-lg border bg-white p-4 shadow-sm sm:p-6"} aria-label="Order details">
+      <section className={(!showPhoneDetail ? "hidden lg:block " : "") + "min-w-0 space-y-5 rounded-lg border bg-white p-4 shadow-sm sm:p-6"} aria-label="Order details">
         <Button variant="outline" className="lg:hidden" onClick={() => setPhoneDetail(false)}>Back to orders</Button>
         {detailError ? <Alert variant="destructive"><AlertDescription>{detailError}</AlertDescription></Alert> : order ? <>
           <div className="flex flex-wrap items-start justify-between gap-2">
@@ -415,9 +433,31 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
               </TableRow>
             ))}</TableBody>
           </Table>
-          <div className="flex items-start justify-between gap-2 border-t pt-4">
-            <span className="font-semibold">{order.deliveryFeeMode === "unknown" ? "Subtotal" : "Total"}</span>
-            <OrderTotal order={order} detail />
+          <div className="grid gap-3 border-t pt-4">
+            {order.deliveryFeeMode === "known" && order.deliveryFeeCentavos !== null && <dl className="grid gap-1 text-sm text-muted-foreground">
+              <div className="flex justify-between gap-2">
+                <dt>Subtotal</dt><dd className="tabular-nums">{pesos(order.subtotalCentavos)}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt>Delivery fee</dt><dd className="tabular-nums">{pesos(order.deliveryFeeCentavos)}</dd>
+              </div>
+            </dl>}
+            <div className="flex items-start justify-between gap-2">
+              <span className="font-semibold">{order.deliveryFeeMode === "unknown" ? "Subtotal" : "Total"}</span>
+              <OrderTotal order={order} detail />
+            </div>
+            <div className="grid justify-items-start empty:hidden [&>form]:w-full">
+              <DeliveryFeeEditor key={order.id} order={order} disabled={working || editorOpen || editor.busy}
+                onWorkingChange={setWorking}
+                onSaved={(saved, version) => {
+                  setDetail(current => current?.id === saved.id && current.updatedAt === version ? { ...current, ...saved } : current);
+                  refresh();
+                }}
+                onReload={(latest, version) => {
+                  setDetail(current => current?.id === latest.id && current.updatedAt === version ? latest : current);
+                  refresh();
+                }} />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-2 pt-1 [&>button]:min-h-14 [&>button]:min-w-0 [&>button]:whitespace-normal [&>button]:px-2 [&>button]:text-center">
             <Button
@@ -431,7 +471,7 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
             </Button>
             <Button
               variant="outline"
-              disabled={working || (order.payment !== "paid" && (!open || order.payment !== "unpaid"))}
+              disabled={working || (order.payment !== "paid" && (order.status !== "confirmed" || order.payment !== "unpaid"))}
               onClick={() => void transition(order, order.payment === "paid" ? "refunded" : "paid")}
             >
               <Check aria-hidden="true" />
@@ -445,6 +485,7 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
             </Button>
           </div>
           {order.status === "pending" && order.deliveryFeeMode === "unknown" && <p className="text-sm">Set a delivery fee or select Customer pays rider before confirming.</p>}
+          {order.status === "pending" && order.payment === "unpaid" && <p className="text-sm text-muted-foreground">Confirm the order before marking it paid.</p>}
           {open && order.payment === "paid" && <p className="text-sm">Record the refund before cancelling a paid order.</p>}
         </> : selectedId ? <Skeleton className="h-48" /> : <p>Select an order to view details.</p>}
       </section>

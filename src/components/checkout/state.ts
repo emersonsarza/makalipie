@@ -19,6 +19,18 @@ const line = z.union([
   z.object({ productId: id, sizeId: id, quantity, unitPriceCentavos: price }),
   z.object({ offeringId: id, quantity, unitPriceCentavos: price }),
 ]);
+const receiptSummarySchema = z.object({
+  location: z.string(),
+  date,
+  method,
+  window: z.string(),
+  items: z.array(z.object({
+    name: z.string(),
+    quantity,
+    unitPriceCentavos: price,
+    photos: z.array(z.string().regex(/^\/images\/[A-Za-z0-9_./-]+\.webp$/)).min(1).max(4).optional(),
+  })).min(1).max(60),
+});
 const pendingSchema = z.object({
   idempotencyKey: z.uuid(),
   channel: z.enum(["regular", "drop"]),
@@ -29,9 +41,12 @@ const pendingSchema = z.object({
   slotId: slot.optional(),
   lines: z.array(line).min(1).max(40),
   addons: z.array(z.object({ id, quantity, unitPriceCentavos: price })).max(20),
+  receiptSummary: receiptSummarySchema.optional(),
 });
-const receiptSchema = z.string().regex(/^MP-\d{7,}$/);
+const orderNumber = z.string().regex(/^MP-\d{7,}$/);
+const receiptSchema = z.object({ number: orderNumber, afterHours: z.boolean(), summary: receiptSummarySchema.optional() });
 
+export type ReceiptSummary = z.infer<typeof receiptSummarySchema>;
 export type Cart = z.infer<typeof cartSchema>;
 export type Selection = z.infer<typeof entry>;
 export type PendingOrder = z.infer<typeof pendingSchema>;
@@ -42,7 +57,7 @@ export const emptyContact: Contact = { customerName: "", customerPhone: "", deli
 const pendingKey = "makalipie:checkout:v1:pending";
 const receiptKey = "makalipie:checkout:v1:receipt";
 const cartKey = (locationId: string, dropId?: string) => `makalipie:checkout:v1:cart:${dropId ? "drop:" + dropId : "regular:" + locationId}`;
-let lastReceipt: { number: string; afterHours: boolean } | undefined;
+let lastReceipt: z.infer<typeof receiptSchema> | undefined;
 let memoryPending: PendingOrder | undefined;
 
 export function loadCart(locationId: string, dropId?: string): Cart {
@@ -85,15 +100,20 @@ export function savePending(value?: PendingOrder) {
   } catch {}
 }
 
-export function rememberReceipt(number: string, afterHours: boolean) {
-  lastReceipt = { number, afterHours };
-  try { localStorage.setItem(receiptKey, receiptSchema.parse(number)); } catch {}
+export function rememberReceipt(number: string, afterHours: boolean, summary: ReceiptSummary) {
+  lastReceipt = { number, afterHours, summary };
+  try { localStorage.setItem(receiptKey, JSON.stringify(receiptSchema.parse(lastReceipt))); } catch {}
 }
 
 export function loadReceipt() {
   try {
-    const number = receiptSchema.safeParse(localStorage.getItem(receiptKey));
-    if (number.success) return lastReceipt?.number === number.data ? lastReceipt : { number: number.data, afterHours: false };
+    const stored = localStorage.getItem(receiptKey);
+    if (stored) {
+      const legacy = orderNumber.safeParse(stored);
+      if (legacy.success) return lastReceipt?.number === legacy.data ? lastReceipt : { number: legacy.data, afterHours: false };
+      const receipt = receiptSchema.safeParse(JSON.parse(stored));
+      if (receipt.success) return receipt.data;
+    }
   } catch {}
   return lastReceipt;
 }

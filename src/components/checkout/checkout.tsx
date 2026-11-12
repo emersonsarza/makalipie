@@ -12,10 +12,12 @@ import { ThemeLink as Link } from "@/components/site-theme";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import styles from "./checkout.module.css";
+import { DeliveryFeeNotice } from "./delivery-fee-notice";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select-field";
@@ -27,7 +29,7 @@ import { phoneNumberError } from "@/lib/orders/phone";
 import { timeLabel } from "@/lib/scheduling/rules";
 import {
   clearSubmittedCart, dateLabel, emptyCart, emptyContact, lineKey, loadCart, loadPending, pesos,
-  rememberReceipt, reviewedTotal, saveCart, savePending, type Cart, type Contact, type Method, type PendingOrder,
+  rememberReceipt, reviewedTotal, saveCart, savePending, type Cart, type Contact, type Method, type PendingOrder, type ReceiptSummary,
 } from "./state";
 
 export type CheckoutLocation = { id: string; name: string; kind: "regular" | "drop" };
@@ -45,10 +47,12 @@ type CheckoutProps = {
 type Choice = {
   key: string;
   name: string;
+  sizeLabel?: string;
   price: number;
   maximum: number;
   available: boolean;
   reason?: string;
+  needsPreparation?: boolean;
   stock?: { remaining: number; limit: number };
   icon?: string;
   image?: { path: string; alt: string };
@@ -57,10 +61,14 @@ type Choice = {
   sizeId?: string;
   offeringId?: string;
 };
+
+function choiceLabel(choice: Choice) {
+  return choice.sizeLabel ? `${choice.name} · ${choice.sizeLabel}` : choice.name;
+}
 type PriceUpdate = { productId?: string; sizeId?: string; offeringId?: string; id?: string; unitPriceCentavos?: number };
 const steps = ["Branch & date", "Pick your pies", "Your details"];
 const compactSteps = ["Schedule", "Pies", "Details"];
-type ContactErrors = Partial<Record<"name" | "phone" | "address", string>>;
+type ContactErrors = Partial<Record<"name" | "phone" | "delivery-fee" | "address", string>>;
 type StockAdjustment = { name: string; remaining: number };
 const stepHeadings = ["First, where and when?", "A few for you. A few to share.", "The last little details."];
 
@@ -96,11 +104,12 @@ function regularChoices(shop: PublishedShop | undefined, eligibility: BranchElig
       const reason = isAvailable ? undefined : !date ? "Choose a date first."
         : product.seasonStart && product.seasonEnd && (date < product.seasonStart || date > product.seasonEnd) ? "Outside its seasonal dates."
         : size.mode === "regular" && weekday !== undefined && !section.weekdays.includes(weekday) ? "This pie isn’t baked on that weekday."
-        : size.mode === "preorder" ? `Allow ${shop.settings.preorderLeadDays} days for preparation. Try a later date.`
+        : size.mode === "preorder" ? undefined
         : "This size is unavailable on the selected date.";
       return [{
-        key, name: `${product.name} · ${size.label}`, price: size.priceCentavos, maximum: 99, image: size.image,
-        available: isAvailable, reason, productId: product.id, sizeId: size.id,
+        key, name: product.name, sizeLabel: size.label, price: size.priceCentavos, maximum: 99, image: size.image,
+        available: isAvailable, reason, needsPreparation: !isAvailable && !reason && size.mode === "preorder",
+        productId: product.id, sizeId: size.id,
       }];
     }))) ?? [];
 }
@@ -118,15 +127,18 @@ function Quantity({ label, value, max, change, disabled, onEmpty }: {
   </div>;
 }
 
+function packagePhotos(components: NonNullable<Choice["components"]>) {
+  return components.flatMap(component =>
+    Array.from({ length: Math.min(component.quantity, 4) }, () => (component.image ?? DEFAULT_PRODUCT_IMAGE).path),
+  ).slice(0, 4);
+}
+
 function CheckoutPhoto({ choice, compact = false }: { choice: Choice; compact?: boolean }) {
   const Icon = choice.icon === "gift" ? Gift : choice.icon === "note" ? StickyNote : PackagePlus;
   const className = compact ? styles.summaryPhoto : styles.choiceImage;
   if (choice.components?.length) {
-    const tiles = choice.components.flatMap(component =>
-      Array.from({ length: Math.min(component.quantity, 4) }, () => component.image ?? DEFAULT_PRODUCT_IMAGE),
-    ).slice(0, 4);
     return <div className={`${className} ${styles.mosaic}`} aria-hidden>
-      {tiles.map((tile, index) => <Image key={index} src={tile.path} alt="" width={40} height={40} sizes="40px" />)}
+      {packagePhotos(choice.components).map((path, index) => <Image key={index} src={path} alt="" width={40} height={40} sizes="40px" />)}
     </div>;
   }
   if (choice.image) return <Image src={choice.image.path} alt={compact ? "" : choice.image.alt}
@@ -152,11 +164,12 @@ function ChoiceRow({ choice, quantity, change, limitReached, notice }: {
   const row = <>
     <CheckoutPhoto choice={choice} />
     <div className={styles.choiceInfo}>
-      <h3 className="font-semibold">{isPackage
+      <h3 className={styles.choiceName}>{isPackage
         ? <CollapsibleTrigger type="button" className={styles.contentsTrigger}>
           <span>{choice.name}</span><ChevronDown aria-hidden />
         </CollapsibleTrigger>
         : choice.name}</h3>
+      {choice.sizeLabel && <p className={styles.choiceSize}>{choice.sizeLabel}</p>}
       <p className={styles.mobilePrice}>{price}</p>
       {choice.stock && <p className="text-sm text-muted-foreground">Limit {choice.stock.limit} per order</p>}
       {choice.reason && <p className="text-sm text-muted-foreground">{choice.reason}</p>}
@@ -164,7 +177,7 @@ function ChoiceRow({ choice, quantity, change, limitReached, notice }: {
     </div>
     <p className={styles.choicePrice}>{price}</p>
     {(choice.available || quantity > 0) && <div className={styles.choiceQuantity}>
-      <Quantity label={choice.name} value={quantity} max={choice.maximum}
+      <Quantity label={choiceLabel(choice)} value={quantity} max={choice.maximum}
         change={change} disabled={!choice.available || (!quantity && limitReached)} />
     </div>}
   </>;
@@ -240,8 +253,9 @@ function FulfillmentCalendar({ date, today, dates, error, change }: {
   </div>;
 }
 
-function ContactFields({ contact, change, method, errors }: {
+function ContactFields({ contact, change, method, errors, feeAcknowledged, acknowledgeFee }: {
   contact: Contact; change: (patch: Partial<Contact>) => void; method: Method; errors: ContactErrors;
+  feeAcknowledged: boolean; acknowledgeFee: (checked: boolean) => void;
 }) {
   return <fieldset className={`grid gap-4 sm:grid-cols-2 ${styles.controls}`}>
     <div className="grid content-start gap-2">
@@ -259,10 +273,22 @@ function ContactFields({ contact, change, method, errors }: {
       <InlineError id="checkout-phone-error" message={errors.phone} />
     </div>
     {method === "delivery" && <div className="grid gap-2 sm:col-span-2">
+      <DeliveryFeeNotice descriptionId="checkout-delivery-fee-notice">
+        <div className="mt-2 flex items-center gap-3">
+          <Checkbox id="checkout-delivery-fee" checked={feeAcknowledged} onCheckedChange={acknowledgeFee}
+            className="size-5 border-current" aria-required="true" aria-invalid={Boolean(errors["delivery-fee"])}
+            aria-describedby={errors["delivery-fee"] ? "checkout-delivery-fee-notice checkout-delivery-fee-error" : "checkout-delivery-fee-notice"} />
+          <Label htmlFor="checkout-delivery-fee" className="min-h-11 cursor-pointer leading-snug">
+            I understand the delivery fee will be confirmed in chat.
+          </Label>
+        </div>
+        <InlineError id="checkout-delivery-fee-error" message={errors["delivery-fee"]} />
+      </DeliveryFeeNotice>
       <Label htmlFor="checkout-address">Delivery address</Label>
-      <Textarea id="checkout-address" required maxLength={300} autoComplete="street-address" value={contact.deliveryAddress}
-        aria-invalid={Boolean(errors.address)} aria-describedby={errors.address ? "checkout-address-error" : undefined}
+      <Textarea id="checkout-address" disabled={!feeAcknowledged} required maxLength={300} autoComplete="street-address" value={contact.deliveryAddress}
+        aria-invalid={Boolean(errors.address)} aria-describedby={errors.address ? "checkout-address-error" : !feeAcknowledged ? "checkout-delivery-fee-help" : undefined}
         onChange={event => change({ deliveryAddress: event.target.value })} />
+      {!feeAcknowledged && <p id="checkout-delivery-fee-help" className="text-sm">Check the box to enter your address.</p>}
       <InlineError id="checkout-address-error" message={errors.address} />
     </div>}
     <div className="grid gap-2 sm:col-span-2"><Label htmlFor="checkout-notes">Order notes (optional)</Label><Textarea id="checkout-notes" maxLength={500} value={contact.notes} onChange={event => change({ notes: event.target.value })} /></div>
@@ -278,6 +304,7 @@ export function Checkout(props: CheckoutProps) {
   const [drop, setDrop] = useState(props.drop);
   const [savedCart, setCart] = useState(emptyCart);
   const [contact, setContact] = useState(emptyContact);
+  const [feeAcknowledged, setFeeAcknowledged] = useState(false);
   const [pending, setPending] = useState<PendingOrder>();
   const [hydrated, setHydrated] = useState(false);
   const [step, setStep] = useState(0);
@@ -391,7 +418,7 @@ export function Checkout(props: CheckoutProps) {
   const choices: Choice[] = dropId ? [...dropOfferings].sort((a, b) =>
     Number(b.orderable) - Number(a.orderable) || Number(b.kind === "package") - Number(a.kind === "package"),
   ).map(offering => ({
-    key: offering.id, offeringId: offering.id, name: offering.sizeLabel ? `${offering.name} · ${offering.sizeLabel}` : offering.name,
+    key: offering.id, offeringId: offering.id, name: offering.name, sizeLabel: offering.sizeLabel,
     price: offering.priceCentavos, maximum: Math.min(99, offering.perOrderMax), available: offering.orderable,
     stock: { remaining: offering.remaining, limit: offering.perOrderMax },
     reason: offering.orderable ? undefined : stockReason(day, offering),
@@ -423,11 +450,16 @@ export function Checkout(props: CheckoutProps) {
   const pendingHere = pending && pending.locationId === locationId && pending.dropId === dropId;
   function contactChange(patch: Partial<Contact>) {
     setContact(current => ({ ...current, ...patch }));
-    setContactErrors(current => ({
+    setContactErrors(current => ({ ...current,
       name: patch.customerName === undefined ? current.name : undefined,
       phone: patch.customerPhone === undefined ? current.phone : undefined,
       address: patch.deliveryAddress === undefined ? current.address : undefined,
     }));
+  }
+
+  function acknowledgeFee(checked: boolean) {
+    setFeeAcknowledged(checked);
+    setContactErrors(current => ({ ...current, "delivery-fee": undefined, address: undefined }));
   }
 
   function quantityChange(group: "items" | "addons", key: string, quantity: number, price: number) {
@@ -463,41 +495,73 @@ export function Checkout(props: CheckoutProps) {
     };
   }
 
+  function summarizeAttempt(attempt: PendingOrder): ReceiptSummary {
+    const serviceDay = drop?.dates.find(candidate => candidate.date === attempt.fulfillmentDate);
+    const window = attempt.channel === "drop"
+      ? formatWindow(attempt.fulfillment === "delivery" ? serviceDay?.dispatch : serviceDay?.pickup)
+      : eligibility?.dates.find(candidate => candidate.date === attempt.fulfillmentDate)?.slots
+        .find(candidate => candidate.id === attempt.slotId)?.label
+        ?? (attempt.slotId ? timeLabel(attempt.slotId) : "");
+    return {
+      location: fulfillmentLocation,
+      date: attempt.fulfillmentDate,
+      method: attempt.fulfillment,
+      window,
+      items: [
+        ...attempt.lines.map(line => {
+          const choice = choiceMap.get(lineKey(line));
+          return {
+            name: choice ? choiceLabel(choice) : "Pie or package",
+            quantity: line.quantity,
+            unitPriceCentavos: line.unitPriceCentavos,
+            photos: choice?.components?.length ? packagePhotos(choice.components) : [choice?.image?.path ?? DEFAULT_PRODUCT_IMAGE.path],
+          };
+        }),
+        ...attempt.addons.map(addon => ({
+          name: addonMap.get(addon.id)?.name ?? "Add-on", quantity: addon.quantity, unitPriceCentavos: addon.unitPriceCentavos,
+        })),
+      ],
+    };
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (locked.current || (pending ? !pendingHere : !readyToOrder)) return;
+    const delivery = (pending?.fulfillment ?? method) === "delivery";
     const details = {
       customerName: contact.customerName.trim(), customerPhone: contact.customerPhone.trim(),
-      deliveryAddress: (pending?.fulfillment ?? method) === "delivery" ? contact.deliveryAddress.trim() : "", notes: contact.notes.trim(),
+      deliveryAddress: delivery ? contact.deliveryAddress.trim() : "", notes: contact.notes.trim(),
     };
     const errors: ContactErrors = {
       name: details.customerName ? undefined : "Enter your name.",
       phone: phoneNumberError(details.customerPhone) ?? (details.customerPhone.length > 20 ? "Enter up to 20 characters." : undefined),
-      address: (pending?.fulfillment ?? method) === "delivery" && !details.deliveryAddress ? "Enter your delivery address." : undefined,
+      "delivery-fee": delivery && !feeAcknowledged ? "Acknowledge the delivery fee to continue." : undefined,
+      address: delivery && feeAcknowledged && !details.deliveryAddress ? "Enter your delivery address." : undefined,
     };
     setContactErrors(errors);
-    const firstInvalid = (["name", "phone", "address"] as const).find(field => errors[field]);
+    const firstInvalid = (["name", "phone", "delivery-fee", "address"] as const).find(field => errors[field]);
     if (firstInvalid) {
       requestAnimationFrame(() => document.getElementById("checkout-" + firstInvalid)?.focus());
       return;
     }
     const attempt = pending ?? newAttempt();
+    const { receiptSummary = summarizeAttempt(attempt), ...orderRequest } = attempt;
     locked.current = true;
     setSubmitting(true);
     setError("");
     setScheduleError("");
-    savePending(attempt);
-    setPending(attempt);
+    savePending({ ...orderRequest, receiptSummary });
+    setPending({ ...orderRequest, receiptSummary });
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 20_000);
     try {
       const response = await fetch("/api/public/orders", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...attempt, ...details }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...orderRequest, ...details }),
         signal: controller.signal,
       });
       const body = await response.json();
       if (response.ok && typeof body.orderNumber === "string" && /^MP-\d{7,}$/.test(body.orderNumber)) {
-        rememberReceipt(body.orderNumber, body.submittedAfterHours === true);
+        rememberReceipt(body.orderNumber, body.submittedAfterHours === true, receiptSummary);
         clearSubmittedCart(attempt);
         savePending();
         router.replace("/order/status");
@@ -530,7 +594,8 @@ export function Checkout(props: CheckoutProps) {
               if (item) conflicts.push(entry.id);
               continue;
             }
-            adjustments[entry.id] = { name: choiceMap.get(entry.id)?.name ?? entry.id, remaining };
+            const choice = choiceMap.get(entry.id);
+            adjustments[entry.id] = { name: choice ? choiceLabel(choice) : entry.id, remaining };
             if (remaining === 0) delete items[entry.id];
             else items[entry.id] = { ...item, quantity: remaining };
           }
@@ -691,7 +756,8 @@ export function Checkout(props: CheckoutProps) {
       <p>We’re checking the same order. If you reloaded, re-enter the contact details and any notes you originally submitted.</p>
       <p className="text-sm">{dateLabel(pending.fulfillmentDate)} · {pending.fulfillment === "delivery" ? "Delivery" : "Pickup"} · {pending.fulfillment === "delivery" ? "Subtotal" : "Total"} {pesos(pending.lines.reduce((sum, item) => sum + item.unitPriceCentavos * item.quantity, 0) + pending.addons.reduce((sum, item) => sum + item.unitPriceCentavos * item.quantity, 0))}</p>
       {pendingHere ? <>
-        <fieldset disabled={submitting}><ContactFields contact={contact} method={pending.fulfillment} change={contactChange} errors={contactErrors} /></fieldset>
+        <fieldset disabled={submitting}><ContactFields contact={contact} method={pending.fulfillment} change={contactChange} errors={contactErrors}
+          feeAcknowledged={feeAcknowledged} acknowledgeFee={acknowledgeFee} /></fieldset>
         {privacy}
         {feedbackMessage}
         <Button type="submit" variant="ghost" className={styles.primary} disabled={submitting}>{submitting ? "Submitting…" : "Retry this order"}</Button>
@@ -745,7 +811,7 @@ export function Checkout(props: CheckoutProps) {
             {method === "delivery" ? <p className="text-sm text-muted-foreground">The shop books the rider. Arrival depends on rider availability and travel time.</p>
               : <p className="text-sm text-muted-foreground">Booking your own rider? Choose Pickup and send them to the pickup address.</p>}
             {pickupAddress && <div className={`${styles.mobileAddress} ${styles.summaryLine} text-sm`}><MapPin aria-hidden /><div>{pickupDirections || pickupAddress}</div></div>}
-            {requested.length > 0 && <p className="text-sm">Looking for {requested[0].name}? Choose a date to check availability.</p>}
+            {requested.length > 0 && <p className="text-sm">Looking for {choiceLabel(requested[0])}? Choose a date to check availability.</p>}
             <div className={`${styles.actions} ${styles.desktopActions}`}>{choosePies}</div>
           </>}
           {step === 1 && <>
@@ -754,6 +820,9 @@ export function Checkout(props: CheckoutProps) {
               <p className="flex items-center gap-2"><CalendarDays size={16} className="shrink-0" aria-hidden /> <span>{dateLabel(cart.date)} · {methodLabel}<span className={styles.desktopStepLabel}>{windowLabel && ` · ${windowLabel}`}</span></span></p>
               <Button type="button" variant="link" onClick={() => goTo(0)}>Change date</Button>
             </div>}
+            {shop && choices.some(choice => choice.needsPreparation) && <p className="text-sm text-muted-foreground">
+              Preorder pies need {shop.settings.preorderLeadDays} {shop.settings.preorderLeadDays === 1 ? "day" : "days"} to prepare. Choose a later date to order them.
+            </p>}
             {!dropId && choices.filter(choice => choice.available).length === 0 && <p>No pies are available on this date.</p>}
             {dropId && <p className={`text-sm text-muted-foreground ${day?.orderingOpen ? styles.desktopStepLabel : ""}`}>{day?.orderingOpen ? "Stock can change until the order is submitted." : "Preview only. Orders open on the selected date during its ordering hours."}</p>}
             <div className="grid gap-3">
@@ -797,7 +866,8 @@ export function Checkout(props: CheckoutProps) {
             </div>
           </>}
           {step === 2 && <form noValidate id="checkout-submit" className="space-y-5" onSubmit={event => void submit(event)}>
-            <ContactFields contact={contact} method={method} change={contactChange} errors={contactErrors} />
+            <ContactFields contact={contact} method={method} change={contactChange} errors={contactErrors}
+              feeAcknowledged={feeAcknowledged} acknowledgeFee={acknowledgeFee} />
             {privacy}
           </form>}
         </section>
@@ -820,7 +890,7 @@ export function Checkout(props: CheckoutProps) {
               return <li key={group + ":" + key} className={styles.summaryItem}>
                 {choice && <CheckoutPhoto choice={choice} compact />}
                 <div className="min-w-0 flex-1">
-                  <p className="break-words font-semibold">{choice?.name ?? "Saved selection"}</p>
+                  <p className="break-words font-semibold">{choice ? choiceLabel(choice) : "Saved selection"}</p>
                   <p className="text-muted-foreground tabular-nums">{value.quantity} × {pesos(value.price)}</p>
                   {step === 2 && <InlineError message={choice ? choiceNotice(group, choice) : "This selection is unavailable. Edit your items to remove it."} />}
                   {step === 2 && choice?.components?.map((component, index) => <p key={index} className="text-muted-foreground">{component.quantity} × {component.name} · {component.sizeLabel} per package</p>)}
@@ -836,7 +906,7 @@ export function Checkout(props: CheckoutProps) {
           {hasItems && <p className={styles.summaryTotal}>
             <span>{totalLabel}</span><span className="tabular-nums">{pesos(total)}</span>
           </p>}
-          {method === "delivery" && <p className={`${styles.scheduleStrip} text-sm`}>Delivery fee to be confirmed in chat.</p>}
+          {method === "delivery" && <DeliveryFeeNotice />}
           {step === 2 && <>
             {feedbackMessage}
             {refreshMessage}
@@ -850,9 +920,9 @@ export function Checkout(props: CheckoutProps) {
           action={step === 0 ? scheduleAction : step === 1 ? detailsAction : reviewAction} hint={mobileHint}>
           <ul className="mobile-lineup-items">
             {selectedLines.map(({ group, key, value, choice }) => {
-              const label = choice?.name ?? "Saved selection";
+              const label = choice ? choiceLabel(choice) : "Saved selection";
               const blocked = group === "items" && conflictKeys.includes(key);
-              const warning = !choice?.available ? choice?.reason ?? "This selection is unavailable."
+              const warning = !choice?.available ? choice?.reason ?? (choice?.needsPreparation ? "Choose a later date for this preorder pie." : "This selection is unavailable.")
                 : value.quantity > choice.maximum || blocked ? "Stock has changed. Adjust this selection." : undefined;
               return <li key={group + ":" + key}>
                 <div className="mobile-lineup-item">
@@ -879,7 +949,7 @@ export function Checkout(props: CheckoutProps) {
               <p className="font-semibold">{adjustment.name}</p><InlineError message={adjustmentMessage(adjustment)} />
             </li>)}
           </ul>
-          {method === "delivery" && <p className="mobile-lineup-note">Delivery fee to be confirmed in chat.</p>}
+          {method === "delivery" && <div className="mt-4"><DeliveryFeeNotice /></div>}
           {validDate && <section className="mobile-lineup-logistics">
             <h3>Your schedule</h3>
             <p className={styles.summaryLine}><Store aria-hidden /> <span>{fulfillmentLocation} · {dateLabel(cart.date)}</span></p>
