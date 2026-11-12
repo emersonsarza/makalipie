@@ -8,7 +8,7 @@ import { AdminSelect } from "@/components/admin/admin-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { StoreLocation } from "@/lib/storefront/types";
 import { adminRequest, OrderRequestError } from "../orders-data";
-import { allowDiscard, CatalogLoading, catalogChange, catalogError, EditorActions, Feedback, Field, TextField, Toggle, uniqueSlug, useCatalog, useDraftGuard, type Catalog } from "./catalog-ui";
+import { CatalogLoading, catalogChange, catalogError, EditorActions, Feedback, Field, TextField, Toggle, uniqueSlug, useAllowDiscard, useCatalog, useDraftGuard, type Catalog } from "./catalog-ui";
 import { BackupSettings } from "../backups/backup-settings";
 import { ResourceEditor } from "./resource-editor";
 
@@ -55,6 +55,7 @@ function OrderingRules({ catalog, reload }: { catalog: Catalog; reload: () => Pr
   const saved = { horizon: String(catalog.settings.bookingHorizonDays), lead: String(catalog.settings.preorderLeadDays), revision: catalog.revision, updatedAt: catalog.settings.updatedAt };
   const current = draft ?? saved;
   const dirty = current.horizon !== saved.horizon || current.lead !== saved.lead;
+  const allowDiscard = useAllowDiscard();
   useDraftGuard(dirty);
 
   return <form className="max-w-xl space-y-4 rounded-lg border bg-background p-4 sm:p-5" onSubmit={async event => {
@@ -75,7 +76,7 @@ function OrderingRules({ catalog, reload }: { catalog: Catalog; reload: () => Pr
     <p className="text-sm text-muted-foreground">These settings apply to regular branches. Drops use their own ordering dates and hours.</p>
     <Feedback error={error} success={success} />
     {error.startsWith("Someone") && <Button type="button" variant="outline" onClick={async () => {
-      if (allowDiscard(dirty) && await reload()) { setDraft(undefined); setError(""); }
+      if (await allowDiscard(dirty) && await reload()) { setDraft(undefined); setError(""); }
     }}>Reload catalog</Button>}
     <fieldset disabled={busy} className="grid gap-3 sm:grid-cols-2">
       <TextField label="Booking horizon (days)" type="number" required min={1} max={60} step={1} value={current.horizon} change={horizon => setDraft({ ...current, horizon })} />

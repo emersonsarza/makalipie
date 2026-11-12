@@ -10,7 +10,7 @@ import { AdminSelect } from "@/components/admin/admin-select";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import type { DropAddon, DropDate, DropEvent, DropOffering, DropStore } from "@/lib/drops/types";
 import type { StoreCatalog } from "@/lib/storefront/types";
-import { allowDiscard, CatalogLoading, catalogError, EditorActions, Feedback, Field, SplitEditor, TextField, Toggle, uniqueSlug, useDraftGuard } from "../catalog/catalog-ui";
+import { CatalogLoading, catalogError, EditorActions, Feedback, Field, SplitEditor, TextField, Toggle, uniqueSlug, useAllowDiscard, useDraftGuard } from "../catalog/catalog-ui";
 import { adminRequest, manilaToday, OrderRequestError, pesos } from "../orders-data";
 import { AllocationFields, DropDateFields, DropSection, dropSources, OfferingFields, type Source } from "./drop-fields";
 
@@ -91,6 +91,7 @@ export function DropsWorkspace() {
   const saved = store?.drops.find(drop => drop.id === selected) ?? store?.drops[0];
   const active = draft ?? saved;
   const dirty = !!draft && JSON.stringify(draft) !== JSON.stringify(saved);
+  const allowDiscard = useAllowDiscard();
   useDraftGuard(dirty);
 
   async function load() {
@@ -112,8 +113,8 @@ export function DropsWorkspace() {
   const revision = store.revision;
   const usedIds = store.drops.map(drop => drop.id);
 
-  function select(drop: DropEvent, isNew = false) {
-    if (busy || !allowDiscard(dirty)) return;
+  async function select(drop: DropEvent, isNew = false) {
+    if (busy || !(await allowDiscard(dirty))) return;
     setSelected(drop.id); setDraft(isNew ? drop : undefined); setPhone(true);
     setError(""); setSuccess(""); setEditorVersion(value => value + 1);
   }
@@ -205,7 +206,7 @@ export function DropsWorkspace() {
   </>} editor={<>
     <Feedback error={error || loadError} success={success} />
     {(loadError || /Reload|reload/.test(error)) && <Button variant="outline" disabled={busy} onClick={async () => {
-      if (allowDiscard(dirty) && await load()) { setDraft(undefined); setError(""); setEditorVersion(value => value + 1); }
+      if (await allowDiscard(dirty) && await load()) { setDraft(undefined); setError(""); setEditorVersion(value => value + 1); }
     }}>Reload drops</Button>}
     {active ? <>
       <div className="flex flex-wrap items-start justify-between gap-2">

@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/compone
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { DEFAULT_PRODUCT_IMAGE, THEMES, type StoreProduct, type StoreSize, type StoreImage, type ThemeName } from "@/lib/storefront/types";
 import { pesos } from "../orders-data";
-import { allowDiscard, CatalogLoading, catalogChange, catalogError, EditorActions, Feedback, Field, PriceField, SplitEditor, TextField, Toggle, uniqueSlug, useCatalog, useDraftGuard, type Catalog } from "./catalog-ui";
+import { CatalogLoading, catalogChange, catalogError, EditorActions, Feedback, Field, PriceField, SplitEditor, TextField, Toggle, uniqueSlug, useAllowDiscard, useCatalog, useDraftGuard, type Catalog } from "./catalog-ui";
 
 import { SortableList } from "./sortable-list";
 
@@ -135,14 +135,15 @@ export function ProductsEditor() {
   const [version, setVersion] = useState(0);
   const dirty = !!draft && JSON.stringify(draft) !== JSON.stringify(base);
   const reorderDirty = !!order && JSON.stringify(order.items.map(product => product.id)) !== JSON.stringify(catalog?.products.filter(product => product.sectionId === order.sectionId).map(product => product.id));
+  const allowDiscard = useAllowDiscard();
   useDraftGuard(dirty || reorderDirty);
 
   if (!catalog) return <CatalogLoading error={loadError} retry={() => void reload()} />;
   const snapshot = catalog;
   const active = draft ?? snapshot.products[0];
 
-  function pick(product: StoreProduct) {
-    if (busy || !allowDiscard(dirty || reorderDirty)) return;
+  async function pick(product: StoreProduct) {
+    if (busy || !(await allowDiscard(dirty || reorderDirty))) return;
     setDraft(product); setBase(product.id ? product : undefined); setOrder(undefined);
     setError(""); setSuccess(""); showEditor(true); setVersion(value => value + 1);
   }
@@ -183,10 +184,12 @@ export function ProductsEditor() {
     <div className="flex flex-wrap gap-2">
       <Button disabled={busy} onClick={() => pick(emptyProduct(snapshot))}>New product</Button>
       <Button variant="outline" disabled={busy || !snapshot.sections.length} onClick={() => {
-        if (!allowDiscard(dirty || reorderDirty)) return;
-        const sectionId = active?.sectionId ?? snapshot.sections[0].id;
-        setDraft(undefined); setBase(undefined); setOrder({ sectionId, items: snapshot.products.filter(product => product.sectionId === sectionId) });
-        setError(""); setSuccess(""); showEditor(true);
+        void allowDiscard(dirty || reorderDirty).then(ok => {
+          if (!ok) return;
+          const sectionId = active?.sectionId ?? snapshot.sections[0].id;
+          setDraft(undefined); setBase(undefined); setOrder({ sectionId, items: snapshot.products.filter(product => product.sectionId === sectionId) });
+          setError(""); setSuccess(""); showEditor(true);
+        });
       }}>Reorder products</Button>
     </div>
     <Input aria-label="Search products" placeholder="Search products" value={search} onChange={event => setSearch(event.target.value)} />
@@ -205,14 +208,16 @@ export function ProductsEditor() {
   </>} editor={<>
     <Feedback error={error || loadError} success={success} />
     {(loadError || error.startsWith("Someone")) && <Button variant="outline" onClick={async () => {
-      if (!allowDiscard(dirty || reorderDirty)) return;
+      if (!(await allowDiscard(dirty || reorderDirty))) return;
       if (await reload()) { setDraft(undefined); setBase(undefined); setOrder(undefined); setError(""); setVersion(value => value + 1); }
     }}>Reload catalog</Button>}
     {order ? <form onSubmit={saveOrder} className="space-y-4">
       <h2 className="text-lg font-semibold">Product display order</h2>
       <Field label="Menu section"><AdminSelect label="Menu section" value={order.sectionId} onValueChange={sectionId => {
-        if (!allowDiscard(reorderDirty)) return;
-        setOrder({ sectionId, items: snapshot.products.filter(product => product.sectionId === sectionId) });
+        void allowDiscard(reorderDirty).then(ok => {
+          if (!ok) return;
+          setOrder({ sectionId, items: snapshot.products.filter(product => product.sectionId === sectionId) });
+        });
       }} options={snapshot.sections.map(section => ({ value: section.id, label: section.name }))} /></Field>
       <SortableList key={order.sectionId} items={order.items} label={item => item.name} disabled={busy}
         onReorder={items => setOrder({ ...order, items })} row={(item, grip, controls) => (

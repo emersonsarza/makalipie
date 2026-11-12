@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useId } from "react";
 import { adminRequest, OrderRequestError } from "../orders-data";
+import { useConfirm } from "../admin-confirm";
 import type { StoreCatalog } from "@/lib/storefront/types";
 
 export type Catalog = StoreCatalog & { imagePaths: string[] };
@@ -46,6 +47,8 @@ export function catalogError(error: unknown) {
 }
 
 let activeDrafts = 0;
+let requestDiscard: ((dirty: boolean) => Promise<boolean>) | null = null;
+let navigationGuard: ((event: MouseEvent) => void) | null = null;
 
 function warnBeforeUnload(event: BeforeUnloadEvent) {
   event.preventDefault();
@@ -55,30 +58,43 @@ function warnBeforeNavigation(event: MouseEvent) {
   if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
   if (!(link instanceof HTMLAnchorElement) || link.target === "_blank" || link.origin !== location.origin || link.pathname === location.pathname) return;
-  if (!allowDiscard(true)) {
-    event.preventDefault();
-    event.stopPropagation();
-  }
+  event.preventDefault();
+  event.stopPropagation();
+  void requestDiscard?.(true).then(ok => { if (ok) location.assign(link.href); });
+}
+
+export function useAllowDiscard() {
+  const confirm = useConfirm();
+  return useCallback((dirty: boolean) => {
+    if (!dirty) return Promise.resolve(true);
+    return confirm({
+      title: "Discard unsaved changes?",
+      description: "Stay here to keep working on this draft, or discard it and continue.",
+      confirmLabel: "Discard changes",
+      cancelLabel: "Keep editing",
+      destructive: true,
+    });
+  }, [confirm]);
 }
 
 export function useDraftGuard(dirty: boolean) {
+  const allowDiscard = useAllowDiscard();
+  requestDiscard = allowDiscard;
   useEffect(() => {
     if (!dirty) return;
     if (activeDrafts++ === 0) {
+      navigationGuard = warnBeforeNavigation;
       window.addEventListener("beforeunload", warnBeforeUnload);
-      document.addEventListener("click", warnBeforeNavigation, true);
+      document.addEventListener("click", navigationGuard, true);
     }
     return () => {
-      if (--activeDrafts === 0) {
+      if (--activeDrafts === 0 && navigationGuard) {
         window.removeEventListener("beforeunload", warnBeforeUnload);
-        document.removeEventListener("click", warnBeforeNavigation, true);
+        document.removeEventListener("click", navigationGuard, true);
+        navigationGuard = null;
       }
     };
   }, [dirty]);
-}
-
-export function allowDiscard(dirty: boolean) {
-  return !dirty || window.confirm("Discard unsaved changes?");
 }
 
 export const slug = (value: string) => value.trim().toLowerCase().normalize("NFKD")
@@ -119,8 +135,9 @@ export function CatalogLoading({ error, retry }: { error: string; retry: () => v
 }
 
 export function EditorActions({ busy, dirty, reset }: { busy: boolean; dirty: boolean; reset: () => void }) {
+  const allowDiscard = useAllowDiscard();
   return <div className="flex flex-wrap justify-end gap-2 border-t pt-4">
-    <Button type="button" variant="outline" disabled={busy || !dirty} onClick={() => { if (allowDiscard(dirty)) reset(); }}>Discard changes</Button>
+    <Button type="button" variant="outline" disabled={busy || !dirty} onClick={() => { void allowDiscard(dirty).then(ok => { if (ok) reset(); }); }}>Discard changes</Button>
     <Button type="submit" disabled={busy || !dirty}>{busy ? "Saving…" : "Save changes"}</Button>
   </div>;
 }

@@ -14,6 +14,7 @@ import { adminRequest } from "./orders-data";
 import { OrderNotificationBell, OrderNotificationsProvider, useOrderNotifications } from "./order-notifications";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { AdminConfirmProvider } from "./admin-confirm";
 import { SharedOrderEditor, useSharedOrderEditor } from "./shared-order-editor";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { AlertCircle, CalendarDays, ChevronDown, ListChecks, Cookie, LayoutDashboard, LogOut, Package, Plus, Settings, ShoppingBag, Store } from "lucide-react";
@@ -144,6 +145,7 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
       <BackupProvider key={account.id} accountId={account.id}>
       <OrderNotificationsProvider key={account.id} accountId={account.id}>
       <TooltipProvider>
+      <AdminConfirmProvider>
       <SharedOrderEditor>
         <SidebarProvider defaultOpen style={{ "--sidebar-width-icon": "4rem" } as React.CSSProperties}>
           <Sidebar collapsible="icon" mobileClassName="admin-theme admin-mobile-sidebar">
@@ -184,6 +186,7 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
           </SidebarInset>
         </SidebarProvider>
       </SharedOrderEditor>
+      </AdminConfirmProvider>
       </TooltipProvider>
       </OrderNotificationsProvider>
       </BackupProvider>

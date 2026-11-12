@@ -16,6 +16,7 @@ import type { AdminOrder } from "@/lib/orders/query";
 import { sizeEligibleOnDate, slotsForBranch } from "@/lib/storefront/eligibility";
 import type { StoreCatalog } from "@/lib/storefront/types";
 import type { DropStore } from "@/lib/drops/types";
+import { useConfirm } from "./admin-confirm";
 import { manilaToday, OrderRequestError, pesos, writeOrder } from "./orders-data";
 
 type Item = { key: string; name: string; unitPriceCentavos: number; quantity: number; productId?: string | null; sizeId?: string | null; offeringId?: string | null; lineId?: string; id?: string; max?: number; contents?: string };
@@ -51,6 +52,7 @@ export function OrderEditor({ order, catalog, drops, stale, open, onClosed, clos
   const [conflict, setConflict] = useState(false);
   const [allowUnavailable, setOverride] = useState(false);
   const [key] = useState(() => crypto.randomUUID());
+  const confirm = useConfirm();
   const location = catalog.locations.find(item => item.id === locationId);
   const drop = drops.drops.find(item => item.id === dropId);
   const channel = location?.kind ?? order?.channel ?? "regular";
@@ -152,7 +154,15 @@ export function OrderEditor({ order, catalog, drops, stale, open, onClosed, clos
               </div>
             </CollapsibleContent>
             </Collapsible>
-            {!order && channel === "regular" && <label className="flex gap-2 text-sm"><input type="checkbox" checked={allowUnavailable} onChange={event => setOverride(event.target.checked && window.confirm("Allow this order to bypass regular availability rules?"))} /> Override regular availability</label>}
+            {!order && channel === "regular" && <label className="flex gap-2 text-sm"><input type="checkbox" checked={allowUnavailable} onChange={event => {
+              if (!event.target.checked) { setOverride(false); return; }
+              void confirm({
+                title: "Override regular availability?",
+                description: "Allow this order to bypass regular availability rules. Stock limits still apply.",
+                confirmLabel: "Allow override",
+                cancelLabel: "Keep rules",
+              }).then(ok => setOverride(ok));
+            }} /> Override regular availability</label>}
             <Input aria-label="Search items" placeholder="Search pies, packages and add-ons" value={search} onChange={event => setSearch(event.target.value)} />
             <div className="grid gap-2 sm:grid-cols-2">{available.filter(item => item.name.toLowerCase().includes(search.toLowerCase())).map(item => {
               const count = items.find(selected => selected.key === item.key)?.quantity ?? 0;
@@ -198,7 +208,15 @@ export function OrderEditor({ order, catalog, drops, stale, open, onClosed, clos
           {summaryPanel}
         </div>}
         <footer className="space-y-2 border-t bg-white p-4">
-          {(error || stale) && <Alert variant="destructive"><AlertDescription>{stale ? "This order changed while you were editing." : error}{(stale || conflict) && <Button type="button" variant="ghost" onClick={() => { if (window.confirm("Discard this draft and load the latest order?")) reload(); }}>Reload order</Button>}</AlertDescription></Alert>}
+          {(error || stale) && <Alert variant="destructive"><AlertDescription>{stale ? "This order changed while you were editing." : error}{(stale || conflict) && <Button type="button" variant="ghost" onClick={() => {
+            void confirm({
+              title: "Discard this draft and load the latest order?",
+              description: "Unsaved edits on this order will be lost.",
+              confirmLabel: "Reload order",
+              cancelLabel: "Keep editing",
+              destructive: true,
+            }).then(ok => { if (ok) reload(); });
+          }}>Reload order</Button>}</AlertDescription></Alert>}
           {review?.error === "price_change" && <div className="space-y-2 text-sm">
             {items.flatMap(item => {
               const change = revisedPrice(item);

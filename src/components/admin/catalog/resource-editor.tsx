@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AdminSelect } from "@/components/admin/admin-select";
-import { allowDiscard, catalogChange, catalogError, EditorActions, Feedback, SplitEditor, useDraftGuard, type Catalog } from "./catalog-ui";
+import { catalogChange, catalogError, EditorActions, Feedback, SplitEditor, useAllowDiscard, useDraftGuard, type Catalog } from "./catalog-ui";
 
 type Resource = { id: string; name: string; updatedAt: string };
 
@@ -26,10 +26,11 @@ export function ResourceEditor<T extends Resource>({ catalog, items, action, lab
   const [version, setVersion] = useState(0);
   const active = draft ?? items.find(item => item.id === selected) ?? items[0];
   const dirty = !!draft && JSON.stringify(draft) !== JSON.stringify(items.find(item => item.id === draft.id));
+  const allowDiscard = useAllowDiscard();
   useDraftGuard(dirty);
 
-  function choose(item: T) {
-    if (busy || !allowDiscard(dirty)) return;
+  async function choose(item: T) {
+    if (busy || !(await allowDiscard(dirty))) return;
     setSelected(item.id); setDraft(item.id ? undefined : item);
     setVersion(value => value + 1); showEditor(true); setError(""); setSuccess("");
   }
@@ -49,7 +50,7 @@ export function ResourceEditor<T extends Resource>({ catalog, items, action, lab
   </>} editor={<>
     <Feedback error={error} success={success} />
     {error.startsWith("Someone") && <Button variant="outline" onClick={async () => {
-      if (allowDiscard(dirty) && await reload()) { setDraft(undefined); setError(""); setVersion(value => value + 1); }
+      if (await allowDiscard(dirty) && await reload()) { setDraft(undefined); setError(""); setVersion(value => value + 1); }
     }}>Reload catalog</Button>}
     {active ? <form className="space-y-4" onSubmit={async event => {
       event.preventDefault();

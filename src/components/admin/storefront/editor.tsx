@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { manilaToday } from "../orders-data";
 import { selectFeatured } from "@/lib/storefront/featured";
 import { THEMES, type StorePopup, type StoreProduct, type StoreSection, type StoreSettings, type ThemeName } from "@/lib/storefront/types";
+import { useConfirm } from "../admin-confirm";
 import { CatalogLoading, catalogChange, catalogError, EditorActions, Feedback, Field, TextField, Toggle, uniqueSlug, useCatalog, useDraftGuard, type Catalog } from "../catalog/catalog-ui";
 import { SortableList } from "../catalog/sortable-list";
 
@@ -70,6 +71,7 @@ export function StorefrontEditor() {
   const [message, setMessage] = useState("");
   const [needsRefresh, setNeedsRefresh] = useState(false);
   const [pendingView, setPendingView] = useState<(() => void)>();
+  const confirm = useConfirm();
   useDraftGuard(Boolean(draft));
 
   if (!catalog) return <CatalogLoading error={loadError} retry={() => void reload()} />;
@@ -227,7 +229,13 @@ export function StorefrontEditor() {
           </fieldset>
           {section.id && <div className="space-y-2">
             <Button type="button" variant="destructive" disabled={used || Boolean(draft) || needsRefresh} onClick={() => {
-              if (window.confirm(`Delete ${section.name}?`)) void save("delete_section", { id: section.id, updatedAt: section.updatedAt });
+              void confirm({
+                title: `Delete ${section.name}?`,
+                description: "This menu section will be removed. Assigned products must already be moved.",
+                confirmLabel: "Delete section",
+                cancelLabel: "Keep section",
+                destructive: true,
+              }).then(ok => { if (ok) void save("delete_section", { id: section.id, updatedAt: section.updatedAt }); });
             }}>Delete section</Button>
             {used && <p className="text-sm text-muted-foreground">Move assigned products to another section before deleting this one.</p>}
           </div>}

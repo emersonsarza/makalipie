@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import type { StoreLocation, StoreOverride, StoreSchedule } from "@/lib/storefront/types";
 import { adminRequest, manilaToday } from "../orders-data";
-import { allowDiscard, CatalogLoading, catalogChange, catalogError, EditorActions, Feedback, SplitEditor, TextField, Toggle, useCatalog, useDraftGuard, type Catalog } from "./catalog-ui";
+import { CatalogLoading, catalogChange, catalogError, EditorActions, Feedback, SplitEditor, TextField, Toggle, useAllowDiscard, useCatalog, useDraftGuard, type Catalog } from "./catalog-ui";
 
 const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 type Review = {
@@ -30,6 +30,7 @@ function ScheduleFields({ catalog, branch, reload, branchGuardRef }: { catalog: 
   const weeklyDirty = !!draft && JSON.stringify(draft) !== JSON.stringify(saved);
   const pauseDirty = accepting !== undefined && accepting !== branch.acceptingOrders;
   const dirty = weeklyDirty || pauseDirty || !!override;
+  const allowDiscard = useAllowDiscard();
   useDraftGuard(dirty);
   useEffect(() => {
     branchGuardRef.current = { dirty, busy };
@@ -67,7 +68,7 @@ function ScheduleFields({ catalog, branch, reload, branchGuardRef }: { catalog: 
     <h2 className="text-lg font-semibold">{branch.name}</h2>
     <Feedback error={error} success={success} />
     {error.startsWith("Someone") && <Button variant="outline" onClick={async () => {
-      if (allowDiscard(dirty) && await reload()) { setDraft(undefined); setOverride(undefined); setAccepting(undefined); setError(""); }
+      if (await allowDiscard(dirty) && await reload()) { setDraft(undefined); setOverride(undefined); setAccepting(undefined); setError(""); }
     }}>Reload catalog</Button>}
     <form className="space-y-3" onSubmit={event => { event.preventDefault(); if (!busy && pauseDirty) void save("save_location", { ...branch, acceptingOrders: accepting }, () => setAccepting(undefined)); }}>
       <Toggle label="Accepting orders" checked={accepting ?? branch.acceptingOrders} disabled={busy} change={setAccepting} />
@@ -100,7 +101,7 @@ function ScheduleFields({ catalog, branch, reload, branchGuardRef }: { catalog: 
         <TextField label="Date" type="date" required disabled={!!override.updatedAt} value={override.date} change={date => setOverride({ ...override, date })} />
         <Toggle label="Close this date" checked={override.closed} disabled={busy} change={closed => setOverride({ ...override, closed, opens: closed ? null : schedule?.opens ?? "09:00", cutoff: closed ? null : schedule?.cutoff ?? "17:00" })} />
         {!override.closed && <div className="grid gap-3 sm:grid-cols-2"><TextField label="Replacement opening time" required type="time" value={override.opens ?? ""} change={opens => setOverride({ ...override, opens })} /><TextField label="Replacement cutoff" required type="time" value={override.cutoff ?? ""} change={cutoff => setOverride({ ...override, cutoff })} /></div>}
-        <div className="flex justify-end gap-2"><Button type="button" variant="outline" disabled={busy} onClick={() => { if (allowDiscard(true)) setOverride(undefined); }}>Discard</Button><Button type="submit" disabled={busy}>Review affected orders</Button></div>
+        <div className="flex justify-end gap-2"><Button type="button" variant="outline" disabled={busy} onClick={() => { void allowDiscard(true).then(ok => { if (ok) setOverride(undefined); }); }}>Discard</Button><Button type="submit" disabled={busy}>Review affected orders</Button></div>
       </form>}
     </section>
     <AlertDialog open={!!review} onOpenChange={open => { if (!open) setReview(undefined); }}>
@@ -125,13 +126,16 @@ export function SchedulesEditor() {
   const [selected, select] = useState("");
   const [phone, showEditor] = useState(false);
   const branchGuardRef = useRef({ dirty: false, busy: false });
+  const allowDiscard = useAllowDiscard();
   if (!catalog) return <CatalogLoading error={error} retry={() => void reload()} />;
   const branches = catalog.locations.filter(location => location.kind === "regular");
   const branch = branches.find(item => item.id === selected) ?? branches[0];
   return <SplitEditor showEditor={phone} back={() => showEditor(false)} list={<>
     <ul className="divide-y">{branches.map(item => <li key={item.id}><Button variant="ghost" aria-pressed={branch?.id === item.id} className="h-auto w-full justify-between whitespace-normal p-3 text-left aria-pressed:bg-accent" onClick={() => {
-      if (item.id !== branch?.id && (branchGuardRef.current.busy || !allowDiscard(branchGuardRef.current.dirty))) return;
-      select(item.id); showEditor(true);
+      void (async () => {
+        if (item.id !== branch?.id && (branchGuardRef.current.busy || !(await allowDiscard(branchGuardRef.current.dirty)))) return;
+        select(item.id); showEditor(true);
+      })();
     }}>
       {item.name}<Badge variant="outline">{item.acceptingOrders ? "Accepting" : "Paused"}</Badge>
     </Button></li>)}</ul>
