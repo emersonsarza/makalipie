@@ -20,7 +20,8 @@
     "supabase:start": "supabase start",
     "supabase:reset": "supabase db reset",
     "supabase:env": "node scripts/write-local-env.mjs",
-    "allowlist-owner": "node --env-file=.env.local --import tsx scripts/allowlist-owner.ts"
+    "allowlist-owner": "node --env-file=.env.local --import tsx scripts/allowlist-owner.ts",
+    "verify:sandbox": "npx supabase db query --remote --yes --file scripts/verify-sandbox.sql"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

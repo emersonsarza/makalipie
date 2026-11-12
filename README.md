@@ -81,16 +81,25 @@ Create one Supabase project and choose the Singapore region. Do not create the p
 2. Link this repo and apply the migration and seed:
 
 ```bash
+npx supabase login
 npx supabase link --project-ref <project-ref>
-npx supabase db push
-npx supabase db query --remote --file supabase/seed.sql --yes
+npx supabase db push --remote
+npx supabase db query --remote --yes --file supabase/seed.sql
 ```
 
 3. Create `nika@makalipie.com` in that project's Authentication dashboard.
-4. Allowlist the user. This phase did not create the project and did not run the checks. When the sandbox exists, run all six phase scripts against it, using `--env-file=.env.sandbox` in place of `.env.local`:
+4. Allowlist the owner, then confirm the hosted schema:
 
 ```bash
 node --env-file=.env.sandbox --import tsx scripts/allowlist-owner.ts
+npm run verify:sandbox
+```
+
+Every `ok` column should be `t`. `owner_allowlisted` stays `f` until the Auth user exists and the allowlist command has run. Realtime does not need the dashboard inspector; the trigger and policy are in the migrations.
+
+5. When the sandbox exists, run the phase checks against it with `--env-file=.env.sandbox` in place of `.env.local`:
+
+```bash
 node --env-file=.env.sandbox --import tsx --test tests/phase1-database.test.ts tests/phase1-auth.test.ts
 node --env-file=.env.sandbox --import tsx --test --test-concurrency=1 tests/phase2-eligibility.test.ts tests/phase2-catalog.test.ts
 node --env-file=.env.sandbox --import tsx --test --test-concurrency=1 tests/phase3-drops.test.ts
