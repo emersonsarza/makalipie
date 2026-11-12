@@ -1,4 +1,5 @@
 import type { Session } from "@supabase/supabase-js";
+import { originAllowed } from "../http/origin";
 import { createAuthClient, createServiceClient } from "./supabase";
 
 export const REFRESH_COOKIE = "mp_refresh";
@@ -150,18 +151,6 @@ async function rateLimited(attemptKey: string): Promise<boolean | "error"> {
   const inserted = await service.from("login_attempts").insert({ attempt_key: attemptKey });
   if (inserted.error) return "error";
   return false;
-}
-
-function originAllowed(request: Request): boolean {
-  const origin = request.headers.get("origin");
-  if (!origin) return false;
-  try {
-    const source = new URL(origin);
-    const target = new URL(request.url);
-    return source.protocol === target.protocol && source.host === target.host;
-  } catch {
-    return false;
-  }
 }
 
 function clientAddress(request: Request): string {

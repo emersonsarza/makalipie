@@ -1,19 +1,8 @@
 import { createServiceClient } from "../admin/supabase";
+export { originAllowed } from "../http/origin";
 
 const WINDOW_MS = 15 * 60 * 1000;
 const LIMIT = 30;
-
-export function originAllowed(request: Request) {
-  const origin = request.headers.get("origin");
-  if (!origin) return false;
-  try {
-    const source = new URL(origin);
-    const target = new URL(request.url);
-    return source.protocol === target.protocol && source.host === target.host;
-  } catch {
-    return false;
-  }
-}
 
 export function clientAddress(request: Request) {
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
