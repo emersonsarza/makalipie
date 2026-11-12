@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import type { BackupFile } from "@/lib/backups/format";
+import { useAdminQuery } from "../query-provider";
 import { adminRequest, manilaToday } from "../orders-data";
 import { backupFilename, directoryPicker, downloadFile, pruneBackups, readFolder, saveBackup, storeFolder, type FolderConfig } from "./browser-storage";
 
@@ -16,7 +17,8 @@ function post<T>(endpoint: string) {
 
 function useBackupControls(accountId: string) {
   const pathname = usePathname();
-  const [status, setStatus] = useState<Status>();
+  const statusQuery = useAdminQuery<Status>("/api/admin/backups");
+  const status = statusQuery.data;
   const [config, setConfig] = useState<FolderConfig>();
   const [folderSupported, setFolderSupported] = useState(false);
   const [privateKey, setPrivateKey] = useState("");
@@ -28,21 +30,11 @@ function useBackupControls(accountId: string) {
   const scope = status ? JSON.stringify([status.environment, accountId]) : "";
   const lock = "makalipie-backup:" + scope;
 
-  const refresh = useCallback(async () => {
-    try {
-      setStatus(await adminRequest<Status>("/api/admin/backups"));
-      setError("");
-    } catch {
-      setError("Could not load backup settings. Try again.");
-    }
-  }, []);
-
+  const { refetch } = statusQuery;
+  const refresh = useCallback(async () => { await refetch(); }, [refetch]);
   useEffect(() => {
-    void Promise.resolve().then(() => {
-      setFolderSupported(Boolean(directoryPicker() && navigator.locks && window.indexedDB));
-      return refresh();
-    });
-  }, [refresh]);
+    void Promise.resolve().then(() => setFolderSupported(Boolean(directoryPicker() && navigator.locks && window.indexedDB)));
+  }, []);
 
   const run = useCallback(async (manual: boolean, download = false) => {
     if (!status?.key?.confirmedAt || running.current) return;
@@ -151,17 +143,17 @@ function useBackupControls(accountId: string) {
     generate: () => change(async () => {
       try {
         const generated = await post<Key & { privateKey: string }>("key");
-        const { privateKey: recoveryKey, keyId, createdAt, confirmedAt } = generated;
+        const { privateKey: recoveryKey } = generated;
         setPrivateKey(recoveryKey);
-        setStatus(previous => previous && { ...previous, key: { keyId, createdAt, confirmedAt } });
+        await refresh();
       } catch (failure) {
         await refresh();
         throw failure;
       }
     }, "Could not generate the recovery key. If a key was already created, use the saved copy or contact the developer."),
     confirm: () => change(async () => {
-      const key = await post<Key>("key/confirm");
-      setStatus(previous => previous && { ...previous, key });
+      await post<Key>("key/confirm");
+      await refresh();
       setPrivateKey("");
       setMessage("Recovery key confirmed.");
     }, "Could not confirm the recovery key. Keep your saved copy and try again."),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { HomeContent } from "@/components/sections/home-content";
@@ -9,22 +9,12 @@ import { PreviewTheme } from "@/components/site-theme";
 import { PublicShopProvider } from "@/components/public-shop-provider";
 import { menuFromShop, publicShopView, type PublishedShop } from "@/lib/public/storefront-view";
 import type { ThemeName } from "@/lib/storefront/types";
-import { adminRequest, OrderRequestError } from "../orders-data";
+import { useAdminQuery } from "../query-provider";
 
 export function StorefrontPreview({ theme, section, preorder }: { theme: ThemeName; section: "home" | "menu"; preorder: boolean }) {
-  const [shop, setShop] = useState<PublishedShop>();
-  const [error, setError] = useState("");
-  useEffect(() => {
-    const request = new AbortController();
-    void adminRequest<PublishedShop>(`/api/admin/preview?theme=${theme}`, { signal: request.signal }).then(result => {
-      if (!request.signal.aborted) { setShop(result); setError(""); }
-    }).catch(failure => {
-      if (!request.signal.aborted) setError(failure instanceof OrderRequestError && failure.status === 401
-        ? "Sign in as an owner to open this preview." : "Could not load the storefront preview.");
-    });
-    return () => request.abort();
-  }, [theme]);
-
+  const query = useAdminQuery<PublishedShop>(`/api/admin/preview?theme=${theme}`);
+  const shop = query.data;
+  const error = query.isError && !shop ? "Could not load the storefront preview." : "";
   const ready = shop?.theme === theme;
   useEffect(() => {
     if (ready && section === "home" && window.location.hash === "#visit") {

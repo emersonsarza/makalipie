@@ -540,6 +540,22 @@ test("reviewed prices, retries, numbering, stock, privacy, and the lineup", asyn
     assert.equal(riderSaved.data.total_centavos, riderSaved.data.subtotal_centavos);
     assert.equal((await transition(riderOrder.body.orderId, "confirmed")).status, 200);
 
+    const directRiderCart = regularCart("phase4-public-rider", {
+      fulfillment: "delivery", deliveryAddress: "123 Mango Street, Cebu", deliveryFeeMode: "rider",
+    });
+    const directRiderOrder = await placePublic(directRiderCart);
+    assert.equal(directRiderOrder.status, 200, JSON.stringify(directRiderOrder.body));
+    const directRider = await findOrder(directRiderOrder.body.orderId);
+    assert.equal(directRider?.deliveryFeeMode, "rider");
+    assert.equal(directRider?.deliveryFeeCentavos, null);
+    assert.equal(directRider?.totalCentavos, directRider?.subtotalCentavos);
+    const directRiderReplay = await applyOrderChange("place_order", directRiderCart);
+    assert.equal(directRiderReplay.status, 200);
+    assert.equal(directRiderReplay.body.replayed, true);
+    const changedFeeMode = await applyOrderChange("place_order", { ...directRiderCart, deliveryFeeMode: undefined });
+    assert.equal(changedFeeMode.status, 409);
+    assert.equal(changedFeeMode.body.error, "idempotency_mismatch");
+
     const closedWindow = outsideTodayWindow();
     const catalog = await loadCatalog();
     const savedOverride = await applyCatalogChange("save_override", {

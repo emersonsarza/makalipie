@@ -39,7 +39,7 @@ function ConfirmationSummary({ summary }: { summary: ReceiptSummary }) {
       </li>)}
     </ul>
     <p className={styles.summaryTotal}><span>{delivery ? "Subtotal" : "Total"}</span><span>{pesos(total)}</span></p>
-    {delivery && <DeliveryFeeNotice />}
+    {delivery && <DeliveryFeeNotice paysDriver={summary.deliveryFeeMode === "rider"} />}
   </section>;
 }
 
@@ -93,7 +93,7 @@ export function OrderConfirmation() {
           <p className={styles.receiptNumber}>{receipt.number}</p>
         </div>
         <Button type="button" variant="outline" className="min-h-11" onClick={() => void copy()}><Copy aria-hidden /> Copy number</Button>
-        <p className="text-sm">Send this number to the shop to confirm your order and arrange payment. For delivery, we’ll confirm the fee in chat.</p>
+        <p className="text-sm">Send this number to the shop to confirm your order and arrange payment.{receipt.summary?.deliveryFeeMode !== "rider" && " For delivery, we’ll confirm the fee in chat."}</p>
         {receipt.afterHours && <p className={`${styles.scheduleStrip} text-sm`}>We received your order after hours. The shop will reply in chat the next morning.</p>}
         {(instagram || links.messenger) && <div className="grid gap-2">
           {instagram && <Button type="button" variant="ghost" className={styles.primary} onClick={() => void copy(instagram)}>Copy number &amp; open Instagram <ArrowUpRight aria-hidden /></Button>}

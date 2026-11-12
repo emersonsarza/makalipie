@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
+import { adminQuery, invalidateAdmin, type AdminResource } from "./query-cache";
+import { useAdminAccount } from "./query-provider";
 import { adminRequest, pesos } from "./orders-data";
 
 type Entry = { id: string; receivedAt: number; read: boolean };
@@ -61,7 +64,6 @@ function showDesktopNotification(body: string, tag: string) {
 const Notifications = createContext<{
   entries: Entry[];
   connected: boolean;
-  revision: number;
   sound: boolean;
   setSound: (enabled: boolean) => void;
   markAllRead: () => void;
@@ -89,7 +91,7 @@ export function OrderNotificationsProvider({ accountId, children }: { accountId:
   const pathname = usePathname();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [connected, setConnected] = useState(false);
-  const [revision, setRevision] = useState(0);
+  const queryClient = useQueryClient();
   const [sound, setSoundState] = useState(false);
   const [desktop, setDesktopState] = useState<{ enabled: boolean; permission: NotificationPermission | "unsupported" } | null>(null);
   const [requestingDesktop, setRequestingDesktop] = useState(false);
@@ -178,6 +180,18 @@ export function OrderNotificationsProvider({ accountId, children }: { accountId:
     let retryDelay = 1000;
     let renewAt = 0;
     let lastHeartbeat = 0;
+    let resourceSubscribed = false;
+    let invalidationTimer: ReturnType<typeof setTimeout> | undefined;
+    const changes = new Set<AdminResource>();
+    function changed(resource: AdminResource) {
+      changes.add(resource);
+      if (invalidationTimer) return;
+      invalidationTimer = setTimeout(() => {
+        invalidationTimer = undefined;
+        const pending = [...changes]; changes.clear();
+        void invalidateAdmin(queryClient, pending);
+      }, 100);
+    }
 
     function scheduleConnection(delay: number) {
       clearTimeout(timer);
@@ -243,9 +257,20 @@ export function OrderNotificationsProvider({ accountId, children }: { accountId:
         await nextClient.realtime.setAuth(token.accessToken);
         if (disposed || client !== nextClient) return;
         scheduleConnection(12_000);
+        resourceSubscribed = false;
+        nextClient.channel("admin-data", { config: { private: true } }).on("broadcast", { event: "change" }, ({ payload }) => {
+          if (disposed || client !== nextClient) return;
+          if (["catalog", "drops", "backups"].includes(payload.resource)) changed(payload.resource);
+        }).subscribe(status => {
+          if (disposed || client !== nextClient) return;
+          resourceSubscribed = status === "SUBSCRIBED";
+          setConnected(subscribed && resourceSubscribed);
+          if (resourceSubscribed && subscribed) void invalidateAdmin(queryClient);
+          else retryConnection();
+        });
         nextClient.channel("orders", { config: { private: true } }).on("broadcast", { event: "order" }, ({ payload }) => {
           if (disposed || client !== nextClient || typeof payload.orderId !== "string") return;
-          setRevision(value => value + 1);
+          changed("orders");
           if (payload.changeType === "created" && !current.current.some(entry => entry.id === payload.orderId)) {
             const alreadyReceived = readEntries(key).some(entry => entry.id === payload.orderId);
             save([{ id: payload.orderId, receivedAt: Date.now(), read: false }, ...current.current].slice(0, 100));
@@ -263,8 +288,8 @@ export function OrderNotificationsProvider({ accountId, children }: { accountId:
           subscribed = true;
           retryDelay = 1000;
           lastHeartbeat = Date.now();
-          setConnected(true);
-          setRevision(value => value + 1);
+          setConnected(resourceSubscribed);
+          if (resourceSubscribed) void invalidateAdmin(queryClient);
           scheduleConnection(Math.max(1000, renewAt - Date.now()));
         });
       } catch {
@@ -310,6 +335,7 @@ export function OrderNotificationsProvider({ accountId, children }: { accountId:
     void connect();
     return () => {
       disposed = true;
+      clearTimeout(invalidationTimer);
       window.removeEventListener("storage", sync);
       window.removeEventListener("online", goOnline);
       window.removeEventListener("offline", goOffline);
@@ -319,18 +345,18 @@ export function OrderNotificationsProvider({ accountId, children }: { accountId:
       clearTimeout(timer);
       disconnectClient();
     };
-  }, [accountId]);
+  }, [accountId, queryClient]);
 
   const consumeRequest = useCallback(() => setRequest(null), []);
 
   function selectOrder(id: string) {
     setRequest({ id });
-    setRevision(value => value + 1);
+    void invalidateAdmin(queryClient, "orders");
     if (pathname !== "/admin/orders") router.push("/admin/orders");
   }
 
   return <Notifications.Provider value={{
-    entries, connected, revision, sound, desktop, requestingDesktop, desktopMessage, setDesktop, testDesktop, request, consumeRequest, editorOpen, setEditorOpen, selectOrder,
+    entries, connected, sound, desktop, requestingDesktop, desktopMessage, setDesktop, testDesktop, request, consumeRequest, editorOpen, setEditorOpen, selectOrder,
     setSound(enabled) {
       setSoundState(enabled);
       soundEnabled.current = enabled;
@@ -358,7 +384,7 @@ export function OrderNotificationBell() {
   const { entries, editorOpen, openOrder, sound, setSound, desktop, requestingDesktop, desktopMessage, setDesktop, testDesktop, markAllRead } = useOrderNotifications();
   const [open, setOpen] = useState(false);
   const [shown, setShown] = useState(notificationPageSize);
-  const [summaries, setSummaries] = useState<Record<string, OrderSummary>>({});
+
   const soundId = useId();
   const desktopId = useId();
   const desktopDescription = desktop?.permission === "denied"
@@ -367,22 +393,16 @@ export function OrderNotificationBell() {
     : "Show new orders in system notifications while Admin is open.";
   const unread = entries.filter(entry => !entry.read).length;
   const visible = entries.slice(0, shown);
-  const missingIds = visible.filter(entry => !summaries[entry.id]).slice(0, notificationPageSize).map(entry => entry.id).join(",");
+  const account = useAdminAccount();
+  const batches = Array.from({ length: Math.ceil(visible.length / notificationPageSize) }, (_, index) =>
+    visible.slice(index * notificationPageSize, (index + 1) * notificationPageSize).map(entry => entry.id).sort().join(","));
+  const summaryQueries = useQueries({ queries: batches.map(ids => ({
+    ...adminQuery<Record<string, OrderSummary>>(account, "/api/admin/orders/numbers?ids=" + encodeURIComponent(ids)), enabled: open && !!ids,
+  })) });
+  const summaries = Object.assign({}, ...summaryQueries.map(query => query.data)) as Record<string, OrderSummary>;
 
-  useEffect(() => {
-    if (!open) setShown(notificationPageSize);
-  }, [open]);
 
-  useEffect(() => {
-    if (!open || !missingIds) return;
-    const controller = new AbortController();
-    void adminRequest<Record<string, OrderSummary>>("/api/admin/orders/numbers?ids=" + missingIds, { signal: controller.signal })
-      .then(result => { if (!controller.signal.aborted) setSummaries(current => ({ ...current, ...result })); })
-      .catch(() => {});
-    return () => controller.abort();
-  }, [missingIds, open]);
-
-  return <Popover open={open} onOpenChange={setOpen}>
+  return <Popover open={open} onOpenChange={next => { setOpen(next); if (!next) setShown(notificationPageSize); }}>
     <PopoverTrigger render={<Button variant="ghost" className="relative size-11 md:size-9" aria-label={`Notifications, ${unread} unread`} />}>
       <Bell className="size-4" aria-hidden="true" />
       {unread > 0 && <span aria-hidden="true" className="absolute top-0 right-0 min-w-5 rounded-full bg-primary px-1 text-center text-xs font-semibold text-primary-foreground">{unread}</span>}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { lineup } from "@/lib/orders/query";
 import type { StoreCatalog } from "@/lib/storefront/types";
 import type { DropStore } from "@/lib/drops/types";
-import { adminRequest, manilaToday } from "./orders-data";
+import { useAdminQuery, useAdminToday } from "./query-provider";
 
 type Lineup = Awaited<ReturnType<typeof lineup>>;
 
@@ -22,27 +22,19 @@ function Totals({ title, rows }: { title: string; rows: { name: string; quantity
 }
 
 export function DailyLineup() {
-  const [date, setDate] = useState(manilaToday);
+  const today = useAdminToday();
+  const [chosenDate, setDate] = useState<string>();
+  const date = chosenDate ?? today;
   const [selection, setSelection] = useState("");
-  const [result, setResult] = useState<Lineup>();
-  const [error, setError] = useState("");
-  const [locations, setLocations] = useState<StoreCatalog["locations"]>([]);
-  const [drops, setDrops] = useState<DropStore["drops"]>([]);
-  useEffect(() => {
-    void adminRequest<StoreCatalog>("/api/admin/catalog").then(data => setLocations(data.locations)).catch(() => {});
-    void adminRequest<DropStore>("/api/admin/drops").then(data => setDrops(data.drops)).catch(() => {});
-  }, []);
-  useEffect(() => {
-    if (!date) return;
-    const controller = new AbortController();
-    void adminRequest<Lineup>("/api/admin/lineup?date=" + date, { signal: controller.signal })
-      .then(setResult).catch(() => { if (!controller.signal.aborted) setError("Could not load the lineup."); });
-    return () => controller.abort();
-  }, [date]);
+  const query = useAdminQuery<Lineup>("/api/admin/lineup?date=" + date, !!date);
+  const result = query.data;
+  const error = query.isError && !result ? "Could not load the lineup." : "";
+  const locations = useAdminQuery<StoreCatalog>("/api/admin/catalog").data?.locations ?? [];
+  const drops = useAdminQuery<DropStore>("/api/admin/drops").data?.drops ?? [];
   const groups = result?.groups.filter(group => !selection || selection === "location:" + group.locationId || selection === "drop:" + group.dropId) ?? [];
   return <div className="space-y-6">
     <div className="flex flex-wrap gap-4">
-      <div className="space-y-2"><Label htmlFor="lineup-date">Fulfillment date</Label><Input id="lineup-date" type="date" value={date} onChange={event => { setDate(event.target.value); setError(""); setResult(undefined); }} /></div>
+      <div className="space-y-2"><Label htmlFor="lineup-date">Fulfillment date</Label><Input id="lineup-date" type="date" value={date} onChange={event => { setDate(event.target.value); }} /></div>
       <div className="space-y-2"><Label htmlFor="lineup-location">Location or drop</Label><AdminSelect id="lineup-location" label="Location or drop" value={selection} onValueChange={setSelection} options={[
         { value: "", label: "All locations and drops" },
         ...locations.map(location => ({ value: "location:" + location.id, label: location.name })),

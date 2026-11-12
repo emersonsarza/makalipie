@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import type { StoreLocation, StoreOverride, StoreSchedule } from "@/lib/storefront/types";
-import { adminRequest, manilaToday } from "../orders-data";
-import { CatalogLoading, catalogChange, catalogError, EditorActions, Feedback, SplitEditor, TextField, Toggle, useAllowDiscard, useCatalog, useDraftGuard, type Catalog } from "./catalog-ui";
+import { useAdminBlocked, useAdminFetch } from "../query-provider";
+import { manilaToday } from "../orders-data";
+import { useDraftRevision, CatalogLoading, catalogChange, catalogError, EditorActions, Feedback, SplitEditor, TextField, Toggle, useAllowDiscard, useCatalog, useDraftGuard, type Catalog } from "./catalog-ui";
 
 const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 type Review = {
@@ -18,6 +19,8 @@ type Review = {
 const newOverride = (locationId: string): StoreOverride => ({ locationId, date: manilaToday(), closed: true, opens: null, cutoff: null, updatedAt: "" });
 
 function ScheduleFields({ catalog, branch, reload, branchGuardRef }: { catalog: Catalog; branch: StoreLocation; reload: () => Promise<Catalog | undefined>; branchGuardRef: RefObject<{ dirty: boolean; busy: boolean }> }) {
+  const fetchAdmin = useAdminFetch();
+  const blocked = useAdminBlocked();
   const saved = catalog.schedules.find(schedule => schedule.locationId === branch.id);
   const [draft, setDraft] = useState<StoreSchedule>();
   const [accepting, setAccepting] = useState<boolean>();
@@ -30,6 +33,7 @@ function ScheduleFields({ catalog, branch, reload, branchGuardRef }: { catalog: 
   const weeklyDirty = !!draft && JSON.stringify(draft) !== JSON.stringify(saved);
   const pauseDirty = accepting !== undefined && accepting !== branch.acceptingOrders;
   const dirty = weeklyDirty || pauseDirty || !!override;
+  const draftVersion = useDraftRevision(catalog.revision, dirty || !!review);
   const allowDiscard = useAllowDiscard();
   useDraftGuard(dirty);
   useEffect(() => {
@@ -45,7 +49,7 @@ function ScheduleFields({ catalog, branch, reload, branchGuardRef }: { catalog: 
   async function save(action: string, payload: object, onSaved: () => void) {
     setBusy(true); setError(""); setSuccess("");
     try {
-      await catalogChange(action, catalog.revision, payload);
+      await catalogChange(action, draftVersion.revision!, payload);
       onSaved();
       setSuccess(await reload() ? "Changes saved." : "Changes saved. Reload to see the latest schedule.");
     } catch (failure) { setError(catalogError(failure)); }
@@ -55,9 +59,8 @@ function ScheduleFields({ catalog, branch, reload, branchGuardRef }: { catalog: 
   async function preview(action: Review["action"], payload: object) {
     setBusy(true); setError(""); setSuccess("");
     try {
-      const { affected } = await adminRequest<{ affected: Review["affected"] }>("/api/admin/catalog/override-preview", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, payload: { ...payload, revision: catalog.revision } }),
+      const { affected } = await fetchAdmin<{ affected: Review["affected"] }>("/api/admin/catalog/override-preview", {
+        action, payload: { ...payload, revision: draftVersion.revision },
       });
       setReview({ action, payload, affected });
     } catch (failure) { setError(catalogError(failure)); }
@@ -66,14 +69,14 @@ function ScheduleFields({ catalog, branch, reload, branchGuardRef }: { catalog: 
 
   return <div className="space-y-6">
     <h2 className="text-lg font-semibold">{branch.name}</h2>
-    <Feedback error={error} success={success} />
-    {error.startsWith("Someone") && <Button variant="outline" onClick={async () => {
+    <Feedback error={error || (draftVersion.stale ? "Someone changed the catalog. Reload before saving this draft." : "")} success={success} />
+    {(draftVersion.stale || error.startsWith("Someone")) && <Button variant="outline" onClick={async () => {
       if (await allowDiscard(dirty) && await reload()) { setDraft(undefined); setOverride(undefined); setAccepting(undefined); setError(""); }
     }}>Reload catalog</Button>}
     <form className="space-y-3" onSubmit={event => { event.preventDefault(); if (!busy && pauseDirty) void save("save_location", { ...branch, acceptingOrders: accepting }, () => setAccepting(undefined)); }}>
       <Toggle label="Accepting orders" checked={accepting ?? branch.acceptingOrders} disabled={busy} change={setAccepting} />
       {!(accepting ?? branch.acceptingOrders) && <p className="text-sm text-muted-foreground">Customers see: Online ordering is paused at {branch.name}.</p>}
-      <EditorActions busy={busy} dirty={pauseDirty} reset={() => setAccepting(undefined)} />
+      <EditorActions saveDisabled={draftVersion.stale} busy={busy} dirty={pauseDirty} reset={() => setAccepting(undefined)} />
     </form>
     {schedule ? <form className="space-y-4" onSubmit={event => { event.preventDefault(); if (!busy && weeklyDirty) void save("save_schedule", schedule, () => setDraft(undefined)); }}>
       <h3 className="font-semibold">Weekly hours</h3>
@@ -85,7 +88,7 @@ function ScheduleFields({ catalog, branch, reload, branchGuardRef }: { catalog: 
           {days.map((day, index) => <Toggle key={day} label={day} checked={schedule.weekdays.includes(index)} change={checked => update({ weekdays: checked ? [...schedule.weekdays, index].sort() : schedule.weekdays.filter(value => value !== index) })} />)}
         </fieldset>
       </fieldset>
-      <EditorActions busy={busy} dirty={weeklyDirty} reset={() => setDraft(undefined)} />
+      <EditorActions saveDisabled={draftVersion.stale} busy={busy} dirty={weeklyDirty} reset={() => setDraft(undefined)} />
     </form> : <p className="text-sm text-muted-foreground">This branch has no weekly schedule.</p>}
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-2"><h3 className="font-semibold">Date overrides</h3><Button variant="outline" disabled={busy || !!override} onClick={() => setOverride(newOverride(branch.id))}>Add override</Button></div>
@@ -111,7 +114,7 @@ function ScheduleFields({ catalog, branch, reload, branchGuardRef }: { catalog: 
           <AlertDialogDescription>{review?.affected.length ? "These orders fall outside the proposed hours. Their existing dates and times will stay booked." : "No pending or confirmed orders fall outside the proposed hours."}</AlertDialogDescription>
         </AlertDialogHeader>
         {!!review?.affected.length && <ul className="max-h-48 divide-y overflow-auto text-sm">{review.affected.map(order => <li key={order.id} className="py-1">{order.number}{order.slot && " · " + order.slot}</li>)}</ul>}
-        <AlertDialogFooter><AlertDialogCancel>Back</AlertDialogCancel><Button onClick={() => {
+        <AlertDialogFooter><AlertDialogCancel>Back</AlertDialogCancel><Button disabled={blocked || busy || draftVersion.stale} onClick={() => {
           if (!review || busy) return;
           setReview(undefined);
           void save(review.action, review.payload, () => setOverride(undefined));
@@ -126,6 +129,7 @@ export function SchedulesEditor() {
   const [selected, select] = useState("");
   const [phone, showEditor] = useState(false);
   const branchGuardRef = useRef({ dirty: false, busy: false });
+
   const allowDiscard = useAllowDiscard();
   if (!catalog) return <CatalogLoading error={error} retry={() => void reload()} />;
   const branches = catalog.locations.filter(location => location.kind === "regular");
@@ -134,6 +138,7 @@ export function SchedulesEditor() {
     <ul className="divide-y">{branches.map(item => <li key={item.id}><Button variant="ghost" aria-pressed={branch?.id === item.id} className="h-auto w-full justify-between whitespace-normal p-3 text-left aria-pressed:bg-accent" onClick={() => {
       void (async () => {
         if (item.id !== branch?.id && (branchGuardRef.current.busy || !(await allowDiscard(branchGuardRef.current.dirty)))) return;
+        if (!await reload()) return;
         select(item.id); showEditor(true);
       })();
     }}>

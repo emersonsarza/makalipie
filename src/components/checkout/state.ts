@@ -24,6 +24,7 @@ const receiptSummarySchema = z.object({
   date,
   method,
   window: z.string(),
+  deliveryFeeMode: z.literal("rider").optional(),
   items: z.array(z.object({
     name: z.string(),
     quantity,
@@ -38,6 +39,7 @@ const pendingSchema = z.object({
   dropId: id.optional(),
   fulfillmentDate: date,
   fulfillment: method,
+  deliveryFeeMode: z.literal("rider").optional(),
   slotId: slot.optional(),
   lines: z.array(line).min(1).max(40),
   addons: z.array(z.object({ id, quantity, unitPriceCentavos: price })).max(20),

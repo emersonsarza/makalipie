@@ -4,15 +4,16 @@ import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AdminSelect } from "@/components/admin/admin-select";
-import { catalogChange, catalogError, EditorActions, Feedback, SplitEditor, useAllowDiscard, useDraftGuard, type Catalog } from "./catalog-ui";
+import { useDraftRevision, catalogChange, catalogError, EditorActions, Feedback, SplitEditor, useAllowDiscard, useDraftGuard, type Catalog } from "./catalog-ui";
 
 type Resource = { id: string; name: string; updatedAt: string };
 
-export function ResourceEditor<T extends Resource>({ catalog, items, action, label, create, payload, reload, fields, summary, filterEnabled }: {
+export function ResourceEditor<T extends Resource>({ catalog, items, action, label, create, payload, reload, fields, summary, editorHeading, filterEnabled }: {
   catalog: Catalog; items: T[]; action: string; label: string; create: () => T;
   payload: (draft: T) => object & { id: string }; reload: () => Promise<Catalog | undefined>;
   fields: (draft: T, update: (patch: Partial<T>) => void) => ReactNode;
   summary: (item: T) => ReactNode;
+  editorHeading?: (item: T) => ReactNode;
   filterEnabled?: (item: T) => boolean;
 }) {
   const [draft, setDraft] = useState<T>();
@@ -26,11 +27,15 @@ export function ResourceEditor<T extends Resource>({ catalog, items, action, lab
   const [version, setVersion] = useState(0);
   const active = draft ?? items.find(item => item.id === selected) ?? items[0];
   const dirty = !!draft && JSON.stringify(draft) !== JSON.stringify(items.find(item => item.id === draft.id));
+  const draftVersion = useDraftRevision(catalog.revision, !!draft);
   const allowDiscard = useAllowDiscard();
   useDraftGuard(dirty);
 
   async function choose(item: T) {
     if (busy || !(await allowDiscard(dirty))) return;
+    const fresh = await reload();
+    if (!fresh) return;
+    draftVersion.capture(fresh.revision);
     setSelected(item.id); setDraft(item.id ? undefined : item);
     setVersion(value => value + 1); showEditor(true); setError(""); setSuccess("");
   }
@@ -48,8 +53,8 @@ export function ResourceEditor<T extends Resource>({ catalog, items, action, lab
       <Button variant="ghost" className="h-auto w-full justify-start whitespace-normal p-2 text-left aria-pressed:bg-accent" aria-pressed={active?.id === item.id} disabled={busy} onClick={() => choose(item)}>{summary(item)}</Button>
     </li>)}</ul> : <p className="text-sm text-muted-foreground">No matching {label}s.</p>}
   </>} editor={<>
-    <Feedback error={error} success={success} />
-    {error.startsWith("Someone") && <Button variant="outline" onClick={async () => {
+    <Feedback error={error || (draftVersion.stale ? "Someone changed the catalog. Reload before saving this draft." : "")} success={success} />
+    {(draftVersion.stale || error.startsWith("Someone")) && <Button variant="outline" onClick={async () => {
       if (await allowDiscard(dirty) && await reload()) { setDraft(undefined); setError(""); setVersion(value => value + 1); }
     }}>Reload catalog</Button>}
     {active ? <form className="space-y-4" onSubmit={async event => {
@@ -58,7 +63,7 @@ export function ResourceEditor<T extends Resource>({ catalog, items, action, lab
       setBusy(true); setError(""); setSuccess("");
       try {
         const data = payload(active);
-        await catalogChange(action, catalog.revision, data);
+        await catalogChange(action, draftVersion.revision!, data);
         setSelected(data.id); setDraft(undefined); setVersion(value => value + 1);
         const fresh = await reload();
         if (fresh) setSuccess("Changes saved.");
@@ -66,11 +71,11 @@ export function ResourceEditor<T extends Resource>({ catalog, items, action, lab
       } catch (failure) { setError(catalogError(failure)); }
       finally { setBusy(false); }
     }}>
-      <h2 className="text-lg font-semibold">{active.id ? active.name : `New ${label}`}</h2>
+      {editorHeading?.(active) ?? <h2 className="text-lg font-semibold">{active.id ? active.name : `New ${label}`}</h2>}
       <fieldset key={active.id + ":" + version} disabled={busy} className="min-w-0 space-y-4">
         {fields(active, patch => { setDraft({ ...active, ...patch }); setSuccess(""); })}
       </fieldset>
-      <EditorActions busy={busy} dirty={dirty} reset={() => { setDraft(undefined); setError(""); setVersion(value => value + 1); }} />
+      <EditorActions saveDisabled={draftVersion.stale} busy={busy} dirty={dirty} reset={() => { setDraft(undefined); setError(""); setVersion(value => value + 1); }} />
     </form> : <p className="text-sm text-muted-foreground">Select or create a {label}.</p>}
   </>} />;
 }

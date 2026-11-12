@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import dayjs from "@/lib/dayjs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescript
 import type { DropAddon, DropDate, DropEvent, DropOffering, DropStore } from "@/lib/drops/types";
 import type { StoreCatalog } from "@/lib/storefront/types";
 import { CatalogLoading, catalogError, EditorActions, Feedback, Field, SplitEditor, TextField, Toggle, uniqueSlug, useAllowDiscard, useDraftGuard } from "../catalog/catalog-ui";
+import { useAdminQuery, useAdminBlocked } from "../query-provider";
 import { adminRequest, manilaToday, OrderRequestError, pesos } from "../orders-data";
 import { AllocationFields, DropDateFields, DropSection, dropSources, OfferingFields, type Source } from "./drop-fields";
 
@@ -76,9 +77,13 @@ function validate(drop: DropEvent, sources: Source[], publish: boolean) {
 }
 
 export function DropsWorkspace() {
-  const [catalog, setCatalog] = useState<StoreCatalog>();
-  const [store, setStore] = useState<AdminDrops>();
-  const [loadError, setLoadError] = useState("");
+  const catalogQuery = useAdminQuery<StoreCatalog>("/api/admin/catalog");
+  const storeQuery = useAdminQuery<AdminDrops>("/api/admin/drops");
+  const catalog = catalogQuery.data;
+  const store = storeQuery.data;
+  const blocked = useAdminBlocked();
+  const loadError = catalogQuery.isError || storeQuery.isError ? "Could not refresh drops. Displayed data may be outdated." : "";
+  const [draftRevision, setDraftRevision] = useState<number>();
   const [draft, setDraft] = useState<DropEvent>();
   const [selected, setSelected] = useState("");
   const [search, setSearch] = useState("");
@@ -95,13 +100,9 @@ export function DropsWorkspace() {
   useDraftGuard(dirty);
 
   async function load() {
-    try {
-      const [next, items] = await Promise.all([adminRequest<AdminDrops>("/api/admin/drops"), adminRequest<StoreCatalog>("/api/admin/catalog")]);
-      setStore(next); setCatalog(items); setLoadError("");
-      return next;
-    } catch { setLoadError("Could not load drops. Try again."); return undefined; }
+    const [next, items] = await Promise.all([storeQuery.refetch(), catalogQuery.refetch()]);
+    return next.isError || items.isError ? undefined : next.data;
   }
-  useEffect(() => { void Promise.resolve().then(load); }, []);
 
   if (!catalog || !store) return <CatalogLoading error={loadError} retry={() => void load()} />;
   const cities = catalog.locations.filter(location => location.kind === "drop");
@@ -110,16 +111,20 @@ export function DropsWorkspace() {
   const state = active ? (active.id && saved?.id === active.id ? statusFor(saved) : active.status) : undefined;
   const readOnly = state === "ended";
   const availableAddons = active ? cityAddons(catalog, active.locationId) : [];
-  const revision = store.revision;
+  const revision = draft ? draftRevision ?? store.revision : store.revision;
   const usedIds = store.drops.map(drop => drop.id);
 
   async function select(drop: DropEvent, isNew = false) {
     if (busy || !(await allowDiscard(dirty))) return;
+    const latest = await load();
+    if (!latest) return;
+    setDraftRevision(latest.revision);
     setSelected(drop.id); setDraft(isNew ? drop : undefined); setPhone(true);
     setError(""); setSuccess(""); setEditorVersion(value => value + 1);
   }
 
   function update(patch: Partial<DropEvent>) {
+    if (!draft) setDraftRevision(store?.revision);
     if (active) setDraft({ ...active, ...patch });
     setSuccess("");
   }
@@ -189,7 +194,7 @@ export function DropsWorkspace() {
   }
 
   return <SplitEditor showEditor={phone} back={() => { if (!busy) setPhone(false); }} list={<>
-    <div className="flex flex-wrap items-center gap-2"><Button disabled={busy || !cities.length} onClick={() => select({
+    <div className="flex flex-wrap items-center gap-2"><Button disabled={blocked || busy || !cities.length} onClick={() => select({
       id: "", status: "draft", name: "", locationId: cities[0].id, address: cities[0].address, mapUrl: cities[0].mapUrl,
       deliveryEnabled: false, updatedAt: "", dates: [], offerings: [], addons: cityAddons(catalog, cities[0].id),
     }, true)}>New drop</Button>
@@ -198,14 +203,14 @@ export function DropsWorkspace() {
     {groups.map(group => {
       const items = store.drops.filter(drop => statusFor(drop) === group && `${drop.name} ${cities.find(city => city.id === drop.locationId)?.name ?? drop.locationId}`.toLowerCase().includes(search.trim().toLowerCase()));
       return <section key={group}><h2 className="px-2 py-1 text-xs font-semibold capitalize text-muted-foreground">{group} · {items.length}</h2>
-        <ul className="divide-y">{items.map(drop => <li key={drop.id}><Button variant="ghost" disabled={busy} aria-pressed={active?.id === drop.id} className="h-auto w-full justify-between gap-2 whitespace-normal p-2 text-left aria-pressed:bg-accent" onClick={() => select(drop)}>
+        <ul className="divide-y">{items.map(drop => <li key={drop.id}><Button variant="ghost" disabled={blocked || busy} aria-pressed={active?.id === drop.id} className="h-auto w-full justify-between gap-2 whitespace-normal p-2 text-left aria-pressed:bg-accent" onClick={() => select(drop)}>
           <span className="min-w-0"><span className="block font-medium">{drop.name}</span><span className="block text-xs text-muted-foreground">{cities.find(city => city.id === drop.locationId)?.name ?? drop.locationId}{drop.dates.length ? ` · ${drop.dates.length} date${drop.dates.length === 1 ? "" : "s"}` : ""}</span></span>
         </Button></li>)}</ul>
       </section>;
     })}
   </>} editor={<>
-    <Feedback error={error || loadError} success={success} />
-    {(loadError || /Reload|reload/.test(error)) && <Button variant="outline" disabled={busy} onClick={async () => {
+    <Feedback error={error || (draft && draftRevision !== store.revision ? "Someone changed the drops. Reload before saving this draft." : "") || loadError} success={success} />
+    {(loadError || /Reload|reload/.test(error)) && <Button variant="outline" disabled={blocked || busy} onClick={async () => {
       if (await allowDiscard(dirty) && await load()) { setDraft(undefined); setError(""); setEditorVersion(value => value + 1); }
     }}>Reload drops</Button>}
     {active ? <>
@@ -213,11 +218,11 @@ export function DropsWorkspace() {
         <div className="space-y-1"><h2 className="text-lg font-semibold">{active.name || "New drop"}</h2><Badge variant="outline">{state}</Badge></div>
         <div className="flex flex-wrap gap-2">
           {active.id && !dirty && <Button variant="outline" render={<Link href={`/admin/drops/preview?slug=${encodeURIComponent(active.id)}`} target="_blank" rel="noopener noreferrer" />}>Preview</Button>}
-          {active.id && <Button variant="outline" disabled={busy || dirty} onClick={() => setAction("duplicate_drop")}>Duplicate</Button>}
-          {active.id && state === "draft" && <Button disabled={busy || dirty} onClick={() => setAction("publish_drop")}>Publish</Button>}
+          {active.id && <Button variant="outline" disabled={blocked || busy || dirty} onClick={() => setAction("duplicate_drop")}>Duplicate</Button>}
+          {active.id && state === "draft" && <Button disabled={blocked || busy || dirty} onClick={() => setAction("publish_drop")}>Publish</Button>}
           {state === "published" && <>
-            <Button variant="outline" disabled={busy || dirty} onClick={() => setAction("unpublish_drop")}>Unpublish</Button>
-            <Button variant="destructive" disabled={busy || dirty} onClick={() => setAction("end_drop")}>End drop</Button>
+            <Button variant="outline" disabled={blocked || busy || dirty} onClick={() => setAction("unpublish_drop")}>Unpublish</Button>
+            <Button variant="destructive" disabled={blocked || busy || dirty} onClick={() => setAction("end_drop")}>End drop</Button>
           </>}
         </div>
       </div>
@@ -231,7 +236,7 @@ export function DropsWorkspace() {
         const id = active.id || uniqueSlug(active.name, usedIds, "drop");
         void commit("save_drop", { ...active, id, mapUrl: active.mapUrl.trim(), updatedAt: active.updatedAt || undefined }, id, "Drop saved.");
       }}>
-        <fieldset disabled={busy || readOnly} key={active.id + ":" + editorVersion} className="min-w-0 space-y-3">
+        <fieldset disabled={blocked || busy || readOnly} key={active.id + ":" + editorVersion} className="min-w-0 space-y-3">
           <DropSection title="Details" defaultOpen>
             <TextField label="Drop name" maxLength={120} value={active.name} change={name => update({ name })} />
             <Field label="Drop city"><AdminSelect label="Drop city" value={active.locationId} disabled={!!active.id} onValueChange={cityId => {
@@ -282,7 +287,7 @@ export function DropsWorkspace() {
         <AlertDialogTitle>{action && lifecycleLabels[action]}</AlertDialogTitle>
         <AlertDialogDescription>{action && lifecycleHelp[action]}</AlertDialogDescription>
       </AlertDialogHeader><AlertDialogFooter>
-        <AlertDialogCancel>Back</AlertDialogCancel><Button variant={action === "end_drop" ? "destructive" : "default"} disabled={busy} onClick={lifecycle}>{action && lifecycleLabels[action]}</Button>
+        <AlertDialogCancel>Back</AlertDialogCancel><Button variant={action === "end_drop" ? "destructive" : "default"} disabled={blocked || busy} onClick={lifecycle}>{action && lifecycleLabels[action]}</Button>
       </AlertDialogFooter></AlertDialogContent>
     </AlertDialog>
   </>} />;

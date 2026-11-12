@@ -61,10 +61,10 @@ function realtimeClient(accessToken?: string) {
   return client;
 }
 
-async function listen(client: SupabaseClient) {
+async function listen(client: SupabaseClient, topic = "orders", event = "order") {
   const events: unknown[] = [];
-  const channel = client.channel("orders", { config: { private: true } });
-  channel.on("broadcast", { event: "order" }, (message) => {
+  const channel = client.channel(topic, { config: { private: true } });
+  channel.on("broadcast", { event }, (message) => {
     events.push(message.payload);
   });
   const status = await new Promise<string>((resolve) => {
@@ -195,5 +195,44 @@ test("private order events and the owner token", async () => {
     await service.from("orders").delete().like("customer_name", "Phase5%");
     if (ownerId) await service.auth.admin.deleteUser(ownerId);
     if (otherId) await service.auth.admin.deleteUser(otherId);
+  }
+});
+
+
+test("admin resource events reach both owner devices and exclude non-owners", async () => {
+  const email = `query-owner-${randomUUID()}@example.com`;
+  const otherEmail = `query-other-${randomUUID()}@example.com`;
+  const owner = await service.auth.admin.createUser({ email, password: "correct-horse", email_confirm: true });
+  const other = await service.auth.admin.createUser({ email: otherEmail, password: "correct-horse", email_confirm: true });
+  assert.ok(owner.data.user && other.data.user);
+  const clients: SupabaseClient[] = [];
+  try {
+    assert.equal((await service.from("admin_users").insert({ user_id: owner.data.user.id })).error, null);
+    const anonymous = realtimeClient(); clients.push(anonymous);
+    assert.notEqual((await listen(anonymous, "admin-data", "change")).status, "SUBSCRIBED");
+    const stranger = realtimeClient(); clients.push(stranger);
+    await stranger.auth.signInWithPassword({ email: otherEmail, password: "correct-horse" });
+    assert.notEqual((await listen(stranger, "admin-data", "change")).status, "SUBSCRIBED");
+    const a = realtimeClient(); const b = realtimeClient(); clients.push(a, b);
+    for (const device of [a, b]) {
+      const auth = await device.auth.signInWithPassword({ email, password: "correct-horse" });
+      assert.equal(auth.error, null); await device.realtime.setAuth(auth.data.session!.access_token);
+    }
+    const first = await listen(a, "admin-data", "change");
+    const second = await listen(b, "admin-data", "change");
+    assert.equal(first.status, "SUBSCRIBED"); assert.equal(second.status, "SUBSCRIBED");
+    for (const [table, resource] of [["storefront_revision", "catalog"], ["drop_revision", "drops"]] as const) {
+      const current = await service.from(table).select("revision").eq("id", 1).single(); assert.equal(current.error, null);
+      assert.equal((await service.from(table).update({ revision: Number(current.data!.revision) + 1 }).eq("id", 1)).error, null);
+      await waitFor(() => [first, second].every(listener => listener.events.some(payload => (payload as { resource: string }).resource === resource)), resource);
+    }
+    // An empty statement still exercises the backup configuration trigger without touching a recovery key.
+    assert.equal((await service.from("backup_keys").update({ confirmed_at: null }).eq("id", "00000000-0000-0000-0000-000000000000")).error, null);
+    await waitFor(() => [first, second].every(listener => listener.events.some(payload => (payload as { resource: string }).resource === "backups")), "backups");
+    for (const payload of first.events) assert.deepEqual(Object.keys(payload as object), ["resource"]);
+  } finally {
+    await Promise.all(clients.map(close));
+    await service.from("admin_users").delete().eq("user_id", owner.data.user.id);
+    await service.auth.admin.deleteUser(owner.data.user.id); await service.auth.admin.deleteUser(other.data.user.id);
   }
 });

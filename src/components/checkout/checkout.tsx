@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, CalendarDays, Check, ChevronDown, Gift, MapPin, Minus, PackagePlus, Plus, ShoppingBag, StickyNote, Store, Truck } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, Check, ChevronDown, Gift, Lock, MapPin, Minus, PackagePlus, Plus, ShoppingBag, StickyNote, Store, Trash2, Truck, Wallet } from "lucide-react";
 import { BrandSeal } from "@/components/brand-seal";
 import { MobileLineup } from "@/components/mobile-lineup";
 import { AddressLines } from "@/components/address-lines";
@@ -12,7 +12,7 @@ import { ThemeLink as Link } from "@/components/site-theme";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -68,9 +68,14 @@ function choiceLabel(choice: Choice) {
 type PriceUpdate = { productId?: string; sizeId?: string; offeringId?: string; id?: string; unitPriceCentavos?: number };
 const steps = ["Branch & date", "Pick your pies", "Your details"];
 const compactSteps = ["Schedule", "Pies", "Details"];
+const deliveryFeeOptions = [
+  { value: "unknown", title: "Include delivery in my payment", description: "We’ll confirm the fee in chat and add it to your order total.", Icon: Wallet },
+  { value: "rider", title: "I’ll pay the driver directly", description: "Pay the delivery fee to the driver, separately from your pie order.", Icon: Truck },
+] as const;
+type DeliveryFeeChoice = "" | (typeof deliveryFeeOptions)[number]["value"];
 type ContactErrors = Partial<Record<"name" | "phone" | "delivery-fee" | "address", string>>;
 type StockAdjustment = { name: string; remaining: number };
-const stepHeadings = ["First, where and when?", "A few for you. A few to share.", "The last little details."];
+const stepHeadings = ["Schedule", "Choose your pies", "Your details"];
 
 function formatWindow(window?: { starts: string; ends: string } | null) {
   return window ? `${timeLabel(window.starts)}–${timeLabel(window.ends)}` : "";
@@ -253,9 +258,9 @@ function FulfillmentCalendar({ date, today, dates, error, change }: {
   </div>;
 }
 
-function ContactFields({ contact, change, method, errors, feeAcknowledged, acknowledgeFee }: {
+function ContactFields({ contact, change, method, errors, feeChoice, changeFeeChoice }: {
   contact: Contact; change: (patch: Partial<Contact>) => void; method: Method; errors: ContactErrors;
-  feeAcknowledged: boolean; acknowledgeFee: (checked: boolean) => void;
+  feeChoice: DeliveryFeeChoice; changeFeeChoice?: (choice: DeliveryFeeChoice) => void;
 }) {
   return <fieldset className={`grid gap-4 sm:grid-cols-2 ${styles.controls}`}>
     <div className="grid content-start gap-2">
@@ -272,24 +277,45 @@ function ContactFields({ contact, change, method, errors, feeAcknowledged, ackno
         onChange={event => change({ customerPhone: event.target.value })} />
       <InlineError id="checkout-phone-error" message={errors.phone} />
     </div>
-    {method === "delivery" && <div className="grid gap-2 sm:col-span-2">
-      <DeliveryFeeNotice descriptionId="checkout-delivery-fee-notice">
-        <div className="mt-2 flex items-center gap-3">
-          <Checkbox id="checkout-delivery-fee" checked={feeAcknowledged} onCheckedChange={acknowledgeFee}
-            className="size-5 border-current" aria-required="true" aria-invalid={Boolean(errors["delivery-fee"])}
-            aria-describedby={errors["delivery-fee"] ? "checkout-delivery-fee-notice checkout-delivery-fee-error" : "checkout-delivery-fee-notice"} />
-          <Label htmlFor="checkout-delivery-fee" className="min-h-11 cursor-pointer leading-snug">
-            I understand the delivery fee will be confirmed in chat.
-          </Label>
-        </div>
+    {method === "delivery" && <div className="@container min-w-0 space-y-4 sm:col-span-2">
+      <div className="space-y-2">
+        <p id="checkout-delivery-fee-title" className="font-semibold">How would you like to pay the delivery fee?</p>
+        <p id="checkout-delivery-fee-help" className="text-sm">Makalipie books the delivery. The fee is separate from the subtotal shown here.</p>
+        <RadioGroup id="checkout-delivery-fee-options" value={feeChoice} onValueChange={value => {
+          if (value === "unknown" || value === "rider") changeFeeChoice?.(value);
+        }} disabled={!changeFeeChoice} aria-required="true" aria-invalid={Boolean(errors["delivery-fee"])}
+          aria-labelledby="checkout-delivery-fee-title"
+          aria-describedby={errors["delivery-fee"] ? "checkout-delivery-fee-help checkout-delivery-fee-error" : "checkout-delivery-fee-help"}
+          className="gap-3 @min-[28rem]:grid-cols-2">
+          {deliveryFeeOptions.map(({ value, title, description, Icon }) => {
+            const id = value === "unknown" ? "checkout-delivery-fee" : "checkout-delivery-fee-rider";
+            return <label key={value} htmlFor={id} data-selected={feeChoice === value}
+              className={styles.deliveryFeeChoice}>
+              <span className="sr-only">
+                <RadioGroupItem id={id} value={value} aria-labelledby={id + "-title"} aria-describedby={id + "-description"} />
+              </span>
+              <Icon className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <span className="min-w-0 space-y-1">
+                <span id={id + "-title"} className="block text-sm font-semibold">{title}</span>
+                <span id={id + "-description"} className="block text-xs leading-relaxed">{description}</span>
+              </span>
+            </label>;
+          })}
+        </RadioGroup>
         <InlineError id="checkout-delivery-fee-error" message={errors["delivery-fee"]} />
-      </DeliveryFeeNotice>
-      <Label htmlFor="checkout-address">Delivery address</Label>
-      <Textarea id="checkout-address" disabled={!feeAcknowledged} required maxLength={300} autoComplete="street-address" value={contact.deliveryAddress}
-        aria-invalid={Boolean(errors.address)} aria-describedby={errors.address ? "checkout-address-error" : !feeAcknowledged ? "checkout-delivery-fee-help" : undefined}
-        onChange={event => change({ deliveryAddress: event.target.value })} />
-      {!feeAcknowledged && <p id="checkout-delivery-fee-help" className="text-sm">Check the box to enter your address.</p>}
-      <InlineError id="checkout-address-error" message={errors.address} />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="checkout-address">Delivery address</Label>
+        <div className="relative">
+          {!feeChoice && <Lock className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground" aria-hidden />}
+          <Textarea id="checkout-address" disabled={!feeChoice} required maxLength={300} autoComplete="street-address" value={contact.deliveryAddress}
+            className={!feeChoice ? "bg-muted pl-9 disabled:opacity-100" : undefined}
+            placeholder={!feeChoice ? "Select a delivery fee option first" : undefined}
+            aria-invalid={Boolean(errors.address)} aria-describedby={errors.address ? "checkout-address-error" : undefined}
+            onChange={event => change({ deliveryAddress: event.target.value })} />
+        </div>
+        <InlineError id="checkout-address-error" message={errors.address} />
+      </div>
     </div>}
     <div className="grid gap-2 sm:col-span-2"><Label htmlFor="checkout-notes">Order notes (optional)</Label><Textarea id="checkout-notes" maxLength={500} value={contact.notes} onChange={event => change({ notes: event.target.value })} /></div>
   </fieldset>;
@@ -304,7 +330,8 @@ export function Checkout(props: CheckoutProps) {
   const [drop, setDrop] = useState(props.drop);
   const [savedCart, setCart] = useState(emptyCart);
   const [contact, setContact] = useState(emptyContact);
-  const [feeAcknowledged, setFeeAcknowledged] = useState(false);
+  const [feeChoice, setFeeChoice] = useState<DeliveryFeeChoice>("");
+  const paysDriver = feeChoice === "rider";
   const [pending, setPending] = useState<PendingOrder>();
   const [hydrated, setHydrated] = useState(false);
   const [step, setStep] = useState(0);
@@ -330,7 +357,9 @@ export function Checkout(props: CheckoutProps) {
     void Promise.resolve().then(() => {
       if (!active) return;
       setCart(loadCart(locationId, dropId));
-      setPending(loadPending());
+      const savedAttempt = loadPending();
+      setPending(savedAttempt);
+      if (savedAttempt?.fulfillment === "delivery") setFeeChoice(savedAttempt.deliveryFeeMode ?? "unknown");
       setHydrated(true);
     });
     return () => { active = false; };
@@ -457,8 +486,8 @@ export function Checkout(props: CheckoutProps) {
     }));
   }
 
-  function acknowledgeFee(checked: boolean) {
-    setFeeAcknowledged(checked);
+  function changeFeeChoice(choice: DeliveryFeeChoice) {
+    setFeeChoice(choice);
     setContactErrors(current => ({ ...current, "delivery-fee": undefined, address: undefined }));
   }
 
@@ -486,6 +515,7 @@ export function Checkout(props: CheckoutProps) {
     return {
       idempotencyKey: crypto.randomUUID(), channel: dropId ? "drop" : "regular", locationId,
       dropId, fulfillmentDate: cart.date, fulfillment: method, slotId: dropId ? undefined : cart.slot,
+      deliveryFeeMode: method === "delivery" && paysDriver ? "rider" : undefined,
       lines: Object.entries(cart.items).map(([key, item]) => {
         const choice = choiceMap.get(key)!;
         const amount = { quantity: item.quantity, unitPriceCentavos: item.price };
@@ -506,6 +536,7 @@ export function Checkout(props: CheckoutProps) {
       location: fulfillmentLocation,
       date: attempt.fulfillmentDate,
       method: attempt.fulfillment,
+      deliveryFeeMode: attempt.deliveryFeeMode,
       window,
       items: [
         ...attempt.lines.map(line => {
@@ -535,13 +566,18 @@ export function Checkout(props: CheckoutProps) {
     const errors: ContactErrors = {
       name: details.customerName ? undefined : "Enter your name.",
       phone: phoneNumberError(details.customerPhone) ?? (details.customerPhone.length > 20 ? "Enter up to 20 characters." : undefined),
-      "delivery-fee": delivery && !feeAcknowledged ? "Acknowledge the delivery fee to continue." : undefined,
-      address: delivery && feeAcknowledged && !details.deliveryAddress ? "Enter your delivery address." : undefined,
+      "delivery-fee": delivery && !pending && !feeChoice ? "Choose how you’ll pay the delivery fee." : undefined,
+      address: delivery && (pending || feeChoice) && !details.deliveryAddress ? "Enter your delivery address." : undefined,
     };
     setContactErrors(errors);
     const firstInvalid = (["name", "phone", "delivery-fee", "address"] as const).find(field => errors[field]);
     if (firstInvalid) {
-      requestAnimationFrame(() => document.getElementById("checkout-" + firstInvalid)?.focus());
+      requestAnimationFrame(() => {
+        const field = firstInvalid === "delivery-fee"
+          ? document.querySelector<HTMLElement>('#checkout-delivery-fee-options [role="radio"]')
+          : document.getElementById("checkout-" + firstInvalid);
+        field?.focus();
+      });
       return;
     }
     const attempt = pending ?? newAttempt();
@@ -715,7 +751,7 @@ export function Checkout(props: CheckoutProps) {
   const pickupDirections = method === "pickup" && mapUrl &&
     <a className="underline" href={mapUrl} target="_blank" rel="noreferrer">Pickup directions</a>;
   const pickupAddress = method === "pickup" && (address || pickupDirections) && <>
-    {address && <AddressLines address={address} pairCommaParts={!drop && branch?.id === "cebu"} />}
+    {address && <AddressLines address={address} cebu={!drop && branch?.id === "cebu"} />}
     {pickupDirections}
   </>;
   const canChoosePies = dropId ? validDate : validWindow && !refreshError;
@@ -740,16 +776,15 @@ export function Checkout(props: CheckoutProps) {
       : method === "delivery" ? "Choose a dispatch time to continue." : "Choose a pickup time to continue."
     : step === 1 && !readyToOrder && !Object.keys(cart.items).length && (!dropId || day?.orderingOpen)
       ? "Add a pie or box to continue."
-      : step === 2 && method === "delivery" ? "Delivery fee to be confirmed in chat." : undefined;
+      : step === 2 && method === "delivery" ? paysDriver ? "Pay the delivery fee directly to the driver." : "Delivery fee to be confirmed in chat." : undefined;
 
   return <section className={`wrap order-page ${styles.checkout}`}>
     <header className={`order-intro ${styles.intro}`}>
       <div>
-        <p className="eyebrow">{drop?.name ?? "A little happiness, coming your way"}</p>
-        <h1>Let’s put together<br /> your <span>box of happy.</span></h1>
-        <p>Choose your date, then pick your pies. You’ll get an order number to share with us in chat.</p>
+        <h1>Order pies</h1>
+        <p>{drop?.name ?? "Choose a schedule, pick your pies, and confirm with us in chat."}</p>
       </div>
-      <BrandSeal alt="" width={108} height={108} />
+      <BrandSeal alt="" width={48} height={48} />
     </header>
     {!hydrated ? <p role="status">Loading your cart…</p> : pending ? <form noValidate onSubmit={event => void submit(event)} className={`${styles.panel} max-w-3xl space-y-5`}>
       <h2 className="text-xl font-semibold">{submitting ? "Sending your order…" : "Resume your submission"}</h2>
@@ -757,7 +792,7 @@ export function Checkout(props: CheckoutProps) {
       <p className="text-sm">{dateLabel(pending.fulfillmentDate)} · {pending.fulfillment === "delivery" ? "Delivery" : "Pickup"} · {pending.fulfillment === "delivery" ? "Subtotal" : "Total"} {pesos(pending.lines.reduce((sum, item) => sum + item.unitPriceCentavos * item.quantity, 0) + pending.addons.reduce((sum, item) => sum + item.unitPriceCentavos * item.quantity, 0))}</p>
       {pendingHere ? <>
         <fieldset disabled={submitting}><ContactFields contact={contact} method={pending.fulfillment} change={contactChange} errors={contactErrors}
-          feeAcknowledged={feeAcknowledged} acknowledgeFee={acknowledgeFee} /></fieldset>
+          feeChoice={pending.deliveryFeeMode ?? "unknown"} /></fieldset>
         {privacy}
         {feedbackMessage}
         <Button type="submit" variant="ghost" className={styles.primary} disabled={submitting}>{submitting ? "Submitting…" : "Retry this order"}</Button>
@@ -781,7 +816,6 @@ export function Checkout(props: CheckoutProps) {
         <div className={styles.layout} data-review={step === 2}>
         <section className={`${step === 1 ? "min-w-0" : styles.panel} space-y-5`} aria-labelledby="checkout-step">
           <div className={styles.stepHeading}>
-            <p className={`eyebrow ${styles.desktopStepLabel}`}>Step {step + 1} of {steps.length}</p>
             <h2 ref={heading} id="checkout-step" tabIndex={-1}>{stepHeadings[step]}</h2>
           </div>
           {step === 0 && <>
@@ -867,7 +901,7 @@ export function Checkout(props: CheckoutProps) {
           </>}
           {step === 2 && <form noValidate id="checkout-submit" className="space-y-5" onSubmit={event => void submit(event)}>
             <ContactFields contact={contact} method={method} change={contactChange} errors={contactErrors}
-              feeAcknowledged={feeAcknowledged} acknowledgeFee={acknowledgeFee} />
+              feeChoice={feeChoice} changeFeeChoice={changeFeeChoice} />
             {privacy}
           </form>}
         </section>
@@ -880,7 +914,7 @@ export function Checkout(props: CheckoutProps) {
             </div>
             <div className={styles.scheduleColumn}>
               {validDate && <p className={styles.summaryLine}><CalendarDays aria-hidden /> <span>{dateLabel(cart.date)}</span></p>}
-              {validMethod && <p className={styles.summaryLine}><MethodIcon aria-hidden /> <span>{methodLabel}{windowLabel && ` · ${windowLabel}`}</span></p>}
+              {validMethod && <p className={styles.summaryLine}><MethodIcon aria-hidden /> <span>{methodLabel}{windowLabel && <span className="block text-muted-foreground">{windowLabel}</span>}</span></p>}
             </div>
             {step === 2 && <Button variant="outline" className="min-h-11" type="button" onClick={() => goTo(0)}>Edit schedule</Button>}
           </div>
@@ -906,7 +940,7 @@ export function Checkout(props: CheckoutProps) {
           {hasItems && <p className={styles.summaryTotal}>
             <span>{totalLabel}</span><span className="tabular-nums">{pesos(total)}</span>
           </p>}
-          {method === "delivery" && <DeliveryFeeNotice />}
+          {method === "delivery" && <DeliveryFeeNotice paysDriver={paysDriver} />}
           {step === 2 && <>
             {feedbackMessage}
             {refreshMessage}
@@ -935,13 +969,13 @@ export function Checkout(props: CheckoutProps) {
                 </div>
                 {warning && <p className="mobile-lineup-warning">{warning}</p>}
                 <div className="mobile-lineup-controls">
-                  <Quantity label={label} value={value.quantity} max={choice?.maximum ?? 0}
-                    change={quantity => quantityChange(group, key, quantity, value.price)} disabled={!choice?.available || blocked} onEmpty={focusLineupClose} />
-                  <Button type="button" variant="ghost" className="min-h-11" aria-label={`Remove ${label}`}
+                  <Button type="button" variant="outline" size="icon" className="size-11 rounded-[4px] bg-white" aria-label={`Remove ${label}`}
                     onClick={event => {
                       focusLineupClose(event.currentTarget);
                       quantityChange(group, key, 0, value.price);
-                    }}>Remove</Button>
+                    }}><Trash2 aria-hidden /></Button>
+                  <Quantity label={label} value={value.quantity} max={choice?.maximum ?? 0}
+                    change={quantity => quantityChange(group, key, quantity, value.price)} disabled={!choice?.available || blocked} onEmpty={focusLineupClose} />
                 </div>
               </li>;
             })}
@@ -949,11 +983,11 @@ export function Checkout(props: CheckoutProps) {
               <p className="font-semibold">{adjustment.name}</p><InlineError message={adjustmentMessage(adjustment)} />
             </li>)}
           </ul>
-          {method === "delivery" && <div className="mt-4"><DeliveryFeeNotice /></div>}
+          {method === "delivery" && <div className="mt-4"><DeliveryFeeNotice paysDriver={paysDriver} /></div>}
           {validDate && <section className="mobile-lineup-logistics">
             <h3>Your schedule</h3>
             <p className={styles.summaryLine}><Store aria-hidden /> <span>{fulfillmentLocation} · {dateLabel(cart.date)}</span></p>
-            {validMethod && <p>{methodLabel}{windowLabel && ` · ${windowLabel}`}</p>}
+            {validMethod && <p className={styles.summaryLine}><MethodIcon aria-hidden /> <span>{methodLabel}{windowLabel && <span className="block text-muted-foreground">{windowLabel}</span>}</span></p>}
             {pickupAddress && <div className="mt-2 text-sm">{pickupAddress}</div>}
           </section>}
         </MobileLineup>

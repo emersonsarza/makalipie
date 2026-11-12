@@ -90,6 +90,17 @@ Label delivery times **Delivery dispatch window**, explaining that arrival depen
 
 Admin pages: **Orders, Products, Add-ons, Schedules, Drops, Storefront, Settings**. Orders is the post-login landing page. No separate analytics dashboard or Kitchen page; Daily lineup, on Orders, is the per-date packing and baking summary.
 
+### Admin UI conventions
+
+- Admin server data uses the shared TanStack Query cache and private realtime invalidation. Follow [Admin query cache](ADMIN_QUERY.md) for freshness, draft protection, session cleanup, and deployment order.
+
+- Before building an admin control, check the existing shadcn components and registry for a suitable primitive. Reuse it when available. Use base-nova control sizing throughout admin, with the sidebar as the sizing exception. Ask before choosing a custom replacement if the fit is unclear. Use a Badge for connection status and a Popover for the Orders filter button.
+
+- Keep the compact shared header, Geist Sans, shadcn Neutral palette, near-white canvas, white panels, base-nova radius, and opaque mobile drawer. Preserve the sidebar logo and fixed icon positions. On Orders, show the connection state beside the title and place the list directly on the page beside a bordered detail panel.
+- Use the shared shadcn Sidebar, Tabs, Collapsible, and Sheet for navigation, view switches, disclosures, and editors. Keep the global New order and notification controls in the header and the account menu in the sidebar footer.
+- Keep shell chrome stable on route changes. Fade incoming content briefly, slide the full active navigation highlight, and fade sidebar labels during collapse. Use short, interruptible transitions and honor reduced motion.
+- Let Sheets finish their exit before unmounting. Keep draft confirmation and return focus to the opener. Preserve semantic tabs, accessible names, current-page state, and visible keyboard focus.
+
 ### Login and shared account behavior
 
 - shadcn email/password login, clear inline errors, pending state, and password visibility control where useful. No signup/customer accounts or MFA setup in MVP.
@@ -101,28 +112,30 @@ Admin pages: **Orders, Products, Add-ons, Schedules, Drops, Storefront, Settings
 
 **Main split view:** list on left, selected order on right. List shows number/submission time, customer name until anonymized, pickup/delivery, fulfillment date/window, order/payment status, and total, delivery-fee-pending subtotal, or paid-to-rider total.
 
-- Default **Needs attention**, plus **Today** and **All orders** views with counts. Search number and filter location, date, order/payment status, and fulfillment method. Pagination and filter results come from backend queries, not only loaded rows.
+- Choose an **Order queue** above the tabs. Separate regular branches, active drops, and past drops. Each drop has its own queue labeled with its city and event name. Remember the device's last queue and default to Cebu regular orders when that choice is unavailable.
+- Default **Needs attention**, plus **Today** and **All orders** views with counts. Scope server counts, exact order number search, date, order/payment status, fulfillment filters, and pagination to the chosen queue.
+- Show the branch or drop in order details and notifications. Opening a notification or a direct order link selects the order's queue and opens the order even when current filters exclude it. Preserve open drafts.
 - Private Realtime updates, no polling. Fetch on entry/reconnect, show Reconnecting when disconnected, and reconcile current results on events. Do not overwrite unsaved form edits with background updates; surface a stale-record warning.
-- New-order notifications are visible and open the relevant order when clicked. Sound is off by default, optional, and remembered per device. No closed-site background alerts.
+- New-order notifications appear in the shared header bell with an unread count and open the relevant order when clicked. Received notifications and read status stay on the current browser, scoped to the admin account and environment. Sound is off by default, optional, and remembered per device. No closed-site background alerts.
 - Separate **Confirm order**, **Complete order**, and **Cancel order** actions with backend prerequisites. Confirming a delivery order requires a known fee or **customer pays rider**. Complete/cancel dialogs explicitly warn that personal details are permanently removed. Paid cancellations require recording the refund first.
 - Completed/cancelled content is read-only and displays an anonymized state. Mark refunded remains available for completed orders.
 
 **POS-style new/edit Sheet:** shadcn Sheet slides in from the right; desktop width 80vw capped at **1440px**, full width on phones.
 
 - Left: searchable/category-organized allowed pies/packages and add-ons, size selection, and quantity controls.
-- Right: order summary, quantities, editable prices, delivery fee (a known amount including zero, or **customer pays rider**), subtotal/final total. Keep Save changes/Create order and Discard controls visible.
+- Right: order summary, quantities, read-only item prices, delivery fee (a known amount including zero, or **customer pays rider**), subtotal/final total. Keep Save changes/Create order and Discard controls visible.
 - Collapsible **Order details** contains customer fields, pickup/delivery, date/window, and notes. All changes save together.
-- Existing lines preserve snapshot prices; additions use current applicable prices. Display explicit overrides and live provisional totals; backend recalculates on save.
+- Existing lines preserve snapshot prices; additions use current applicable prices. Display live provisional totals; backend recalculates on save.
 - Availability overrides require warning/confirmation. Never offer stock-limit bypass or package substitutions. Preserve fixed package contents and source drop identity.
 - Unsaved closing prompts to discard or keep editing. Stale saves show a reload/review path rather than overwriting newer data.
 - On phones use Items/Summary tabs; ensure details and totals remain reachable.
 
-**Daily lineup:** select fulfillment date and location/drop. Show packing totals and baking totals, including confirmed/completed orders only. Expand package components into baking totals without duplicating inventory use; include add-ons separately for packing.
+**Daily Lineup sidebar destination:** select fulfillment date and location/drop. Show packing totals and baking totals, including confirmed/completed orders only. Expand package components into baking totals without duplicating inventory use; include add-ons separately for packing.
 
 ### Products
 
 - Split searchable list/editor. List includes image, name, enabled status, and seasonal dates. Enabled/Disabled filters retain disabled records for reuse.
-- Editor: name, short/full descriptions, allergens, section, enabled flag, optional product-wide dated season, shared regular image, and sorting.
+- Editor: one panel with product details above the sizes and one Save changes action. Include name, short/full descriptions, allergens, section, enabled flag, optional product-wide dated season, shared regular image, and sorting. New products start disabled.
 - Sizes table: label, price, regular/preorder, enabled status, regular-branch assignments, order, regular image, and theme-specific images. Lead time comes from the shared preorder setting, not a per-size field.
 - Visual picker for known deployed images; show resolved fallback previews. New products may use the default image. No upload control or arbitrary external image URL.
 - Drag-and-drop and Move up/down for products within sections and for sizes. Explicit saving and discard protection.
@@ -145,7 +158,7 @@ Admin pages: **Orders, Products, Add-ons, Schedules, Drops, Storefront, Settings
 
 - Split searchable list/editor, grouped Draft, Published, Ended.
 - Event editor sections: location/name; pickup address/map; pickup/delivery; dated ordering hours and pickup/dispatch windows; offerings; daily allocations; add-ons; preview/lifecycle actions.
-- Same-day ordering is clearly explained; drop stock is planned and baked ahead. Each date has its own opening/cutoff and allocation. Default the lineup across dates, with per-date exclusions.
+- Same-day ordering is clearly explained; drop stock is planned and baked ahead. Each date has its own opening/cutoff and allocation. Default the lineup across dates, with per-date exclusions. New dates copy the previous date’s hours and start with zero stock. Booked dates and their pickup and dispatch windows are locked.
 - Package editor selects exact sizes/quantities and shows component imagery. Price initially sums components but is editable/fixed afterward. Show contents locked once ordered; create another offering for another combination.
 - Individual offerings have fixed prices; per-order maximums are separate for every offering. Explain that customers can place additional orders and that limits are not per person.
 - Daily allocation grid shows allocated, committed, remaining. Reject lowering below committed stock and handle stale updates. Explain pending orders already consume allocation.
@@ -189,7 +202,7 @@ Begin only after the backend gate passes:
 
 ## 6. Frontend acceptance scenarios
 
-- shadcn consistency across login and all seven admin pages; POS-reference direction; keyboard/touch/reduced-motion accessibility; working narrow-screen alternatives to split panels.
+- shadcn consistency across login and all admin pages; POS-reference direction; keyboard/touch/reduced-motion accessibility; working narrow-screen alternatives to split panels.
 - Direct Instagram links, plain Cebu links, multiple-drop picker, ended/unpublished links, selector URL changes, per-event cart isolation, and no location-query leakage through unrelated navigation.
 - Cebu always visible in Find us; all-city upcoming drops, informational-only pop-ups, automatic event expiry, homepage remaining Cebu-focused, and first-four featured fallback.
 - Regular date/method/slot selection, unavailable collapsed section, seasonal hiding, mixed regular/preorder cart, date-change preservation, drop same-day preview/open/closed/sold-out states, package limits and immutable contents.
@@ -197,7 +210,7 @@ Begin only after the backend gate passes:
 - Price-change review, stock-race rejection, ambiguous network failure/idempotent retry, no duplicate order on repeated click, successful cart clearing, and success-number recovery without public personal-data access.
 - Clipboard or open-Instagram/Messenger failure fallback, hidden empty chat buttons, pending-confirmation wording, after-hours next-morning reply, dispatch versus arrival wording, and change/cancellation guidance in Instagram or Messenger.
 - Real admin filtering/pagination, current selection across live changes, reconnect reconciliation, no polling, sound off by default, click-to-open notifications, and no overwritten unsaved work.
-- POS create/edit atomic save, quantity/price override behavior, delivery fee or customer-pays-rider control, stale-save handling, cancel/discard prompts, status/payment prerequisites including delivery confirm requiring a known fee or paid-to-rider, irreversible anonymization warning, terminal read-only state, and completed-order refund.
+- POS create/edit atomic save, quantity changes and saved item prices, delivery fee or customer-pays-rider control, stale-save handling, cancel/discard prompts, status/payment prerequisites including delivery confirm requiring a known fee or paid-to-rider, irreversible anonymization warning, terminal read-only state, and completed-order refund.
 - Drop publish prerequisites, duplicate resets, daily allocation/per-order limit distinction, sold-out competition, no substitution, and separate baking/packing summaries.
 - Protected theme preview isolation/no checkout; Save changes required; image fallback for each size/theme; no public theme-query override.
 - Recovery-key setup, real encrypted file save, first-visit-per-day behavior, denied/expired permissions, concurrent tabs, 14-day cleanup after success only, unsupported-browser/manual fallback, and no raw personal fields in decrypted test exports.

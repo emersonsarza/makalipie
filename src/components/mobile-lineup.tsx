@@ -18,7 +18,7 @@ export function MobileLineup({ count, amount, totalLabel, fallbackFocus, action,
   const [keyboard, setKeyboard] = useState(false);
   const movingToAction = useRef(false);
   useEffect(() => {
-    const media = window.matchMedia("(max-width: 959px)");
+    const media = window.matchMedia("(max-width: 767px)");
     const resize = () => { if (!media.matches) setOpen(false); };
     const viewport = window.visualViewport;
     const detectKeyboard = () => {
@@ -29,12 +29,13 @@ export function MobileLineup({ count, amount, totalLabel, fallbackFocus, action,
     media.addEventListener("change", resize);
     viewport?.addEventListener("resize", detectKeyboard);
     document.addEventListener("focusin", detectKeyboard);
-    document.addEventListener("focusout", detectKeyboard);
+    const detectAfterBlur = () => queueMicrotask(detectKeyboard);
+    document.addEventListener("focusout", detectAfterBlur);
     return () => {
       media.removeEventListener("change", resize);
       viewport?.removeEventListener("resize", detectKeyboard);
       document.removeEventListener("focusin", detectKeyboard);
-      document.removeEventListener("focusout", detectKeyboard);
+      document.removeEventListener("focusout", detectAfterBlur);
     };
   }, []);
   const summary = `${count} ${count === 1 ? "item" : "items"} · ${amount}`;
@@ -62,7 +63,7 @@ export function MobileLineup({ count, amount, totalLabel, fallbackFocus, action,
       </SheetTrigger>}
       <div className="mobile-checkout-action">
         {hint && <p className="mobile-checkout-hint" role="status">{hint}</p>}
-        <Button type={form ? "submit" : "button"} variant="ghost" className="mobile-checkout-primary" form={form} onClick={advance} disabled={action.disabled}>
+        <Button type={form ? "submit" : "button"} variant="ghost" className="mobile-checkout-primary" form={form} onClick={advance ? event => { event.preventDefault(); advance(); } : undefined} disabled={action.disabled}>
           {action.label} <ArrowRight aria-hidden />
         </Button>
       </div>
@@ -71,7 +72,7 @@ export function MobileLineup({ count, amount, totalLabel, fallbackFocus, action,
     <SheetContent side="bottom" className="mobile-lineup-sheet" showCloseButton={false}
       finalFocus={() => {
         if (movingToAction.current) return false;
-        return count > 0 && !keyboard && window.matchMedia("(max-width: 959px)").matches ? true : fallbackFocus.current;
+        return count > 0 && !keyboard && window.matchMedia("(max-width: 767px)").matches ? true : fallbackFocus.current;
       }}>
       <header className="mobile-lineup-header"><div><SheetTitle>Your order</SheetTitle><SheetDescription>{count} {count === 1 ? "item" : "items"} in your lineup</SheetDescription></div><SheetClose className="mobile-lineup-close">Close</SheetClose></header>
       <div className="mobile-lineup-scroll">{count === 0 ? <p className="mobile-lineup-empty">Your lineup is empty.</p> : children}</div>

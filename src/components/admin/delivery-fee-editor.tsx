@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { AdminOrder } from "@/lib/orders/query";
-import { adminRequest, OrderRequestError, writeOrder } from "./orders-data";
+import { useAdminFetch } from "./query-provider";
+import { OrderRequestError, writeOrder } from "./orders-data";
 
 export type SavedDeliveryFee = Pick<AdminOrder, "id" | "updatedAt" | "deliveryFeeMode" | "deliveryFeeCentavos" | "totalCentavos">;
 
@@ -29,6 +30,7 @@ export function DeliveryFeeEditor({ order, disabled, onWorkingChange, onSaved, o
   onSaved: (saved: SavedDeliveryFee, version: string) => void;
   onReload: (latest: AdminOrder, version: string) => void;
 }) {
+  const fetchAdmin = useAdminFetch();
   const [draft, setDraft] = useState<{ version: string; amount: string; rider: boolean }>();
   const [error, setError] = useState("");
   const amountField = useRef<HTMLInputElement>(null);
@@ -71,7 +73,7 @@ export function DeliveryFeeEditor({ order, disabled, onWorkingChange, onSaved, o
     } catch (failure) {
       if (failure instanceof OrderRequestError && failure.body.error === "stale_save") {
         try {
-          const latest = await adminRequest<AdminOrder>("/api/admin/orders/" + encodeURIComponent(order.id));
+          const latest = await fetchAdmin<AdminOrder>("/api/admin/orders/" + encodeURIComponent(order.id));
           onReload(latest, order.updatedAt);
           setDraft({ version: latest.updatedAt, amount, rider });
           setError(eligible(latest) ? "The order changed. Review the updated total and save again."

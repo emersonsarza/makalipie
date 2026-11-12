@@ -21,11 +21,13 @@
     "supabase:reset": "supabase db reset",
     "supabase:env": "node scripts/write-local-env.mjs",
     "allowlist-owner": "node --env-file=.env.local --import tsx scripts/allowlist-owner.ts",
-    "verify:sandbox": "npx supabase db query --remote --yes --file scripts/verify-sandbox.sql"
+    "verify:sandbox": "npx supabase db query --remote --yes --file scripts/verify-sandbox.sql",
+    "test:admin-query": "node --import tsx --test tests/admin-query.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
     "@supabase/supabase-js": "^2.119.0",
+    "@tanstack/react-query": "^5.107.1",
     "age-encryption": "^0.3.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

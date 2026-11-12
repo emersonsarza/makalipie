@@ -14,12 +14,13 @@ function Directions({ href, name, className = "" }: { href: string; name: string
   </a>;
 }
 
-function EventAddress({ address, city }: { address: string; city?: string }) {
-  const compact = address.split(/\r?\n/).map(line => line.trim()).filter(Boolean).join(", ");
+function EventAddress({ address, city, multiline }: { address: string; city?: string; multiline?: boolean }) {
+  const lines = address.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  const compact = lines.join(", ");
   const words = (value: string) => value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
   const cityWords = city ? words(city) : "";
   const showCity = cityWords && !` ${words(compact)} `.includes(` ${cityWords} `);
-  return <p className="location-detail-line"><MapPin size={16} strokeWidth={1.5} aria-hidden /><span>{compact}{showCity && ` · ${city}`}</span></p>;
+  return <p className="location-detail-line"><MapPin size={16} strokeWidth={1.5} aria-hidden /><span className={multiline ? "whitespace-pre-line" : undefined}>{multiline ? lines.join("\n") : compact}{showCity && ` · ${city}`}</span></p>;
 }
 
 function compactDropDates(dates: string[], today: string) {
@@ -68,7 +69,7 @@ function EventCard({ event, today, wide, preview }: { event: UpcomingEvent; toda
         </span></p>
         {drop && <p className="location-detail-line"><FulfillmentIcon size={16} strokeWidth={1.5} aria-hidden /><span>{drop.deliveryEnabled ? "Pickup or delivery" : "Pickup only"}</span></p>}
         {popup && <p className="location-detail-line"><Clock size={16} strokeWidth={1.5} aria-hidden /><span>{popup.hours}</span></p>}
-        <EventAddress address={item.address} city={item.city} />
+        <EventAddress address={item.address} city={item.city} multiline={Boolean(popup)} />
       </div>
     </div>
     {(item.mapUrl || (drop && !preview)) && <div className="location-event-actions">
@@ -117,7 +118,7 @@ export function VisitSection({ drops = [], today, preview = false }: { drops?: D
       <div className="visit-details">
         <h3>Makalipie Cebu</h3>
         <p className="visit-location-intro">Come for a pie. Stay for a little while.</p>
-        {branch.address && <p className="location-detail-line"><MapPin size={16} strokeWidth={1.5} aria-hidden /><AddressLines address={branch.address} pairCommaParts={branch.id === "cebu"} /></p>}
+        {branch.address && <p className="location-detail-line"><MapPin size={16} strokeWidth={1.5} aria-hidden /><AddressLines address={branch.address} cebu={branch.id === "cebu"} /></p>}
         {branch.hoursLabel && <div className="opening-hours"><span className="location-detail-line"><Clock size={16} strokeWidth={1.5} aria-hidden />Opening hours</span><span>{branch.hoursLabel}</span></div>}
         {(branch.mapUrl || !preview) && <div className="visit-actions">
           {branch.mapUrl && <Directions href={branch.mapUrl} name="Makalipie Cebu" />}

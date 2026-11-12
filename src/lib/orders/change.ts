@@ -119,7 +119,13 @@ export async function applyOrderChange(action: unknown, payload: unknown, actor:
   if (!parsed?.success) return { status: 400, body: { error: "validation" } };
   const data = parsed.data as Record<string, unknown>;
   const body = action === "place_order"
-    ? { ...data, actor, allowUnavailable: actor === "admin" && data.allowUnavailable === true }
+    ? {
+      ...data, actor, allowUnavailable: actor === "admin" && data.allowUnavailable === true,
+      ...(actor === "public" && {
+        deliveryFeeMode: data.fulfillment === "delivery" && data.deliveryFeeMode === "rider" ? "rider" : undefined,
+        deliveryFeeCentavos: undefined,
+      }),
+    }
     : data;
   const result = await createServiceClient().rpc("apply_order_change", { action, payload: body });
   if (result.error) return mapOrderError(result.error);

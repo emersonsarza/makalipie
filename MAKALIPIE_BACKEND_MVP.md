@@ -134,7 +134,7 @@ Use two Supabase projects in Singapore unless they already exist. Keep databases
 - Owner can create orders using the same server contracts. They start pending/unpaid and use normal numbering, snapshots, and allocation protection.
 - Owner can edit customer details, notes, fulfillment method/date/window, delivery fee (a known amount including zero, or paid to rider), lines, quantities, and prices on pending/confirmed orders. Save all changes together. Return validation/availability warnings and require explicit owner confirmation to bypass regular availability rules.
 - Never bypass stock, numeric validation, authorization, or per-order drop limits. No package substitutions. For drop orders, offerings remain scoped to the chosen event/date.
-- Existing lines retain saved prices when quantities change. Additions use current applicable catalog/drop prices. Manual admin price overrides are explicit. Never automatically reprice the whole order. Server calculates all totals.
+- Existing lines retain saved prices when quantities change. Additions use current applicable catalog/drop prices. Item prices are read-only in the admin editor. Never automatically reprice the whole order. Server calculates all totals.
 - Repricing and payment status are distinct: no automatic collection/refund. If a paid order's total changes, require explicit reconciliation of its payment status before save; do not silently claim an increased balance is paid.
 - Status transitions are separate from general edits:
   - Confirm: pending → confirmed. Payment may remain unpaid. Delivery requires either a known fee, including zero, or **paid to rider**.
@@ -276,3 +276,7 @@ Seed Cebu, hidden/unpublished Manila drop location, current pies/sizes, compatib
 ## Done when
 
 The backend acceptance gate passes in sandbox with real database concurrency and recovery checks, production/sandbox isolation is verified, and every agreed frontend operation has a documented authorized server contract. Then implement the frontend plan. The complete MVP is done only when both documents' acceptance criteria pass.
+
+### Admin Orders frontend integration
+
+The Orders list and owner-only detail endpoint expose submission timestamps. Admin creation can save delivery fees atomically. Retained items keep snapshot prices, new items use current prices, and the Daily Lineup has its own admin sidebar destination.

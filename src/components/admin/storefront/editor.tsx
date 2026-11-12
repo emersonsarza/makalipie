@@ -1,7 +1,12 @@
 "use client";
 
+import { useAdminBlocked } from "../query-provider";
+
 import { useState } from "react";
+import { Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { AdminSelect } from "@/components/admin/admin-select";
+import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,7 +15,7 @@ import { manilaToday } from "../orders-data";
 import { selectFeatured } from "@/lib/storefront/featured";
 import { THEMES, type StorePopup, type StoreProduct, type StoreSection, type StoreSettings, type ThemeName } from "@/lib/storefront/types";
 import { useConfirm } from "../admin-confirm";
-import { CatalogLoading, catalogChange, catalogError, EditorActions, Feedback, Field, TextField, Toggle, uniqueSlug, useCatalog, useDraftGuard, type Catalog } from "../catalog/catalog-ui";
+import { useDraftRevision, CatalogLoading, catalogChange, catalogError, EditorActions, Feedback, Field, SplitEditor, TextField, Toggle, uniqueSlug, useCatalog, useDraftGuard, type Catalog } from "../catalog/catalog-ui";
 import { SortableList } from "../catalog/sortable-list";
 
 const tabs = [
@@ -27,6 +32,11 @@ type Draft =
   | { type: "sectionOrder"; items: StoreSection[] }
   | { type: "popup"; item: StorePopup; descriptions: string }
   | { type: "links"; links: Links };
+
+function PopupStatus({ item, today }: { item: StorePopup; today: string }) {
+  const status = item.endDate < today ? "Expired" : item.startDate > today ? "Upcoming" : "Ongoing";
+  return <Badge className="shrink-0 rounded-md bg-muted text-muted-foreground normal-case tracking-normal">{status}</Badge>;
+}
 
 function rankedRow(item: { name: string }, grip: React.ReactNode, controls: React.ReactNode) {
   return <div className="flex min-w-0 items-center justify-between gap-2 p-2">
@@ -60,17 +70,21 @@ function mutation(draft: Draft, catalog: Catalog): [string, object] {
 }
 
 export function StorefrontEditor() {
+  const blocked = useAdminBlocked();
   const { catalog, error: loadError, reload } = useCatalog();
   const [tab, setTab] = useState<string>("theme");
   const [draft, setDraft] = useState<Draft>();
   const [selectedSection, setSelectedSection] = useState("");
   const [selectedPopup, setSelectedPopup] = useState("");
+  const [popupSearch, setPopupSearch] = useState("");
+  const [showPopupEditor, setShowPopupEditor] = useState(false);
   const [reordering, setReordering] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [needsRefresh, setNeedsRefresh] = useState(false);
   const [pendingView, setPendingView] = useState<(() => void)>();
+  const draftVersion = useDraftRevision(catalog?.revision, !!draft);
   const confirm = useConfirm();
   useDraftGuard(Boolean(draft));
 
@@ -79,6 +93,7 @@ export function StorefrontEditor() {
   const today = manilaToday();
   const section = draft?.type === "section" ? draft.item : catalog.sections.find(item => item.id === selectedSection) ?? catalog.sections[0];
   const popup = draft?.type === "popup" ? draft.item : catalog.popups.find(item => item.id === selectedPopup) ?? catalog.popups[0];
+  const filteredPopups = catalog.popups.filter(item => item.name.toLowerCase().includes(popupSearch.trim().toLowerCase()));
   const theme = draft?.type === "theme" ? draft.theme : catalog.settings.theme;
   const links = draft?.type === "links" ? draft.links : linksFrom(catalog.settings);
   const ranking = draft?.type === "featured" ? draft.ids : catalog.featuredIds;
@@ -111,7 +126,7 @@ export function StorefrontEditor() {
     setError("");
     setMessage("");
     try {
-      await catalogChange(action, snapshot.revision, payload);
+      await catalogChange(action, draftVersion.revision!, payload);
       if ("id" in payload && typeof payload.id === "string") {
         if (action === "save_section") setSelectedSection(payload.id);
         if (action === "save_popup") setSelectedPopup(payload.id);
@@ -149,6 +164,7 @@ export function StorefrontEditor() {
         return;
       }
     }
+    draftVersion.capture(fresh.revision);
     setNeedsRefresh(false);
     setError("");
     setMessage(draft ? "Catalog refreshed. Review your draft before saving again." : "Catalog refreshed.");
@@ -164,13 +180,13 @@ export function StorefrontEditor() {
     else setError("Could not refresh the catalog. Try again.");
   }
 
-  function renderForm(children: React.ReactNode) {
-    return <form className="max-w-3xl space-y-4 rounded-lg border bg-background p-4 sm:p-5" onSubmit={event => {
+  function renderForm(children: React.ReactNode, embedded = false) {
+    return <form className={embedded ? "space-y-4" : "max-w-3xl space-y-4 rounded-lg border bg-background p-4 sm:p-5"} onSubmit={event => {
       event.preventDefault();
       if (draft && !needsRefresh) void save(...mutation(draft, snapshot));
     }}>
       <fieldset className="min-w-0 space-y-4" disabled={busy}>{children}</fieldset>
-      <EditorActions busy={busy} dirty={Boolean(draft)} reset={discard} />
+      <EditorActions saveDisabled={draftVersion.stale} busy={busy} dirty={Boolean(draft)} reset={discard} />
     </form>;
   }
 
@@ -179,8 +195,8 @@ export function StorefrontEditor() {
     if (needsRefresh) void refreshDiscarded();
   })} className="space-y-4">
     <div className="overflow-x-auto p-1"><TabsList aria-label="Storefront sections">{tabs.map(([id, label]) => <TabsTrigger key={id} value={id}>{label}</TabsTrigger>)}</TabsList></div>
-    <Feedback error={error} success={message} />
-    {needsRefresh && <Button variant="outline" disabled={busy} onClick={() => void refreshForReview()}>Reload catalog for review</Button>}
+    <Feedback error={error || (draftVersion.stale ? "Someone changed the catalog. Reload before saving this draft." : "")} success={message} />
+    {(needsRefresh || draftVersion.stale) && <Button variant="outline" disabled={busy} onClick={() => void refreshForReview()}>Reload catalog for review</Button>}
     <TabsContent value="theme" className="admin-panel-enter">{tab === "theme" && renderForm(<>
       <Field label="Storefront theme"><AdminSelect label="Storefront theme" value={theme} onValueChange={value => {
         if (value === catalog.settings.theme) reset(); else edit({ type: "theme", theme: value });
@@ -228,7 +244,7 @@ export function StorefrontEditor() {
               })} />)}</div>
           </fieldset>
           {section.id && <div className="space-y-2">
-            <Button type="button" variant="destructive" disabled={used || Boolean(draft) || needsRefresh} onClick={() => {
+            <Button type="button" variant="destructive" disabled={blocked || used || Boolean(draft) || needsRefresh} onClick={() => {
               void confirm({
                 title: `Delete ${section.name}?`,
                 description: "This menu section will be removed. Assigned products must already be moved.",
@@ -242,31 +258,70 @@ export function StorefrontEditor() {
         </>}
       </>}
     </>)}</TabsContent>
-    <TabsContent value="popups" className="admin-panel-enter">{tab === "popups" && renderForm(<>
-      <p className="text-sm text-muted-foreground">Pop-ups are informational. They leave Find Us after their end date in Manila time.</p>
-      <Button type="button" variant="outline" onClick={() => switchView(() => edit({ type: "popup", descriptions: "", item: {
-        id: "", name: "", locationId: catalog.locations[0]?.id ?? "", address: "", mapUrl: "", startDate: today, endDate: today, hours: "", items: [], updatedAt: "",
-      } }))}>New pop-up</Button>
-      <Field label="Pop-up"><AdminSelect label="Pop-up" value={popup?.id ?? ""} placeholder="Choose a pop-up" onValueChange={id => switchView(() => setSelectedPopup(id))}
-        options={catalog.popups.map(item => ({ value: item.id, label: item.endDate < today ? item.name + " (expired)" : item.name }))} /></Field>
-      {popup && (() => {
-        const descriptions = draft?.type === "popup" ? draft.descriptions : popup.items.join("\n");
-        const update = (patch: Partial<StorePopup>) => edit({ type: "popup", item: { ...popup, ...patch }, descriptions });
-        return <>
-          <Field label="City"><AdminSelect label="City" required value={popup.locationId} onValueChange={locationId => update({ locationId })}
-            options={catalog.locations.map(item => ({ value: item.id, label: item.name }))} /></Field>
-          <TextField label="Name" required maxLength={120} value={popup.name} change={name => update({ name })} />
-          <TextField label="Address" required maxLength={300} value={popup.address} change={address => update({ address })} />
-          <TextField label="Map link" type="url" value={popup.mapUrl} change={mapUrl => update({ mapUrl })} />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <TextField label="Starts" required type="date" value={popup.startDate} change={startDate => update({ startDate })} />
-            <TextField label="Ends" required type="date" min={popup.startDate} value={popup.endDate} change={endDate => update({ endDate })} />
-          </div>
-          <TextField label="Hours" required maxLength={80} value={popup.hours} change={hours => update({ hours })} />
-          <Field label="Items (one per line)"><Textarea value={descriptions} onChange={event => edit({ type: "popup", item: popup, descriptions: event.target.value })} /></Field>
-        </>;
-      })()}
-    </>)}</TabsContent>
+    <TabsContent value="popups" className="admin-panel-enter">{tab === "popups" && <SplitEditor
+      showEditor={showPopupEditor} back={() => { if (!busy) setShowPopupEditor(false); }}
+      list={<>
+        <Button type="button" disabled={busy} onClick={() => switchView(() => {
+          edit({ type: "popup", descriptions: "", item: {
+            id: "", name: "", locationId: catalog.locations[0]?.id ?? "", address: "", mapUrl: "", startDate: today, endDate: today, hours: "", items: [], updatedAt: "",
+          } });
+          setShowPopupEditor(true);
+        })}><Plus aria-hidden /> New pop-up</Button>
+        <Input aria-label="Search pop-ups" placeholder="Search pop-ups" value={popupSearch} onChange={event => setPopupSearch(event.target.value)} />
+        {filteredPopups.length ? <ul className="divide-y">{filteredPopups.map(item => <li key={item.id}>
+          <Button type="button" variant="ghost" className="h-auto w-full justify-between gap-2 whitespace-normal p-2 text-left aria-pressed:bg-accent"
+            aria-pressed={popup?.id === item.id} disabled={busy} onClick={() => {
+              if (popup?.id === item.id) { setShowPopupEditor(true); return; }
+              switchView(() => { setSelectedPopup(item.id); setShowPopupEditor(true); });
+            }}>
+            <span className="min-w-0 break-words">
+              <span className="block font-medium">{item.name}</span>
+              <span className="block text-xs text-muted-foreground">{catalog.locations.find(location => location.id === item.locationId)?.name}</span>
+            </span>
+            <PopupStatus item={item} today={today} />
+          </Button>
+        </li>)}</ul> : <p className="text-sm text-muted-foreground">{popupSearch.trim() ? "No matching pop-ups." : "No pop-ups yet."}</p>}
+      </>}
+      editor={popup ? renderForm(<div className="@container/popups space-y-5">
+        {(() => {
+          const descriptions = draft?.type === "popup" ? draft.descriptions : popup.items.join("\n");
+          const update = (patch: Partial<StorePopup>) => edit({ type: "popup", item: { ...popup, ...patch }, descriptions });
+          return <>
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="break-words text-2xl font-semibold tracking-tight">{popup.id ? popup.name || "Untitled pop-up" : "New pop-up"}</h2>
+              {popup.id && <PopupStatus item={popup} today={today} />}
+            </div>
+            <div className="grid gap-5 @min-[34rem]/popups:grid-cols-[minmax(0,11fr)_minmax(0,9fr)]">
+              <section className="@container/event min-w-0 space-y-3" aria-label="Event details">
+                <h3 className="text-base font-semibold">Event details</h3>
+                <div className="grid gap-3 @min-[15rem]/event:grid-cols-2">
+                  <TextField label="Name" required maxLength={120} value={popup.name} change={name => update({ name })} />
+                  <Field label="City"><AdminSelect label="City" required value={popup.locationId} onValueChange={locationId => update({ locationId })}
+                    options={catalog.locations.map(item => ({ value: item.id, label: item.name }))} /></Field>
+                </div>
+                <Field label="Address"><Textarea required rows={2} maxLength={300} className="min-h-16 resize-y text-sm"
+                  value={popup.address} onChange={event => update({ address: event.target.value })} /></Field>
+                <TextField label="Map link" type="url" value={popup.mapUrl} change={mapUrl => update({ mapUrl })} />
+              </section>
+              <section className="@container/schedule min-w-0 space-y-3 @min-[34rem]/popups:border-l @min-[34rem]/popups:pl-5" aria-label="Schedule">
+                <h3 className="text-base font-semibold">Schedule</h3>
+                <div className="grid gap-3 @min-[16rem]/schedule:grid-cols-2">
+                  <TextField label="Starts" required type="date" value={popup.startDate} change={startDate => update({ startDate })} />
+                  <TextField label="Ends" required type="date" min={popup.startDate} value={popup.endDate} change={endDate => update({ endDate })} />
+                </div>
+                <TextField label="Hours" required maxLength={80} value={popup.hours} change={hours => update({ hours })} />
+                <p className="text-sm text-muted-foreground">This pop-up leaves Find Us after its end date in Manila time.</p>
+              </section>
+            </div>
+            <div className="space-y-2 border-t pt-4">
+              <Field label="Items"><Textarea rows={2} className="min-h-16 resize-y text-sm" aria-describedby="popup-items-help" value={descriptions}
+                onChange={event => edit({ type: "popup", item: popup, descriptions: event.target.value })} /></Field>
+              <p id="popup-items-help" className="text-sm text-muted-foreground">One item per line.</p>
+            </div>
+          </>;
+        })()}
+      </div>, true) : <p className="text-sm text-muted-foreground">Select or create a pop-up.</p>}
+    />}</TabsContent>
     <TabsContent value="links" className="admin-panel-enter">{tab === "links" && renderForm(<>
       <p className="text-sm text-muted-foreground">Leave unused links blank to hide them. Manage branch delivery-app links in Settings.</p>
       {([["instagramUrl", "Instagram"], ["instagramDmUrl", "Instagram DM"], ["messengerUrl", "Messenger"]] as const).map(([key, label]) =>

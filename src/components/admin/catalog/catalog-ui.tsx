@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useAdminQuery, useAdminBlocked } from "../query-provider";
+import { useRouter } from "next/navigation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,21 +23,9 @@ export function catalogChange(action: string, revision: number, payload: object)
 }
 
 export function useCatalog() {
-  const [catalog, setCatalog] = useState<Catalog>();
-  const [error, setError] = useState("");
-  const reload = useCallback(async () => {
-    try {
-      const next = await adminRequest<Catalog>("/api/admin/catalog");
-      setCatalog(next);
-      setError("");
-      return next;
-    } catch {
-      setError("Could not load the catalog. Try again.");
-      return undefined;
-    }
-  }, []);
-  useEffect(() => { void Promise.resolve().then(reload); }, [reload]);
-  return { catalog, error, reload };
+  const query = useAdminQuery<Catalog>("/api/admin/catalog");
+  async function reload() { const result = await query.refetch(); return result.isError ? undefined : result.data; }
+  return { catalog: query.data, error: query.isError ? "Could not refresh the catalog. Displayed data may be outdated." : "", reload };
 }
 
 export function catalogError(error: unknown) {
@@ -47,20 +37,20 @@ export function catalogError(error: unknown) {
 }
 
 let activeDrafts = 0;
-let requestDiscard: ((dirty: boolean) => Promise<boolean>) | null = null;
 let navigationGuard: ((event: MouseEvent) => void) | null = null;
 
 function warnBeforeUnload(event: BeforeUnloadEvent) {
   event.preventDefault();
 }
 
-function warnBeforeNavigation(event: MouseEvent) {
+function warnBeforeNavigation(event: MouseEvent, confirmDiscard: () => Promise<boolean>, navigate: (href: string) => void) {
   if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
   if (!(link instanceof HTMLAnchorElement) || link.target === "_blank" || link.origin !== location.origin || link.pathname === location.pathname) return;
+  const href = link.href;
   event.preventDefault();
   event.stopPropagation();
-  void requestDiscard?.(true).then(ok => { if (ok) location.assign(link.href); });
+  void confirmDiscard().then(ok => { if (ok) navigate(href); });
 }
 
 export function useAllowDiscard() {
@@ -79,11 +69,11 @@ export function useAllowDiscard() {
 
 export function useDraftGuard(dirty: boolean) {
   const allowDiscard = useAllowDiscard();
-  requestDiscard = allowDiscard;
+  const router = useRouter();
   useEffect(() => {
     if (!dirty) return;
     if (activeDrafts++ === 0) {
-      navigationGuard = warnBeforeNavigation;
+      navigationGuard = event => warnBeforeNavigation(event, () => allowDiscard(true), href => router.push(href));
       window.addEventListener("beforeunload", warnBeforeUnload);
       document.addEventListener("click", navigationGuard, true);
     }
@@ -94,7 +84,7 @@ export function useDraftGuard(dirty: boolean) {
         navigationGuard = null;
       }
     };
-  }, [dirty]);
+  }, [allowDiscard, dirty, router]);
 }
 
 export const slug = (value: string) => value.trim().toLowerCase().normalize("NFKD")
@@ -134,11 +124,12 @@ export function CatalogLoading({ error, retry }: { error: string; retry: () => v
   return error ? <div className="space-y-3"><Feedback error={error} /><Button variant="outline" onClick={retry}>Try again</Button></div> : <Skeleton className="h-56" />;
 }
 
-export function EditorActions({ busy, dirty, reset }: { busy: boolean; dirty: boolean; reset: () => void }) {
+export function EditorActions({ busy, dirty, reset, saveDisabled = false }: { busy: boolean; dirty: boolean; reset: () => void; saveDisabled?: boolean }) {
+  const blocked = useAdminBlocked();
   const allowDiscard = useAllowDiscard();
   return <div className="flex flex-wrap justify-end gap-2 border-t pt-4">
     <Button type="button" variant="outline" disabled={busy || !dirty} onClick={() => { void allowDiscard(dirty).then(ok => { if (ok) reset(); }); }}>Discard changes</Button>
-    <Button type="submit" disabled={busy || !dirty}>{busy ? "Saving…" : "Save changes"}</Button>
+    <Button type="submit" disabled={saveDisabled || blocked || busy || !dirty}>{busy ? "Saving…" : "Save changes"}</Button>
   </div>;
 }
 
@@ -157,3 +148,10 @@ export function PriceField({ cents, change }: { cents: number; change: (cents: n
   return <TextField label="Price (₱)" type="number" min="0" max="21474836.47" step="0.01" required value={value} change={next => { setValue(next); change(Math.round(Number(next) * 100)); }} />;
 }
 
+
+// Keep the version that the draft was based on, even when shared queries refresh.
+export function useDraftRevision(revision: number | undefined, editing: boolean) {
+  const [base, setBase] = useState(revision);
+  if (!editing && base !== revision) setBase(revision);
+  return { capture: setBase, revision: editing ? base ?? revision : revision, stale: editing && base !== undefined && base !== revision };
+}

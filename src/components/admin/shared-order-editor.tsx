@@ -7,7 +7,7 @@ import type { StoreCatalog } from "@/lib/storefront/types";
 import type { DropStore } from "@/lib/drops/types";
 import { OrderEditor } from "./order-editor";
 import { useOrderNotifications } from "./order-notifications";
-import { adminRequest } from "./orders-data";
+import { useAdminFetch, useAdminQuery, useAdminBlocked } from "./query-provider";
 
 const EditorContext = createContext<{
   busy: boolean;
@@ -21,27 +21,31 @@ export function useSharedOrderEditor() {
 }
 
 export function SharedOrderEditor({ children }: { children: ReactNode }) {
-  const { revision, setEditorOpen, selectOrder } = useOrderNotifications();
+  const fetchAdmin = useAdminFetch();
+  const blocked = useAdminBlocked();
+  const { setEditorOpen, selectOrder } = useOrderNotifications();
   const [draft, setDraft] = useState<{ order: AdminOrder | null; catalog: StoreCatalog; drops: DropStore }>();
   const [visible, setVisible] = useState(false);
   const afterClose = useRef<(() => void) | null>(null);
   const [loading, setLoading] = useState(false);
-  const [stale, setStale] = useState(false);
   const [error, setError] = useState("");
   const trigger = useRef<HTMLElement | null>(null);
   const locked = useRef(false);
   const orderId = draft?.order?.id;
   const updatedAt = draft?.order?.updatedAt;
 
+  const currentOrder = useAdminQuery<AdminOrder>("/api/admin/orders/" + encodeURIComponent(orderId ?? ""), !!orderId);
+  const currentCatalog = useAdminQuery<StoreCatalog>("/api/admin/catalog", !!draft);
+  const currentDrops = useAdminQuery<DropStore>("/api/admin/drops", !!draft);
+  const stale = blocked || !!draft && ((!!currentOrder.data && currentOrder.data.updatedAt !== updatedAt) || currentCatalog.data?.revision !== draft.catalog.revision || currentDrops.data?.revision !== draft.drops.revision);
+
   useEffect(() => {
-    if (!orderId) return;
-    const controller = new AbortController();
-    void adminRequest<AdminOrder>("/api/admin/orders/" + encodeURIComponent(orderId), { signal: controller.signal })
-      .then(order => {
-        if (!controller.signal.aborted && order.updatedAt !== updatedAt) setStale(true);
-      }).catch(() => {});
-    return () => controller.abort();
-  }, [orderId, updatedAt, revision]);
+    if (currentOrder.data?.status !== "completed" && currentOrder.data?.status !== "cancelled") return;
+    // Terminal transitions remove personal information, including a draft held outside the cache.
+    void Promise.resolve().then(() => {
+      setDraft(undefined); setVisible(false); setEditorOpen(false); locked.current = false;
+    });
+  }, [currentOrder.data?.status, setEditorOpen]);
 
   useEffect(() => {
     if (!draft) return;
@@ -57,19 +61,19 @@ export function SharedOrderEditor({ children }: { children: ReactNode }) {
   }, [draft]);
 
   async function open(order: AdminOrder | null, button: HTMLElement) {
-    if (locked.current) return;
+    if (locked.current || blocked) return;
     locked.current = true;
     trigger.current = button;
     setEditorOpen(true);
     setLoading(true);
     setError("");
-    setStale(false);
     try {
-      const [catalog, drops] = await Promise.all([
-        adminRequest<StoreCatalog>("/api/admin/catalog"),
-        adminRequest<DropStore>("/api/admin/drops"),
+      const [catalog, drops, latest] = await Promise.all([
+        fetchAdmin<StoreCatalog>("/api/admin/catalog"),
+        fetchAdmin<DropStore>("/api/admin/drops"),
+        order ? fetchAdmin<AdminOrder>("/api/admin/orders/" + encodeURIComponent(order.id)) : Promise.resolve(null),
       ]);
-      setDraft({ order, catalog, drops });
+      setDraft({ order: latest, catalog, drops });
 
     } catch {
       setError("Could not load the order editor. Try again.");
@@ -95,7 +99,7 @@ export function SharedOrderEditor({ children }: { children: ReactNode }) {
     });
   }
 
-  return <EditorContext.Provider value={{ busy: loading || !!draft, open: (order, button) => { void open(order, button); } }}>
+  return <EditorContext.Provider value={{ busy: blocked || loading || !!draft, open: (order, button) => { void open(order, button); } }}>
     {error && <Alert variant="destructive" role="alert" className="m-4"><AlertDescription>{error}</AlertDescription></Alert>}
     {children}
     {draft && <OrderEditor order={draft.order} catalog={draft.catalog} drops={draft.drops} stale={stale}

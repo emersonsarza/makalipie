@@ -69,6 +69,23 @@ export async function listOrderQueues(): Promise<OrderQueue[]> {
   ];
 }
 
+export async function countOrdersNeedingAttention(queue?: string) {
+  const service = createServiceClient();
+  let query = service
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .in("status", ["pending", "confirmed"]);
+  if (queue) {
+    const match = /^(regular|drop):([a-z0-9]+(?:-[a-z0-9]+)*)$/.exec(queue);
+    if (!match) return 0;
+    const [, channel, id] = match;
+    query = query.eq("channel", channel).eq(channel === "regular" ? "location_id" : "drop_id", id);
+  }
+  const { count, error } = await query;
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
 function orderShape(row: Row) {
   const lines = Array.isArray(row.order_lines) ? row.order_lines as Row[] : [];
   const addons = Array.isArray(row.order_addons) ? row.order_addons as Row[] : [];

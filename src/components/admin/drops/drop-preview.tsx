@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,31 +11,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { presentDrop } from "@/lib/drops/present";
 import dayjs from "@/lib/dayjs";
 import { Field } from "../catalog/catalog-ui";
-import { adminRequest, OrderRequestError, pesos } from "../orders-data";
+import { useAdminQuery } from "../query-provider";
+import { OrderRequestError, pesos } from "../orders-data";
 
 type Preview = NonNullable<ReturnType<typeof presentDrop>>;
 
 export function DropPreview({ slug }: { slug: string }) {
-  const [drop, setDrop] = useState<Preview>();
   const [selected, setSelected] = useState("");
-  const [error, setError] = useState("");
-  const [attempt, setAttempt] = useState(0);
-
-  useEffect(() => {
-    if (!slug) return;
-    const controller = new AbortController();
-    void adminRequest<Preview>("/api/admin/drops/preview?slug=" + encodeURIComponent(slug), { signal: controller.signal })
-      .then(result => { if (!controller.signal.aborted) { setDrop(result); setError(""); } })
-      .catch(failure => {
-        if (!controller.signal.aborted) setError(failure instanceof OrderRequestError && failure.status === 404
-          ? "This drop was not found." : "Could not load the drop preview.");
-      });
-    return () => controller.abort();
-  }, [slug, attempt]);
-
+  const query = useAdminQuery<Preview>("/api/admin/drops/preview?slug=" + encodeURIComponent(slug), !!slug);
+  const drop = query.data;
+  const error = query.isError && !drop ? query.error instanceof OrderRequestError && query.error.status === 404 ? "This drop was not found." : "Could not load the drop preview." : "";
   if (!slug || error) return <div className="space-y-3">
     <Alert variant="destructive"><AlertDescription>{error || "Choose a saved drop to preview."}</AlertDescription></Alert>
-    {slug && <Button variant="outline" onClick={() => { setError(""); setAttempt(value => value + 1); }}>Try again</Button>}
+    {slug && <Button variant="outline" onClick={() => { void query.refetch(); }}>Try again</Button>}
   </div>;
   if (!drop) return <Skeleton className="h-56" />;
   const date = drop.dates.find(item => item.date === selected) ?? drop.dates[0];

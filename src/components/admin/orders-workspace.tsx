@@ -15,19 +15,86 @@ import { AdminSelect } from "@/components/admin/admin-select";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import type { AdminOrder, OrderQueue } from "@/lib/orders/query";
-import { adminRequest, pesos, writeOrder } from "./orders-data";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
+import { adminOrderQueueStorageKey, useAdminOrderQueue, useAdminQuery, useAdminFetch, useAdminBlocked, useAdminAccount } from "./query-provider";
+import { adminQuery, invalidateAdmin } from "./query-cache";
+import { pesos, writeOrder } from "./orders-data";
 import { useOrderNotifications } from "./order-notifications";
 import { DeliveryFeeEditor } from "./delivery-fee-editor";
 import { useSharedOrderEditor } from "./shared-order-editor";
 
+const emptyQueues: OrderQueue[] = [];
 const views = [{ id: "attention", name: "Needs attention" }, { id: "today", name: "Today" }, { id: "all", name: "All orders" }];
 const queueGroups = [
   { id: "regular", name: "Regular branches" },
   { id: "active", name: "Active drops" },
   { id: "past", name: "Past drops" },
 ];
-const queueStorageKey = "makalipie-admin-order-queue";
+
+const detailActionsClass = "grid grid-cols-2 gap-2 pt-1 [&>button]:min-h-14 [&>button]:min-w-0 [&>button]:whitespace-normal [&>button]:px-2 [&>button]:text-center";
+
+function OrderItemsHeader() {
+  return <TableHeader className="bg-accent"><TableRow>
+      <TableHead scope="col">Item</TableHead><TableHead scope="col" className="text-right">Qty</TableHead><TableHead scope="col" className="text-right">Amount</TableHead>
+    </TableRow></TableHeader>;
+}
+
+function OrderDetailSkeleton({ order }: { order?: AdminOrder }) {
+  const labels = [[MapPin, "Order queue"], [CalendarDays, "Fulfillment"], [Clock, "Submitted"], [UserRound, "Customer"]] as const;
+  return <div aria-busy="true" className="space-y-5">
+    <span role="status" className="sr-only">Loading order details</span>
+    <div className="flex flex-wrap items-start justify-between gap-2">
+      {order ? <h2 className="text-2xl font-semibold tracking-tight">{order.orderNumber}</h2> : <Skeleton className="h-8 w-36" />}
+      {order ? <QueueStatuses order={order} /> : <div className="flex gap-1" aria-hidden>
+        <Skeleton className="h-5 w-16 rounded-full" /><Skeleton className="h-5 w-16 rounded-full" />
+      </div>}
+    </div>
+    <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 border-b pb-4 text-sm">
+      {labels.map(([Icon, label]) => <div key={label} className="contents">
+        <dt className="flex items-start gap-2 text-muted-foreground"><Icon className="mt-0.5 size-4 shrink-0" aria-hidden />{label}</dt>
+        <dd className="min-w-0 space-y-2 pt-0.5">
+          <Skeleton className="h-4 w-40 max-w-full" />
+          {label === "Customer" && <Skeleton className="h-4 w-28 max-w-full" />}
+        </dd>
+      </div>)}
+    </dl>
+    <Table aria-label="Order items">
+      <OrderItemsHeader />
+      <TableBody aria-hidden>{[0, 1].map(row => <TableRow key={row}>
+        <TableCell><Skeleton className="h-4 w-28 max-w-full" /></TableCell>
+        <TableCell><Skeleton className="ml-auto h-4 w-5" /></TableCell>
+        <TableCell><Skeleton className="ml-auto h-4 w-16" /></TableCell>
+      </TableRow>)}</TableBody>
+    </Table>
+    <div className="grid gap-3 border-t pt-4">
+      {order?.deliveryFeeMode === "known" && <dl className="grid gap-1 text-sm text-muted-foreground">
+        <div className="flex justify-between"><dt>Subtotal</dt><dd><Skeleton className="h-4 w-16" /></dd></div>
+        <div className="flex justify-between"><dt>Delivery fee</dt><dd><Skeleton className="h-4 w-16" /></dd></div>
+      </dl>}
+      <div className="flex items-start justify-between gap-2">
+        <span className="font-semibold">{order?.deliveryFeeMode === "unknown" ? "Subtotal" : "Total"}</span>
+        <Skeleton className="h-7 w-24" />
+      </div>
+      {order?.fulfillment === "delivery" && order.payment === "unpaid"
+        && (order.status === "pending" || order.status === "confirmed") && <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,6rem)_auto] items-center gap-2">
+        <span className="flex items-center gap-1.5 text-sm">
+          <Switch disabled checked={order.deliveryFeeMode === "rider"} aria-label="Customer pays the driver instead" />
+          Customer pays the driver instead
+        </span>
+        <Skeleton className="h-8 w-full" />
+        <Button disabled>{order.deliveryFeeMode === "unknown" ? "Add" : "Save"}</Button>
+      </div>}
+    </div>
+    <div className={detailActionsClass}>
+      <Button disabled>{!order || order.status === "pending" ? "Confirm order" : "Complete order"}</Button>
+      <Button variant="outline" disabled><Check aria-hidden />{order?.payment === "paid" ? "Mark refunded" : order?.payment === "refunded" ? "Refund recorded" : "Mark paid"}</Button>
+      <Button variant="outline" disabled><Pencil aria-hidden /> Edit order</Button>
+      <Button variant="destructive" disabled><X aria-hidden /> Cancel order</Button>
+    </div>
+  </div>;
+}
 const emptyFilters = { q: "", date: "", status: "", payment: "", fulfillment: "" };
 type Results = { page: number; pageSize: number; total: number; orders: AdminOrder[] };
 
@@ -112,23 +179,32 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState(emptyFilters);
-  const [queues, setQueues] = useState<OrderQueue[]>([]);
+  const account = useAdminAccount();
+  const queryClient = useQueryClient();
+  const fetchAdmin = useAdminFetch();
+  const blocked = useAdminBlocked();
+  const queuesQuery = useAdminQuery<OrderQueue[]>("/api/admin/orders/queues");
+  const queues = queuesQuery.data ?? emptyQueues;
+  const queueError = queuesQuery.isError ? "Could not load order queues." : "";
   const queueLabelId = useId();
-  const [queue, setQueue] = useState("");
-  const [queueError, setQueueError] = useState("");
-  const [result, setResult] = useState<Results>();
+  const { key: queue, setKey: setQueue } = useAdminOrderQueue();
   const queueKey = JSON.stringify([queue, view, page, filters]);
   const pendingExit = useRef<QueueExit | null>(null);
-  const listSection = useRef<HTMLElement>(null);
   const [exit, setExit] = useState<QueueExit>();
-  const [counts, setCounts] = useState<Record<string, number>>({});
   const [selectedId, select] = useState("");
-  const [detail, setDetail] = useState<AdminOrder>();
+  const detailQuery = useAdminQuery<AdminOrder>("/api/admin/orders/" + encodeURIComponent(selectedId), !!selectedId);
+  const detail = detailQuery.data;
   const [phoneDetail, setPhoneDetail] = useState(false);
-  const { revision: liveRevision, request, consumeRequest, editorOpen } = useOrderNotifications();
-  const [revision, setRevision] = useState(0);
-  const refresh = useCallback(() => setRevision(value => value + 1), []);
-  const [error, setError] = useState("");
+  const { request, consumeRequest, editorOpen } = useOrderNotifications();
+  const refresh = useCallback(() => { void invalidateAdmin(queryClient, "orders"); }, [queryClient]);
+  const resultQueries = useQueries({ queries: views.map(option => {
+    const params = new URLSearchParams(Object.entries(filters).filter(([, value]) => value));
+    params.set("queue", queue); params.set("view", option.id); params.set("page", option.id === view ? String(page) : "1");
+    return { ...adminQuery<Results>(account, "/api/admin/orders?" + params), enabled: !!queue };
+  }) });
+  const result = resultQueries[views.findIndex(option => option.id === view)].data;
+  const counts = Object.fromEntries(views.map((option, index) => [option.id, resultQueries[index].data?.total]));
+  const error = resultQueries.some(query => query.isError) ? "Could not refresh orders. Displayed data may be outdated." : "";
   const [detailError, setDetailError] = useState("");
   const [actionError, setActionError] = useState("");
   const [terminalAction, setTerminalAction] = useState<{ order: AdminOrder; status: "completed" | "cancelled" }>();
@@ -146,8 +222,6 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
   const changeQueue = useCallback((key: string) => {
     setQueue(key);
     setPage(1);
-    setResult(undefined);
-    setCounts({});
     select("");
     setPhoneDetail(false);
     setActionError("");
@@ -155,20 +229,10 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
   }, []);
 
   useEffect(() => {
-    const controller = new AbortController();
-    void adminRequest<OrderQueue[]>("/api/admin/orders/queues", { signal: controller.signal }).then(options => {
-      if (controller.signal.aborted) return;
-      setQueues(options);
-      setQueueError("");
-    }).catch(() => { if (!controller.signal.aborted) setQueueError("Could not load order queues."); });
-    return () => controller.abort();
-  }, [revision, liveRevision]);
-
-  useEffect(() => {
     if (!queues.length || queues.some(option => option.key === queue)) return;
     const frame = requestAnimationFrame(() => {
       let saved = "";
-      try { saved = localStorage.getItem(queueStorageKey) ?? ""; } catch {}
+      try { saved = localStorage.getItem(adminOrderQueueStorageKey) ?? ""; } catch {}
       changeQueue(queues.some(option => option.key === saved) ? saved
         : queues.find(option => option.key === "regular:cebu")?.key ?? queues[0].key);
     });
@@ -177,7 +241,7 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
 
   useEffect(() => {
     if (!queues.some(option => option.key === queue)) return;
-    try { localStorage.setItem(queueStorageKey, queue); } catch {}
+    try { localStorage.setItem(adminOrderQueueStorageKey, queue); } catch {}
   }, [queues, queue]);
 
   useEffect(() => {
@@ -186,10 +250,9 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
     const id = request?.id ?? linkedId;
     if (!id || !queue || editorOpen) return;
     const controller = new AbortController();
-    void adminRequest<AdminOrder>("/api/admin/orders/" + encodeURIComponent(id), { signal: controller.signal }).then(order => {
+    void fetchAdmin<AdminOrder>("/api/admin/orders/" + encodeURIComponent(id)).then(order => {
       if (controller.signal.aborted) return;
       if (order.queueKey !== queue) changeQueue(order.queueKey);
-      setDetail(order);
       openOrder(order.id);
     }).catch(() => {
       if (controller.signal.aborted) return;
@@ -201,62 +264,35 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
       if (request) consumeRequest();
     });
     return () => controller.abort();
-  }, [request, directOrderId, queue, editorOpen, openOrder, changeQueue, consumeRequest]);
+  }, [request, directOrderId, queue, editorOpen, openOrder, changeQueue, consumeRequest, fetchAdmin]);
 
   useEffect(() => {
-    if (!queue) return;
-    const controller = new AbortController();
-    const base = new URLSearchParams(Object.entries(filters).filter(([, value]) => value));
-    base.set("queue", queue);
-    void Promise.all(views.map(async option => {
-      const query = new URLSearchParams(base);
-      query.set("view", option.id);
-      query.set("page", option.id === view ? String(page) : "1");
-      return [option.id, await adminRequest<Results>("/api/admin/orders?" + query, { signal: controller.signal })] as const;
-    })).then(data => {
-      if (controller.signal.aborted) return;
-      const current = data.find(([id]) => id === view)![1];
-      const last = Math.max(1, Math.ceil(current.total / current.pageSize));
+    if (!result) return;
+    const frame = requestAnimationFrame(() => {
+      const last = Math.max(1, Math.ceil(result.total / result.pageSize));
       const pending = pendingExit.current;
-      pendingExit.current = null;
-      const leaving = pending?.key === queueKey && !current.orders.some(row => row.id === pending.order.id)
-        ? pending : undefined;
-      if (leaving && listSection.current?.getClientRects().length
-        && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        setExit(leaving);
-      } else {
-        if (leaving) select(previous => previous === leaving.order.id ? current.orders[0]?.id ?? "" : previous);
-        if (page > last) { setPage(last); return; }
-      }
-      setResult(current);
-      setCounts(Object.fromEntries(data.map(([id, items]) => [id, items.total])));
-      setError("");
-      select(previous => previous || current.orders[0]?.id || "");
-    }).catch(() => { if (!controller.signal.aborted) setError("Could not load orders."); });
-    return () => controller.abort();
-  }, [queue, view, page, filters, queueKey, revision, liveRevision]);
-
-  useEffect(() => {
-    if (!selectedId) return;
-    const controller = new AbortController();
-    void adminRequest<AdminOrder>("/api/admin/orders/" + encodeURIComponent(selectedId), { signal: controller.signal }).then(order => {
-      if (!controller.signal.aborted) { setDetail(order); setDetailError(""); }
-    }).catch(() => { if (!controller.signal.aborted) setDetailError("Could not load the selected order."); });
-    return () => controller.abort();
-  }, [selectedId, revision, liveRevision]);
+      if (pending && !result.orders.some(row => row.id === pending.order.id)) {
+        pendingExit.current = null;
+        if (pending.key === queueKey && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) setExit(pending);
+        else if (page > last) setPage(last);
+      } else if (!pending && page > last) setPage(last);
+      select(previous => previous || result.orders[0]?.id || "");
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [result, page, queueKey]);
 
   async function transition(order: AdminOrder, status: string) {
     if (status === "paid" && order.status !== "confirmed") return;
     setWorking(true);
     setActionError("");
     try {
-      await writeOrder("transition_order", { orderId: order.id, updatedAt: order.updatedAt, status });
       const index = result?.orders.findIndex(row => row.id === order.id) ?? -1;
       if (index >= 0 && (status === "completed" || status === "cancelled")) {
-        pendingExit.current = { order: { ...order, status }, index, key: queueKey, status };
+        pendingExit.current = { order: { ...order, status, customerName: null, customerPhone: null, deliveryAddress: null, notes: null }, index, key: queueKey, status };
       }
+      await writeOrder("transition_order", { orderId: order.id, updatedAt: order.updatedAt, status });
     }
-    catch (failure) { setActionError(failure instanceof Error ? failure.message : "Could not update the order."); }
+    catch (failure) { pendingExit.current = null; setActionError(failure instanceof Error ? failure.message : "Could not update the order."); }
     finally { setWorking(false); refresh(); }
   }
 
@@ -270,7 +306,11 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
   const visibleExit = exit?.key === queueKey && !visibleRows.some(row => row.id === exit.order.id) ? exit : undefined;
   if (visibleExit) visibleRows.splice(visibleExit.index, 0, visibleExit.order);
 
-  const firstRemainingId = result?.orders[0]?.id ?? "";
+  const nextOrder = result?.orders[0];
+  const firstRemainingId = nextOrder?.id ?? "";
+  const selectedQueueOrder = result?.orders.find(row => row.id === selectedId);
+  const detailLeaving = Boolean(order && visibleExit?.order.id === order.id);
+  const detailPanelClass = "min-w-0 space-y-5 rounded-lg border bg-white p-4 shadow-sm sm:p-6";
   const finishExit = useCallback(() => {
     if (!visibleExit) return;
     setExit(undefined);
@@ -289,7 +329,7 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
   return <div className="space-y-4">
     {(queueError || error || actionError) && <Alert variant="destructive"><AlertDescription>{queueError || error || actionError} <Button variant="ghost" onClick={refresh}>Refresh</Button></AlertDescription></Alert>}
     <div className="grid items-start gap-5 xl:gap-6 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
-      <section ref={listSection} className={(showPhoneDetail ? "hidden lg:block " : "") + "min-w-0"} aria-label="Order list">
+      <section className={(showPhoneDetail ? "hidden lg:block " : "") + "min-w-0"} aria-label="Order list">
         <div className="mb-4 grid min-w-0 gap-1.5 text-sm font-medium sm:max-w-80">
           <span id={queueLabelId}>Order queue</span>
           <Select value={queue || null} disabled={!queues.length || editorOpen} onValueChange={value => { if (value) changeQueue(value); }}>
@@ -311,7 +351,7 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
             </SelectContent>
           </Select>
         </div>
-        <Tabs value={view} onValueChange={value => { setView(value); setPage(1); setResult(undefined); }} className="space-y-4">
+        <Tabs value={view} onValueChange={value => { setView(value); setPage(1); }} className="space-y-4">
           <TabsList aria-label="Order views">
             {views.map(option => <TabsTrigger className="max-[359px]:px-1.5 max-[359px]:text-xs" key={option.id} value={option.id}>{option.name}{counts[option.id] != null ? " (" + counts[option.id] + ")" : ""}</TabsTrigger>)}
           </TabsList>
@@ -396,9 +436,18 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
           </TabsContent>)}
         </Tabs>
       </section>
-      <section className={(!showPhoneDetail ? "hidden lg:block " : "") + "min-w-0 space-y-5 rounded-lg border bg-white p-4 shadow-sm sm:p-6"} aria-label="Order details">
+      <div className={(!showPhoneDetail ? "hidden lg:block " : "") + "relative min-w-0 [overflow-x:clip]"}>
+        {detailLeaving && <div className={`absolute inset-x-0 top-0 ${detailPanelClass}`} data-order-detail-enter aria-hidden>
+          {firstRemainingId || page > totalPages ? <OrderDetailSkeleton order={nextOrder} /> : <p>Select an order to view details.</p>}
+        </div>}
+      <section className={`relative ${detailPanelClass}`} aria-label="Order details"
+        data-order-detail-exit={detailLeaving ? "" : undefined} inert={detailLeaving} aria-hidden={detailLeaving || undefined}
+        onAnimationEnd={event => {
+          if (event.target !== event.currentTarget) return;
+          if (detailLeaving) finishExit();
+        }}>
         <Button variant="outline" className="lg:hidden" onClick={() => setPhoneDetail(false)}>Back to orders</Button>
-        {detailError ? <Alert variant="destructive"><AlertDescription>{detailError}</AlertDescription></Alert> : order ? <>
+        {(detailError || detailQuery.isError) && !order ? <Alert variant="destructive"><AlertDescription>{detailError || "Could not load the selected order."}</AlertDescription></Alert> : order ? <>
           <div className="flex flex-wrap items-start justify-between gap-2">
             <h2 className="text-2xl font-semibold tracking-tight">{order.orderNumber}</h2>
             <QueueStatuses order={order} />
@@ -420,9 +469,7 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
             </dd>
           </dl>
           <Table aria-label="Order items">
-            <TableHeader className="bg-accent"><TableRow>
-              <TableHead scope="col">Item</TableHead><TableHead scope="col" className="text-right">Qty</TableHead><TableHead scope="col" className="text-right">Amount</TableHead>
-            </TableRow></TableHeader>
+            <OrderItemsHeader />
             <TableBody>{[...order.lines, ...order.addons.map(addon => ({ ...addon, components: [] }))].map(item => (
               <TableRow key={item.id}>
                 <TableCell className="whitespace-normal"><span className="font-medium">{item.name}</span>
@@ -447,21 +494,15 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
               <OrderTotal order={order} detail />
             </div>
             <div className="grid justify-items-start empty:hidden [&>form]:w-full">
-              <DeliveryFeeEditor key={order.id} order={order} disabled={working || editorOpen || editor.busy}
+              <DeliveryFeeEditor key={order.id} order={order} disabled={blocked || working || editorOpen || editor.busy}
                 onWorkingChange={setWorking}
-                onSaved={(saved, version) => {
-                  setDetail(current => current?.id === saved.id && current.updatedAt === version ? { ...current, ...saved } : current);
-                  refresh();
-                }}
-                onReload={(latest, version) => {
-                  setDetail(current => current?.id === latest.id && current.updatedAt === version ? latest : current);
-                  refresh();
-                }} />
+                onSaved={() => refresh()}
+                onReload={() => refresh()} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2 pt-1 [&>button]:min-h-14 [&>button]:min-w-0 [&>button]:whitespace-normal [&>button]:px-2 [&>button]:text-center">
+          <div className={detailActionsClass}>
             <Button
-              disabled={working || !open || (order.status === "pending" ? order.deliveryFeeMode === "unknown" : order.payment !== "paid")}
+              disabled={blocked || working || !open || (order.status === "pending" ? order.deliveryFeeMode === "unknown" : order.payment !== "paid")}
               onClick={() => {
                 if (order.status === "pending") void transition(order, "confirmed");
                 else setTerminalAction({ order, status: "completed" });
@@ -471,24 +512,25 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
             </Button>
             <Button
               variant="outline"
-              disabled={working || (order.payment !== "paid" && (order.status !== "confirmed" || order.payment !== "unpaid"))}
+              disabled={blocked || working || (order.payment !== "paid" && (order.status !== "confirmed" || order.payment !== "unpaid"))}
               onClick={() => void transition(order, order.payment === "paid" ? "refunded" : "paid")}
             >
               <Check aria-hidden="true" />
               {order.payment === "paid" ? "Mark refunded" : order.payment === "refunded" ? "Refund recorded" : "Mark paid"}
             </Button>
-            <Button variant="outline" disabled={working || !open || editor.busy} onClick={event => editor.open(order, event.currentTarget)}>
+            <Button variant="outline" disabled={blocked || working || !open || editor.busy} onClick={event => editor.open(order, event.currentTarget)}>
               <Pencil aria-hidden="true" /> Edit order
             </Button>
-            <Button variant="destructive" disabled={working || !open || order.payment === "paid"} onClick={() => setTerminalAction({ order, status: "cancelled" })}>
+            <Button variant="destructive" disabled={blocked || working || !open || order.payment === "paid"} onClick={() => setTerminalAction({ order, status: "cancelled" })}>
               <X aria-hidden="true" /> Cancel order
             </Button>
           </div>
           {order.status === "pending" && order.deliveryFeeMode === "unknown" && <p className="text-sm">Set a delivery fee or select Customer pays rider before confirming.</p>}
           {order.status === "pending" && order.payment === "unpaid" && <p className="text-sm text-muted-foreground">Confirm the order before marking it paid.</p>}
           {open && order.payment === "paid" && <p className="text-sm">Record the refund before cancelling a paid order.</p>}
-        </> : selectedId ? <Skeleton className="h-48" /> : <p>Select an order to view details.</p>}
+        </> : selectedId ? <OrderDetailSkeleton order={selectedQueueOrder} /> : <p>Select an order to view details.</p>}
       </section>
+      </div>
     </div>
     <AlertDialog open={!!terminalAction} onOpenChange={open => { if (!open) setTerminalAction(undefined); }}>
       <AlertDialogContent className="admin-theme">

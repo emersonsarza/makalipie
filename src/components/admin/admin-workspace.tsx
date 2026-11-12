@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
-import { adminRequest } from "./orders-data";
+import { AdminQueryProvider, AdminFreshness, AdminClock, endAdminSession, useAdminOrderQueue, useAdminQuery } from "./query-provider";
+import { adminRequest, OrderRequestError } from "./orders-data";
 import { OrderNotificationBell, OrderNotificationsProvider, useOrderNotifications } from "./order-notifications";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -32,26 +33,39 @@ const pages = [
 
 function AdminNavigation({ pathname }: { pathname: string }) {
   const { setOpenMobile } = useSidebar();
+  const { key: queue } = useAdminOrderQueue();
+  const attentionQuery = useAdminQuery<{ count: number }>(
+    "/api/admin/orders/attention-count?queue=" + encodeURIComponent(queue), !!queue,
+  );
+  const attentionCount = attentionQuery.data?.count ?? 0;
 
   return (
     <SidebarMenu className="admin-nav-menu relative isolate gap-1" style={{
       "--admin-active-row": pages.findIndex(page => page.href === pathname),
     } as React.CSSProperties}>
-      {pages.map(({ label, href, icon: Icon }) => (
-        <SidebarMenuItem key={href}>
-          <SidebarMenuButton
-            render={<Link href={href} onNavigate={() => setOpenMobile(false)} />}
-            isActive={pathname === href}
-            aria-current={pathname === href ? "page" : undefined}
-            aria-label={label}
-            tooltip={label}
-            className="group-data-[collapsible=icon]:size-12! group-data-[collapsible=icon]:p-0!"
-          >
-            <Icon aria-hidden="true" />
-            <span className="admin-nav-label">{label}</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      ))}
+      {pages.map(({ label, href, icon: Icon }) => {
+        const showAttention = label === "Orders" && attentionCount > 0;
+        const countLabel = `${attentionCount} ${attentionCount === 1 ? "order needs" : "orders need"} attention`;
+        return (
+          <SidebarMenuItem key={href}>
+            <SidebarMenuButton
+              render={<Link href={href} onNavigate={() => setOpenMobile(false)} />}
+              data-order-link={label === "Orders" || undefined}
+              isActive={pathname === href}
+              aria-current={pathname === href ? "page" : undefined}
+              aria-label={showAttention ? `${label}, ${countLabel}` : label}
+              tooltip={showAttention ? `${label} · ${countLabel}` : label}
+              className="relative group-data-[collapsible=icon]:size-12! group-data-[collapsible=icon]:overflow-visible! group-data-[collapsible=icon]:p-0!"
+            >
+              <Icon aria-hidden="true" />
+              <span className="admin-nav-label">
+                <span className="admin-nav-label-text">{label}</span>
+                {showAttention && <span aria-hidden="true" className="admin-order-count inline-flex h-5 min-w-5 items-center justify-center rounded-full border px-1 text-[10px] font-semibold leading-none tabular-nums group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:right-0 group-data-[collapsible=icon]:top-0 group-data-[collapsible=icon]:z-10 group-data-[collapsible=icon]:h-4 group-data-[collapsible=icon]:min-w-4 group-data-[collapsible=icon]:translate-x-1/4 group-data-[collapsible=icon]:-translate-y-1/4 group-data-[collapsible=icon]:px-0">{attentionCount > 99 ? "99+" : attentionCount}</span>}
+              </span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        );
+      })}
     </SidebarMenu>
   );
 }
@@ -104,35 +118,38 @@ function AccountMenu({ email, signOut }: { email: string; signOut: () => Promise
   </Popover>;
 }
 
-export function AdminWorkspace({ children }: { children: ReactNode }) {
+export function AdminWorkspace({ children, preview = false }: { children: ReactNode; preview?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const [account, setAccount] = useState<{ id: string; email: string }>();
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const checkSession = useCallback(async () => {
+  useEffect(() => {
+    setSidebarOpen(window.matchMedia("(min-width: 1024px)").matches);
+  }, []);
+
+  const checkSession = useCallback(async (signal?: AbortSignal) => {
     try {
-      const response = await fetch("/api/admin/session", { credentials: "same-origin", cache: "no-store" });
-      if (response.status === 401) {
-        router.replace("/admin/login");
-        return;
-      }
-      if (!response.ok) {
-        setState("error");
-        return;
-      }
-      const { user } = await response.json();
+      const { user } = await adminRequest<{ user: { id: string; email: string } }>("/api/admin/session", { signal });
       setAccount(user);
       setState("ready");
-    } catch {
+    } catch (error) {
+      if (signal?.aborted || error instanceof DOMException && error.name === "AbortError") return;
+      if (error instanceof OrderRequestError && error.status === 401) { router.replace("/admin/login"); return; }
       setState("error");
     }
   }, [router]);
 
-  useEffect(() => { void Promise.resolve().then(checkSession); }, [checkSession]);
+  useEffect(() => {
+    const controller = new AbortController();
+    void Promise.resolve().then(() => checkSession(controller.signal));
+    return () => controller.abort();
+  }, [checkSession]);
 
   async function signOut() {
     await adminRequest("/api/admin/session/logout", { method: "POST" });
+    endAdminSession();
     router.replace("/admin/login");
     router.refresh();
   }
@@ -141,13 +158,13 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
   if (state === "error" || !account) return <main className="admin-theme grid min-h-svh place-items-center p-6"><div className="w-full max-w-md space-y-4"><Alert variant="destructive"><AlertCircle /><AlertTitle>Admin is temporarily unavailable</AlertTitle><AlertDescription>We couldn’t verify your session. Your account is unchanged.</AlertDescription></Alert><Button onClick={() => { setState("loading"); void checkSession(); }}>Try again</Button></div></main>;
 
   return (
-    <div className="admin-theme min-h-svh">
+    <AdminQueryProvider key={account.id} accountId={account.id}><AdminClock /><div className={preview ? "min-h-svh" : "admin-theme min-h-svh"}>
       <BackupProvider key={account.id} accountId={account.id}>
       <OrderNotificationsProvider key={account.id} accountId={account.id}>
       <TooltipProvider>
       <AdminConfirmProvider>
       <SharedOrderEditor>
-        <SidebarProvider defaultOpen style={{ "--sidebar-width-icon": "4rem" } as React.CSSProperties}>
+        {preview ? <><div className="admin-theme"><AdminFreshness /></div>{children}</> : <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen} style={{ "--sidebar-width-icon": "4rem" } as React.CSSProperties}>
           <Sidebar collapsible="icon" mobileClassName="admin-theme admin-mobile-sidebar">
             <SidebarHeader className="admin-sidebar-header h-[72px] justify-center px-3">
               <Link href="/admin/orders" className="admin-wordmark" aria-label="Makalipie Admin">
@@ -175,7 +192,8 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
                 <h1 className="truncate text-base font-semibold tracking-tight">
                   {pages.find((page) => page.href === pathname)?.label ?? "Admin"}
                 </h1>
-                {pathname === "/admin/orders" && <OrdersLiveStatus />}
+                <OrdersLiveStatus />
+                <AdminFreshness />
               </div>
               <div className="flex shrink-0 items-center gap-1 sm:gap-2">
                 <NewOrderButton />
@@ -184,12 +202,12 @@ export function AdminWorkspace({ children }: { children: ReactNode }) {
             </header>
             <div className="min-w-0 flex-1 p-4 sm:p-6"><div key={pathname} className="admin-page-enter">{children}</div></div>
           </SidebarInset>
-        </SidebarProvider>
+        </SidebarProvider>}
       </SharedOrderEditor>
       </AdminConfirmProvider>
       </TooltipProvider>
       </OrderNotificationsProvider>
       </BackupProvider>
-    </div>
+    </div></AdminQueryProvider>
   );
 }

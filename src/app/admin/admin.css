@@ -15,6 +15,7 @@
   --admin-ink: oklch(0.145 0 0);
   --admin-muted: oklch(0.556 0 0);
   --admin-line: oklch(0.922 0 0);
+  --admin-nav-selected: #3d2b1f;
   --background: var(--admin-surface);
   --foreground: var(--admin-ink);
   --card: var(--admin-surface);
@@ -132,12 +133,33 @@ body:has(.admin-theme) [data-slot="tooltip-content"] { font-family: "Geist Admin
   height: 1.25rem;
 }
 
+.admin-order-count {
+  background: var(--brand-yellow);
+  border-color: var(--brand-yellow);
+  color: var(--admin-ink);
+}
+
+.admin-nav-menu [data-order-link="true"]:not([aria-current="page"]) {
+  background: var(--accent);
+}
+
+.admin-nav-menu [data-order-link="true"]:not([aria-current="page"]):hover {
+  background: var(--admin-line);
+}
+
 .admin-nav-label {
-  opacity: 1;
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-nav-label-text {
+  min-width: 0;
   transition: opacity 150ms var(--ease-out);
 }
 
-.admin-theme [data-collapsible="icon"] .admin-nav-label { opacity: 0; }
+.admin-theme [data-collapsible="icon"] .admin-nav-label-text { opacity: 0; }
 
 .admin-nav-menu::before {
   position: absolute;
@@ -146,7 +168,7 @@ body:has(.admin-theme) [data-slot="tooltip-content"] { font-family: "Geist Admin
   top: 0;
   height: 3rem;
   border-radius: var(--radius);
-  background: linear-gradient(var(--primary), var(--primary)) left center / 3px 1.7rem no-repeat, var(--accent);
+  background: linear-gradient(var(--brand-yellow), var(--brand-yellow)) left center / 3px 1.7rem no-repeat, var(--admin-nav-selected);
   transform: translateY(calc(var(--admin-active-row) * 3.25rem));
   transition: transform 200ms var(--ease-out);
   pointer-events: none;
@@ -158,6 +180,14 @@ body:has(.admin-theme) [data-slot="tooltip-content"] { font-family: "Geist Admin
   background: transparent;
   color: var(--admin-ink);
   font-weight: 600;
+}
+
+.admin-nav-menu [aria-current="page"] .admin-nav-label-text {
+  color: var(--brand-white);
+}
+
+.admin-nav-menu [aria-current="page"] > svg {
+  color: #fff;
 }
 
 .admin-page-enter { animation: admin-appear 150ms var(--ease-out) both; }
@@ -218,6 +248,23 @@ body:has(.admin-theme) [data-slot="tooltip-content"] { font-family: "Geist Admin
   to { transform: translateX(var(--order-exit-distance)); opacity: 0; }
 }
 
+[data-order-detail-exit] {
+  animation: admin-order-detail-exit 280ms var(--ease-out) both;
+}
+
+@keyframes admin-order-detail-exit {
+  15% { transform: translateX(15%); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
+}
+
+[data-order-detail-enter] {
+  animation: admin-order-detail-enter 150ms var(--ease-out) both;
+}
+
+@keyframes admin-order-detail-enter {
+  from { transform: translateY(200px); opacity: 0; }
+}
+
 @keyframes admin-queue-close {
   to { grid-template-rows: 0fr; }
 }
@@ -227,6 +274,8 @@ body:has(.admin-theme) [data-slot="tooltip-content"] { font-family: "Geist Admin
 }
 
 @media (prefers-reduced-motion: reduce) {
+  [data-order-detail-exit],
+  [data-order-detail-enter] { animation: none; }
   .admin-queue-row[data-exit],
   .admin-queue-row[data-exit] > .admin-queue-row-body {
     animation-duration: 1ms;
