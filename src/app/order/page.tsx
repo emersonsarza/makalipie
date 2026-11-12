@@ -1,4 +1,5 @@
 import { themedMetadata, type SocialSearchParams } from "@/lib/social-metadata";
+import { readPublishedShop } from "@/lib/public/published-shop";
 import type { Metadata } from "next";
 
 import { OrderScreen, type OrderSearch } from "@/components/order-screen";
@@ -27,8 +28,8 @@ const pageMetadata: Metadata = {
   },
 };
 
-export function generateMetadata({ searchParams }: { searchParams: Promise<SocialSearchParams> }) {
-  return themedMetadata(pageMetadata, "order", searchParams);
+export async function generateMetadata({ searchParams }: { searchParams: Promise<SocialSearchParams> }) {
+  return themedMetadata(pageMetadata, "order", searchParams, (await readPublishedShop())?.theme);
 }
 
 export default async function OrderPage({ searchParams }: { searchParams: Promise<OrderSearch> }) {

@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { createSocialImage } from "@/lib/social-image";
-import { resolveSiteTheme } from "@/lib/site-theme";
+import { socialImageTheme } from "@/lib/social-metadata";
 
-export function GET(request: NextRequest) {
-  return createSocialImage("home", resolveSiteTheme(request.nextUrl.searchParams.get("theme")));
+export async function GET(request: NextRequest) {
+  return createSocialImage("home", await socialImageTheme(request.nextUrl.searchParams.get("theme")));
 }

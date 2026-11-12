@@ -36,6 +36,11 @@ test("theme-specific image metadata preserves existing titles, descriptions, can
 });
 
 
+test("published shop theme wins when the share URL has no theme query", async () => {
+  const metadata = await themedMetadata({ openGraph: { url: "/" } }, "home", Promise.resolve({}), "original");
+  assert.match(String(metadata.openGraph?.images?.[0] && typeof metadata.openGraph.images[0] === "object" && "url" in metadata.openGraph.images[0] ? metadata.openGraph.images[0].url : ""), /theme=original/);
+});
+
 test("share identities distinguish themes without including order details", async () => {
   const metadata = await themedMetadata({alternates:{canonical:"/order"}}, "order", Promise.resolve({theme:"original", product:"keylime", branch:"cebu"}));
   assert.equal(metadata.openGraph?.url, "/order?theme=original");

@@ -40,53 +40,57 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: {
-    default: "Makalipie | Handcrafted Tarts & Pies in Cebu",
-    template: "%s · Makalipie",
-  },
-  description: site.description,
-  keywords: [
-    "Makalipie",
-    "Cebu pies",
-    "Cebu tarts",
-    "Buko pie Cebu",
-    "Streetscape Banilad",
-    "Cebuana bakery",
-  ],
-  authors: [{ name: "Makalipie" }],
-  openGraph: {
-    images: [socialImageMetadata("home")],
-    type: "website",
-    locale: "en_PH",
-    url: siteUrl,
-    siteName: site.name,
-    title: "Makalipie | Handcrafted Tarts & Pies in Cebu",
+export async function generateMetadata(): Promise<Metadata> {
+  const published = await readPublishedShop();
+  const image = socialImageMetadata("home", published?.theme ?? "christmas");
+  return {
+    metadataBase: new URL(siteUrl),
+    title: {
+      default: "Makalipie | Handcrafted Tarts & Pies in Cebu",
+      template: "%s · Makalipie",
+    },
     description: site.description,
-  },
-  twitter: {
-    images: [socialImageMetadata("home")],
-    card: "summary_large_image",
-    title: "Makalipie | Handcrafted Tarts & Pies in Cebu",
-    description: site.description,
-  },
-  alternates: {
-    canonical: "/",
-  },
-  verification: { google: process.env.GOOGLE_SITE_VERIFICATION || undefined },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+    keywords: [
+      "Makalipie",
+      "Cebu pies",
+      "Cebu tarts",
+      "Buko pie Cebu",
+      "Streetscape Banilad",
+      "Cebuana bakery",
+    ],
+    authors: [{ name: "Makalipie" }],
+    openGraph: {
+      images: [image],
+      type: "website",
+      locale: "en_PH",
+      url: siteUrl,
+      siteName: site.name,
+      title: "Makalipie | Handcrafted Tarts & Pies in Cebu",
+      description: site.description,
+    },
+    twitter: {
+      images: [image],
+      card: "summary_large_image",
+      title: "Makalipie | Handcrafted Tarts & Pies in Cebu",
+      description: site.description,
+    },
+    alternates: {
+      canonical: "/",
+    },
+    verification: { google: process.env.GOOGLE_SITE_VERIFICATION || undefined },
+    robots: {
       index: true,
       follow: true,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-      "max-video-preview": -1,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+        "max-video-preview": -1,
+      },
     },
-  },
-};
+  };
+}
 
 const jsonLd = {
   "@context": "https://schema.org",

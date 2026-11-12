@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { readPublishedShop } from "@/lib/public/published-shop";
 import { resolveSiteTheme, type SiteTheme } from "@/lib/site-theme";
 import { site } from "@/lib/site";
 
@@ -14,12 +15,17 @@ const descriptions: Record<SocialPage, string> = {
 export function socialImageMetadata(page: SocialPage, theme: SiteTheme = "christmas") {
   const path = page === "home" ? "" : `/${page}`;
   return {
-    url: `${path}/opengraph-image?theme=${theme}&v=christmas-2026-2`,
+    url: `${path}/opengraph-image?theme=${theme}&v=theme-2026-3`,
     type: "image/png",
     width: 1200,
     height: 630,
     alt: `${descriptions[page]}${theme === "christmas" ? " Christmas edition." : ""}`,
   };
+}
+
+export async function socialImageTheme(requested: string | null) {
+  if (requested === "original" || requested === "christmas") return requested;
+  return (await readPublishedShop())?.theme ?? "christmas";
 }
 
 export async function themedMetadata(base: Metadata, page: SocialPage, searchParams: Promise<SocialSearchParams>, publishedTheme?: SiteTheme): Promise<Metadata> {
