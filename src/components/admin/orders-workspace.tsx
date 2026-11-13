@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import dayjs from "@/lib/dayjs";
 import { Button } from "@/components/ui/button";
-import { LoaderCircle, CalendarDays, Check, ChevronLeft, ChevronRight, CircleCheck, CircleX, Clock, CreditCard, MapPin, Pencil, Search, ShoppingBag, SlidersHorizontal, Truck, UserRound, Wallet, X } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, CircleCheck, CircleX, Clock, CreditCard, MapPin, Pencil, Search, ShoppingBag, SlidersHorizontal, Truck, UserRound, Wallet, X } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,7 +22,7 @@ import { adminQuery, invalidateAdmin } from "./query-cache";
 import { pesos, writeOrder } from "./orders-data";
 import { useOrderNotifications } from "./order-notifications";
 import { DeliveryFeeEditor } from "./delivery-fee-editor";
-import { useOrderActions, orderActionLabels } from "./order-actions";
+import { useOrderActions, OrderActionButtonContent } from "./order-actions";
 import { useSharedOrderEditor } from "./shared-order-editor";
 
 const emptyQueues: OrderQueue[] = [];
@@ -210,6 +210,21 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
   const [working, setWorking] = useState(false);
   const editor = useSharedOrderEditor();
   const { queue: actionQueue, actions } = useOrderActions();
+  const detailContainer = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const container = detailContainer.current;
+    const cancelIfHidden = () => {
+      if (document.hidden || !container?.getClientRects().length) actionQueue.undo(selectedId);
+    };
+    const observer = new ResizeObserver(cancelIfHidden);
+    if (container) observer.observe(container);
+    document.addEventListener("visibilitychange", cancelIfHidden);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", cancelIfHidden);
+      actionQueue.undo(selectedId);
+    };
+  }, [actionQueue, selectedId]);
   const handledDirectOrder = useRef<string | undefined>(undefined);
 
   const openOrder = useCallback((id: string) => {
@@ -306,6 +321,7 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
   }, [actions, result, queueKey]);
 
   const order = detail?.id === selectedId ? detail : undefined;
+  const failedAction = actions.find(action => action.orderId === order?.id && action.phase === "error");
   const pendingAction = actions.find(action => action.orderId === order?.id && action.phase !== "error");
   const open = order?.status === "pending" || order?.status === "confirmed";
   const totalPages = result ? Math.max(1, Math.ceil(result.total / result.pageSize)) : 1;
@@ -320,6 +336,9 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
   const firstRemainingId = nextOrder?.id ?? "";
   const selectedQueueOrder = result?.orders.find(row => row.id === selectedId);
   const detailLeaving = Boolean(order && visibleExit?.order.id === order.id);
+  useLayoutEffect(() => {
+    if (!order || editorOpen || detailLeaving) actionQueue.undo(selectedId);
+  }, [actionQueue, selectedId, order, editorOpen, detailLeaving]);
   const detailPanelClass = "min-w-0 space-y-5 rounded-lg border bg-white p-4 shadow-sm sm:p-6";
   const finishExit = useCallback(() => {
     if (!visibleExit) return;
@@ -446,7 +465,7 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
           </TabsContent>)}
         </Tabs>
       </section>
-      <div className={(!showPhoneDetail ? "hidden lg:block " : "") + "relative min-w-0 [overflow-x:clip]"}>
+      <div ref={detailContainer} className={(!showPhoneDetail ? "hidden lg:block " : "") + "relative min-w-0 [overflow-x:clip]"}>
         {detailLeaving && <div className={`absolute inset-x-0 top-0 ${detailPanelClass}`} data-order-detail-enter aria-hidden>
           {firstRemainingId || page > totalPages ? <OrderDetailSkeleton order={nextOrder} /> : <p>Select an order to view details.</p>}
         </div>}
@@ -456,7 +475,7 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
           if (event.target !== event.currentTarget) return;
           if (detailLeaving) finishExit();
         }}>
-        <Button variant="outline" className="lg:hidden" onClick={() => setPhoneDetail(false)}>Back to orders</Button>
+        <Button variant="outline" className="lg:hidden" onClick={() => { actionQueue.undo(selectedId); setPhoneDetail(false); }}>Back to orders</Button>
         {(detailError || detailQuery.isError) && !order ? <Alert variant="destructive"><AlertDescription>{detailError || "Could not load the selected order."}</AlertDescription></Alert> : order ? <>
           <div className="flex flex-wrap items-start justify-between gap-2">
             <h2 className="text-2xl font-semibold tracking-tight">{order.orderNumber}</h2>
@@ -512,13 +531,14 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
           </div>
           <div className={detailActionsClass}>
             <Button
+              data-order-undo={pendingAction?.status !== "cancelled" && pendingAction?.phase === "pending" ? "" : undefined}
               disabled={pendingAction?.status !== "cancelled" && pendingAction ? pendingAction.phase !== "pending" : !!pendingAction || blocked || working || editor.busy || editorOpen || !open || (order.status === "pending" ? order.deliveryFeeMode === "unknown" : order.payment !== "paid")}
               onClick={() => {
                 if (pendingAction) actionQueue.undo(order.id);
                 else actionQueue.schedule({ orderId: order.id, orderNumber: order.orderNumber, updatedAt: order.updatedAt, status: order.status === "pending" ? "confirmed" : "completed" });
               }}
             >
-              {pendingAction && pendingAction.status !== "cancelled" ? <>{pendingAction.phase === "saving" && <LoaderCircle aria-hidden className="animate-spin motion-reduce:animate-none" />}{pendingAction.phase === "pending" ? "Undo" : `${orderActionLabels[pendingAction.status]}…`}</> : order.status === "pending" ? "Confirm order" : "Complete order"}
+              {pendingAction && pendingAction.status !== "cancelled" ? <OrderActionButtonContent action={pendingAction} /> : order.status === "pending" ? "Confirm order" : "Complete order"}
             </Button>
             <Button
               variant="outline"
@@ -531,13 +551,15 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
             <Button variant="outline" disabled={!!pendingAction || blocked || working || !open || editor.busy} onClick={event => editor.open(order, event.currentTarget)}>
               <Pencil aria-hidden="true" /> Edit order
             </Button>
-            <Button variant="destructive" disabled={pendingAction?.status === "cancelled" ? pendingAction.phase !== "pending" : !!pendingAction || blocked || working || editor.busy || editorOpen || !open || order.payment === "paid"} onClick={() => {
+            <Button variant="destructive" data-order-undo={pendingAction?.status === "cancelled" && pendingAction.phase === "pending" ? "" : undefined} disabled={pendingAction?.status === "cancelled" ? pendingAction.phase !== "pending" : !!pendingAction || blocked || working || editor.busy || editorOpen || !open || order.payment === "paid"} onClick={() => {
               if (pendingAction) actionQueue.undo(order.id);
               else actionQueue.schedule({ orderId: order.id, orderNumber: order.orderNumber, updatedAt: order.updatedAt, status: "cancelled" });
             }}>
-              {pendingAction?.status === "cancelled" ? <>{pendingAction.phase === "saving" && <LoaderCircle aria-hidden className="animate-spin motion-reduce:animate-none" />}{pendingAction.phase === "pending" ? "Undo cancellation" : "Cancelling…"}</> : <><X aria-hidden="true" /> Cancel order</>}
+              {pendingAction?.status === "cancelled" ? <OrderActionButtonContent action={pendingAction} /> : <><X aria-hidden="true" /> Cancel order</>}
             </Button>
           </div>
+          <span role="status" className="sr-only">{pendingAction?.phase === "pending" ? "Undo available for three seconds. Activate the same button to undo." : pendingAction?.phase === "saving" ? "Saving order." : ""}</span>
+          {failedAction && <Alert variant="destructive"><AlertDescription>{failedAction.error} <Button variant="ghost" onClick={() => { refresh(); actionQueue.dismiss(order.id); }}>Refresh order</Button></AlertDescription></Alert>}
           {order.status === "pending" && order.deliveryFeeMode === "unknown" && <p className="text-sm">Set a delivery fee or select Customer pays rider before confirming.</p>}
           {order.status === "pending" && order.payment === "unpaid" && <p className="text-sm text-muted-foreground">Confirm the order before marking it paid.</p>}
           {open && order.payment === "paid" && <p className="text-sm">Record the refund before cancelling a paid order.</p>}

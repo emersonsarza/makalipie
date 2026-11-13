@@ -2,25 +2,10 @@ import { randomUUID } from "node:crypto";
 import { createServiceClient } from "../src/lib/admin/supabase";
 import { manilaDate } from "../src/lib/catalog/rules";
 import { applyOrderChange } from "../src/lib/orders/change";
-import { addCalendarDays } from "../src/lib/scheduling/rules";
 
 const service = createServiceClient();
 const today = manilaDate();
-const tomorrow = addCalendarDays(today, 1);
-const friday = nextWeekday(today, 5);
-const saturday = nextWeekday(today, 6);
-const sunday = nextWeekday(today, 0);
-const later = addCalendarDays(today, 2);
-const preorder = addCalendarDays(today, 4);
 const tag = randomUUID().slice(0, 8);
-
-function nextWeekday(date: string, weekday: number) {
-  for (let offset = 0; offset <= 7; offset += 1) {
-    const candidate = addCalendarDays(date, offset);
-    if (new Date(`${candidate}T00:00:00Z`).getUTCDay() === weekday) return candidate;
-  }
-  return addCalendarDays(date, 1);
-}
 
 async function header(id: string) {
   const row = await service.from("orders").select("id, updated_at, order_number, status, payment, fulfillment, delivery_fee_mode").eq("id", id).single();
@@ -33,7 +18,7 @@ async function place(patch: Record<string, unknown>, actor: "admin" | "public" =
     idempotencyKey: `cebu-demo-${tag}-${String(patch.customerName)}`,
     channel: "regular",
     locationId: "cebu",
-    fulfillmentDate: tomorrow,
+    fulfillmentDate: today,
     fulfillment: "pickup",
     slotId: "11:00",
     notes: "",
@@ -61,7 +46,7 @@ async function main() {
       label: "pending unpaid pickup",
       actor: "public",
       patch: {
-        slotId: "10:00",
+        slotId: "11:00",
         customerName: "Ava Tan",
         customerPhone: "09171230001",
         notes: "Call on arrival",
@@ -130,7 +115,6 @@ async function main() {
     {
       label: "confirmed unpaid pickup",
       patch: {
-        fulfillmentDate: friday,
         slotId: "16:00",
         customerName: "Franco Lim",
         customerPhone: "09221230006",
@@ -144,9 +128,8 @@ async function main() {
       steps: ["confirmed"],
     },
     {
-      label: "confirmed paid pickup, 10-inch preorder",
+      label: "confirmed paid pickup, 10-inch",
       patch: {
-        fulfillmentDate: preorder,
         slotId: "17:00",
         customerName: "Gia Villanueva",
         customerPhone: "09171230007",
@@ -158,7 +141,6 @@ async function main() {
     {
       label: "confirmed paid delivery, known fee",
       patch: {
-        fulfillmentDate: saturday,
         fulfillment: "delivery",
         slotId: "18:00",
         deliveryAddress: "Maria Luisa, Banilad, Cebu",
@@ -199,20 +181,19 @@ async function main() {
       steps: ["paid", "confirmed", "completed"],
     },
     {
-      label: "cancelled unpaid pickup",
+      label: "pending unpaid pickup, late slot",
+      actor: "public",
       patch: {
         slotId: "12:00",
         customerName: "Kai Fernandez",
         customerPhone: "09281230011",
-        notes: "Customer cancelled in chat",
+        notes: "After-work pickup",
         lines: [{ productId: "oreo", sizeId: "4-inch", quantity: 2, unitPriceCentavos: 19000 }],
       },
-      steps: ["cancelled"],
     },
     {
       label: "completed then refunded",
       patch: {
-        fulfillmentDate: preorder,
         slotId: "18:00",
         customerName: "Lia Santos",
         customerPhone: "09391230012",
@@ -224,7 +205,6 @@ async function main() {
     {
       label: "pending paid pickup",
       patch: {
-        fulfillmentDate: later,
         slotId: "13:00",
         customerName: "Miko Alvarez",
         customerPhone: "09171230013",
@@ -237,7 +217,7 @@ async function main() {
       steps: ["paid"],
     },
     {
-      label: "confirmed unpaid delivery, known fee",
+      label: "confirmed unpaid delivery, zero fee",
       patch: {
         fulfillment: "delivery",
         slotId: "16:00",
@@ -252,23 +232,22 @@ async function main() {
       steps: ["confirmed"],
     },
     {
-      label: "cancelled unpaid delivery, fee unknown",
-      actor: "public",
+      label: "confirmed unpaid delivery, pays rider",
       patch: {
         fulfillment: "delivery",
         slotId: "17:00",
         deliveryAddress: "Guadalupe, Cebu City",
+        deliveryFeeMode: "rider",
         customerName: "Omar Palacio",
         customerPhone: "09181230015",
-        notes: "Wrong address, cancel",
+        notes: "Gate code 4421",
         lines: [{ productId: "pecan", sizeId: "4-inch", quantity: 1, unitPriceCentavos: 24000 }],
       },
-      steps: ["cancelled"],
+      steps: ["confirmed"],
     },
     {
       label: "confirmed paid pickup, mixed weekend pies",
       patch: {
-        fulfillmentDate: sunday,
         slotId: "14:00",
         customerName: "Pia Uy",
         customerPhone: "09391230016",
@@ -304,7 +283,6 @@ async function main() {
       label: "pending unpaid pickup, large mixed cart",
       actor: "public",
       patch: {
-        fulfillmentDate: later,
         slotId: "18:00",
         customerName: "Rina Escario",
         customerPhone: "09221230018",
@@ -317,6 +295,41 @@ async function main() {
         ],
         addons: [{ id: "note-card", quantity: 3, unitPriceCentavos: 1500 }],
       },
+    },
+    {
+      label: "pending paid delivery, known fee",
+      patch: {
+        fulfillment: "delivery",
+        slotId: "12:00",
+        deliveryAddress: "Cebu Business Park, Ayala",
+        deliveryFeeMode: "known",
+        deliveryFeeCentavos: 12000,
+        customerName: "Sofia Ybañez",
+        customerPhone: "09171230019",
+        notes: "Reception, Tower 2",
+        lines: [
+          { productId: "smores", sizeId: "4-inch", quantity: 2, unitPriceCentavos: 19000 },
+          { productId: "banoffee", sizeId: "4-inch", quantity: 1, unitPriceCentavos: 24000 },
+        ],
+        addons: [{ id: "note-card", quantity: 2, unitPriceCentavos: 1500 }],
+      },
+      steps: ["paid"],
+    },
+    {
+      label: "completed paid delivery, pays rider",
+      patch: {
+        fulfillment: "delivery",
+        slotId: "15:00",
+        deliveryAddress: "Lahug, near JY Square",
+        deliveryFeeMode: "rider",
+        customerName: "Theo Abellana",
+        customerPhone: "09281230020",
+        lines: [
+          { productId: "butter-chicken-curry", sizeId: "4-inch", quantity: 1, unitPriceCentavos: 30000 },
+          { productId: "keylime", sizeId: "4-inch", quantity: 1, unitPriceCentavos: 24000 },
+        ],
+      },
+      steps: ["paid", "confirmed", "completed"],
     },
   ];
 

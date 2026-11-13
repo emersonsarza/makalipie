@@ -311,14 +311,9 @@ body:has(.admin-theme) [data-slot="tooltip-content"] { font-family: "Geist Admin
 .admin-sort-preview > li { list-style: none; }
 .admin-sort-row button[aria-disabled="true"] { opacity: 0.5; }
 
-/* Elapsed Undo time, not a simulated network progress indicator. */
-.admin-order-undo-progress {
-  transform-origin: left;
-  animation: admin-order-undo 3s linear forwards;
-}
-@keyframes admin-order-undo {
-  to { transform: scaleX(0); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .admin-order-undo-progress { animation: none; }
+.admin-theme button[data-order-undo],
+.admin-theme button[data-order-undo]:hover {
+  background: var(--brand-yellow);
+  color: var(--brand-black, #211a14);
+  border-color: var(--brand-yellow);
 }
