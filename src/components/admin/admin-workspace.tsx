@@ -16,6 +16,7 @@ import { OrderNotificationBell, OrderNotificationsProvider, useOrderNotification
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AdminConfirmProvider } from "./admin-confirm";
+import { OrderActionsProvider } from "./order-actions";
 import { SharedOrderEditor, useSharedOrderEditor } from "./shared-order-editor";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { AlertCircle, CalendarDays, ChevronDown, ListChecks, Cookie, LayoutDashboard, LogOut, Package, Plus, Settings, ShoppingBag, Store } from "lucide-react";
@@ -163,7 +164,7 @@ export function AdminWorkspace({ children, preview = false }: { children: ReactN
       <OrderNotificationsProvider key={account.id} accountId={account.id}>
       <TooltipProvider>
       <AdminConfirmProvider>
-      <SharedOrderEditor>
+      <OrderActionsProvider><SharedOrderEditor>
         {preview ? <><div className="admin-theme"><AdminFreshness /></div>{children}</> : <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen} style={{ "--sidebar-width-icon": "4rem" } as React.CSSProperties}>
           <Sidebar collapsible="icon" mobileClassName="admin-theme admin-mobile-sidebar">
             <SidebarHeader className="admin-sidebar-header h-[72px] justify-center px-3">
@@ -203,7 +204,7 @@ export function AdminWorkspace({ children, preview = false }: { children: ReactN
             <div className="min-w-0 flex-1 p-4 sm:p-6"><div key={pathname} className="admin-page-enter">{children}</div></div>
           </SidebarInset>
         </SidebarProvider>}
-      </SharedOrderEditor>
+      </SharedOrderEditor></OrderActionsProvider>
       </AdminConfirmProvider>
       </TooltipProvider>
       </OrderNotificationsProvider>

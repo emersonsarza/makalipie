@@ -63,9 +63,9 @@ export function adminRequest<T>(url: string, init?: RequestInit): Promise<T> {
   return write && hooks ? hooks.mutate(url, init, run) : run();
 }
 
-export function writeOrder<T>(action: string, payload: unknown) {
+export function writeOrder<T>(action: string, payload: unknown, signal?: AbortSignal) {
   return adminRequest<T>("/api/admin/orders", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action, payload }),
+    body: JSON.stringify({ action, payload }), signal,
   });
 }

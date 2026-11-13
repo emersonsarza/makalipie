@@ -9,6 +9,8 @@ import { OrderEditor } from "./order-editor";
 import { useOrderNotifications } from "./order-notifications";
 import { useAdminFetch, useAdminQuery, useAdminBlocked } from "./query-provider";
 
+import { useOrderActions } from "./order-actions";
+
 const EditorContext = createContext<{
   busy: boolean;
   open: (order: AdminOrder | null, trigger: HTMLElement) => void;
@@ -21,6 +23,7 @@ export function useSharedOrderEditor() {
 }
 
 export function SharedOrderEditor({ children }: { children: ReactNode }) {
+  const { queue: actionQueue } = useOrderActions();
   const fetchAdmin = useAdminFetch();
   const blocked = useAdminBlocked();
   const { setEditorOpen, selectOrder } = useOrderNotifications();
@@ -61,7 +64,7 @@ export function SharedOrderEditor({ children }: { children: ReactNode }) {
   }, [draft]);
 
   async function open(order: AdminOrder | null, button: HTMLElement) {
-    if (locked.current || blocked) return;
+    if (locked.current || blocked || (order && actionQueue.getSnapshot().some(action => action.orderId === order.id && action.phase !== "error"))) return;
     locked.current = true;
     trigger.current = button;
     setEditorOpen(true);
