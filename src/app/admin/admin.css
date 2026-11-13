@@ -311,9 +311,69 @@ body:has(.admin-theme) [data-slot="tooltip-content"] { font-family: "Geist Admin
 .admin-sort-preview > li { list-style: none; }
 .admin-sort-row button[aria-disabled="true"] { opacity: 0.5; }
 
-.admin-theme button[data-order-undo],
-.admin-theme button[data-order-undo]:hover {
-  background: var(--brand-yellow);
+/* A separate opaque track blends the seam without fading text or icons. */
+.admin-theme .admin-order-action {
+  --order-action-original: var(--primary);
+  --order-action-target: var(--brand-yellow);
+  position: relative;
+  overflow: hidden;
+  background: var(--background);
+  border-color: transparent;
+}
+.admin-order-action-background {
+  position: absolute;
+  inset: 0 0 auto;
+  height: calc(200% + 8px);
+  pointer-events: none;
+  /* Each solid region is exactly one button high; the middle band is 8px. */
+  background: linear-gradient(to bottom,
+    var(--order-action-original) calc(50% - 4px),
+    var(--order-action-target) calc(50% + 4px));
+  transform: translateY(0);
+  transition: transform 200ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+}
+.admin-order-action[data-action-active] .admin-order-action-background {
+  transform: translateY(calc(-50% - 4px));
+}
+.admin-order-action[data-action-saving] { --order-action-target: var(--order-action-original); }
+.admin-order-action[data-action-tone="destructive"] {
+  --order-action-original: color-mix(in oklch, var(--destructive) 10%, var(--background));
+}
+.admin-order-action-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding-inline: 0.5rem;
+  pointer-events: none;
+  transition: transform 200ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+}
+.admin-order-action-original,
+.admin-order-action[data-action-saving] .admin-order-action-undo {
+  color: var(--primary-foreground);
+}
+.admin-order-action[data-action-tone="destructive"] .admin-order-action-original,
+.admin-order-action[data-action-tone="destructive"][data-action-saving] .admin-order-action-undo {
+  color: var(--destructive);
+}
+.admin-order-action-original { transform: translateY(0); }
+.admin-order-action-undo {
+  transform: translateY(100%);
   color: var(--brand-black, #211a14);
-  border-color: var(--brand-yellow);
+}
+.admin-order-action[data-action-active] .admin-order-action-original { transform: translateY(-100%); }
+.admin-order-action[data-action-active] .admin-order-action-undo { transform: translateY(0); }
+@media (hover: hover) and (pointer: fine) {
+  .admin-order-action:not([data-action-active]):hover {
+    --order-action-original: color-mix(in oklch, var(--primary) 80%, var(--background));
+  }
+  .admin-order-action[data-action-tone="destructive"]:not([data-action-active]):hover {
+    --order-action-original: color-mix(in oklch, var(--destructive) 20%, var(--background));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-order-action-face,
+  .admin-order-action-background { transition: none; }
 }

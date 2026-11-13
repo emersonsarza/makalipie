@@ -22,7 +22,7 @@ import { adminQuery, invalidateAdmin } from "./query-cache";
 import { pesos, writeOrder } from "./orders-data";
 import { useOrderNotifications } from "./order-notifications";
 import { DeliveryFeeEditor } from "./delivery-fee-editor";
-import { useOrderActions, OrderActionButtonContent } from "./order-actions";
+import { useOrderActions, SlidingOrderActionButton } from "./order-actions";
 import { useSharedOrderEditor } from "./shared-order-editor";
 
 const emptyQueues: OrderQueue[] = [];
@@ -530,16 +530,18 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
             </div>
           </div>
           <div className={detailActionsClass}>
-            <Button
-              data-order-undo={pendingAction?.status !== "cancelled" && pendingAction?.phase === "pending" ? "" : undefined}
+            <SlidingOrderActionButton
+              key={`${order.id}-primary`}
+              label={order.status === "pending" ? "Confirm order" : "Complete order"}
+              action={pendingAction?.status !== "cancelled" ? pendingAction : undefined}
               disabled={pendingAction?.status !== "cancelled" && pendingAction ? pendingAction.phase !== "pending" : !!pendingAction || blocked || working || editor.busy || editorOpen || !open || (order.status === "pending" ? order.deliveryFeeMode === "unknown" : order.payment !== "paid")}
               onClick={() => {
                 if (pendingAction) actionQueue.undo(order.id);
                 else actionQueue.schedule({ orderId: order.id, orderNumber: order.orderNumber, updatedAt: order.updatedAt, status: order.status === "pending" ? "confirmed" : "completed" });
               }}
             >
-              {pendingAction && pendingAction.status !== "cancelled" ? <OrderActionButtonContent action={pendingAction} /> : order.status === "pending" ? "Confirm order" : "Complete order"}
-            </Button>
+              {order.status === "pending" ? "Confirm order" : "Complete order"}
+            </SlidingOrderActionButton>
             <Button
               variant="outline"
               disabled={!!pendingAction || blocked || working || (order.payment !== "paid" && (order.status !== "confirmed" || order.payment !== "unpaid"))}
@@ -551,12 +553,12 @@ export function OrdersWorkspace({ directOrderId }: { directOrderId?: string }) {
             <Button variant="outline" disabled={!!pendingAction || blocked || working || !open || editor.busy} onClick={event => editor.open(order, event.currentTarget)}>
               <Pencil aria-hidden="true" /> Edit order
             </Button>
-            <Button variant="destructive" data-order-undo={pendingAction?.status === "cancelled" && pendingAction.phase === "pending" ? "" : undefined} disabled={pendingAction?.status === "cancelled" ? pendingAction.phase !== "pending" : !!pendingAction || blocked || working || editor.busy || editorOpen || !open || order.payment === "paid"} onClick={() => {
+            <SlidingOrderActionButton key={`${order.id}-cancel`} variant="destructive" label="Cancel order" action={pendingAction?.status === "cancelled" ? pendingAction : undefined} disabled={pendingAction?.status === "cancelled" ? pendingAction.phase !== "pending" : !!pendingAction || blocked || working || editor.busy || editorOpen || !open || order.payment === "paid"} onClick={() => {
               if (pendingAction) actionQueue.undo(order.id);
               else actionQueue.schedule({ orderId: order.id, orderNumber: order.orderNumber, updatedAt: order.updatedAt, status: "cancelled" });
             }}>
-              {pendingAction?.status === "cancelled" ? <OrderActionButtonContent action={pendingAction} /> : <><X aria-hidden="true" /> Cancel order</>}
-            </Button>
+              <X aria-hidden="true" /> Cancel order
+            </SlidingOrderActionButton>
           </div>
           <span role="status" className="sr-only">{pendingAction?.phase === "pending" ? "Undo available for three seconds. Activate the same button to undo." : pendingAction?.phase === "saving" ? "Saving order." : ""}</span>
           {failedAction && <Alert variant="destructive"><AlertDescription>{failedAction.error} <Button variant="ghost" onClick={() => { refresh(); actionQueue.dismiss(order.id); }}>Refresh order</Button></AlertDescription></Alert>}
