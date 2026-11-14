@@ -513,7 +513,7 @@ export function Checkout(props: CheckoutProps) {
 
   function newAttempt(): PendingOrder {
     return {
-      idempotencyKey: crypto.randomUUID(), channel: dropId ? "drop" : "regular", locationId,
+      idempotencyKey: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2).padEnd(8, "0")}`, channel: dropId ? "drop" : "regular", locationId,
       dropId, fulfillmentDate: cart.date, fulfillment: method, slotId: dropId ? undefined : cart.slot,
       deliveryFeeMode: method === "delivery" && paysDriver ? "rider" : undefined,
       lines: Object.entries(cart.items).map(([key, item]) => {
@@ -580,17 +580,17 @@ export function Checkout(props: CheckoutProps) {
       });
       return;
     }
-    const attempt = pending ?? newAttempt();
-    const { receiptSummary = summarizeAttempt(attempt), ...orderRequest } = attempt;
     locked.current = true;
     setSubmitting(true);
     setError("");
     setScheduleError("");
-    savePending({ ...orderRequest, receiptSummary });
-    setPending({ ...orderRequest, receiptSummary });
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 20_000);
     try {
+    const attempt = pending ?? newAttempt();
+    const { receiptSummary = summarizeAttempt(attempt), ...orderRequest } = attempt;
+    savePending({ ...orderRequest, receiptSummary });
+    setPending({ ...orderRequest, receiptSummary });
       const response = await fetch("/api/public/orders", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...orderRequest, ...details }),
         signal: controller.signal,
@@ -768,7 +768,13 @@ export function Checkout(props: CheckoutProps) {
   const continueToDetails = <Button type="button" variant="ghost" className={styles.primary} disabled={detailsAction.disabled} onClick={detailsAction.onClick}>
     {detailsAction.label} <ArrowRight aria-hidden />
   </Button>;
-  const submitOrder = <Button type="submit" variant="ghost" form={reviewAction.form} className={`${styles.primary} w-full`} disabled={reviewAction.disabled}>
+  const submitOrder = <Button type="button" variant="ghost" className={`${styles.primary} w-full`} disabled={reviewAction.disabled} onClick={() => {
+    const target = document.getElementById(reviewAction.form);
+    if (target instanceof HTMLFormElement) {
+      if (typeof target.requestSubmit === "function") target.requestSubmit();
+      else target.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    }
+  }}>
     {reviewAction.label} <ArrowRight aria-hidden />
   </Button>;
   const mobileHint = step === 0 && !canChoosePies && !refreshError

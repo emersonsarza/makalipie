@@ -2851,8 +2851,11 @@ article.location-anchor[data-find-highlight]::after {
   .site-shell-checkout .mobile-lineup-bar {
     display: grid;
     gap: 4px;
-    padding-block: 6px calc(8px + env(safe-area-inset-bottom, 0px));
+    padding-block: 6px calc(8px + env(safe-area-inset-bottom, 0px) + var(--in-app-bottom, 0px));
     background: white;
+  }
+  html.in-app-browser .site-shell-checkout .mobile-lineup-bar {
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px) + var(--in-app-bottom, 56px));
   }
   .site-shell-checkout .mobile-lineup-bar[hidden] { display: none; }
   .site-shell-checkout .mobile-lineup-trigger { min-height: 44px; gap: 8px; }
