@@ -1338,8 +1338,9 @@ html:not([data-site-theme="original"]) .brand-seal > .seal-original {
   }
   .mobile-menu-backdrop {
     display: block;
-    position: fixed;
-    inset: var(--mobile-header-height) 0 0;
+    position: absolute;
+    inset: 100% 0 auto;
+    height: var(--mobile-menu-height, calc(100dvh - 120px));
     z-index: 0;
     background: rgb(44 42 40 / 12%);
     backdrop-filter: blur(6px);

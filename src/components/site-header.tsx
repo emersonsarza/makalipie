@@ -117,7 +117,7 @@ export function SiteHeader({ menuView }: { menuView?: "menu" | "preorders" }) {
     const viewport = window.visualViewport;
     const syncHeight = () => {
       const bottom = header.getBoundingClientRect().bottom;
-      menu.style.setProperty("--mobile-menu-height", `${Math.max(0, (viewport?.height ?? window.innerHeight) - bottom)}px`);
+      header.style.setProperty("--mobile-menu-height", `${Math.max(0, (viewport?.height ?? window.innerHeight) - bottom)}px`);
     };
     syncHeight();
     window.addEventListener("resize", syncHeight);
